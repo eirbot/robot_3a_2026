@@ -1,18 +1,25 @@
 #include <Arduino.h>
+#include "Actionneur.hpp"
 
-// put function declarations here:
-int myFunction(int, int);
+Actionneur actionneurs;
 
 void setup() {
-  // put your setup code here, to run once:
-  int result = myFunction(2, 3);
+    Serial.begin(115200);
+    
+    // Attendre que le port série soit prêt
+    while (!Serial) {
+      vTaskDelay(pdMS_TO_TICKS(100)); // attente
+    }
+    
+    actionneurs.Init();
 }
 
 void loop() {
-  // put your main code here, to run repeatedly:
-}
+    if (actionneurs.AreAllReady()) {
+        Serial.println("Tous les actionneurs prêts !");
+    } else {
+        Serial.println("Mouvement en cours...");
+    }
 
-// put function definitions here:
-int myFunction(int x, int y) {
-  return x + y;
+    vTaskDelay(pdMS_TO_TICKS(500));
 }
