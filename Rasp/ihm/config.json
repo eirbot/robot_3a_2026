@@ -1,0 +1,34 @@
+{
+  "team": "BLEUE",
+  "score_target": 142,
+  "ui": {
+    "width": 800,
+    "height": 480
+  },
+  "gpio": {
+    "use_buttons": true,
+    "pins": {
+      "UP": 17,
+      "DOWN": 27,
+      "SELECT": 22,
+      "BACK": 23,
+      "START": 5,
+      "STOP": 6
+    }
+  },
+  "leds": {
+    "enabled": true,
+    "num_leds": 60,
+    "pin_pwm": 18,
+    "brightness": 128
+  },
+  "audio": {
+    "enabled": true,
+    "volume": 0.8,
+    "tracks": {
+      "intro": "/home/pi/eirbot/ihm/audio/intro.mp3",
+      "match": "/home/pi/eirbot/ihm/audio/match_theme.mp3",
+      "end": "/home/pi/eirbot/ihm/audio/end_fanfare.mp3"
+    }
+  }
+}
