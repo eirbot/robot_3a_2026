@@ -1,8 +1,8 @@
-import time
+import time, psutil
 import tkinter as tk
 from dataclasses import dataclass
 from strategy_link import ui_queue
-from menu_definitions import make_menus
+from menu_definitions import make_menus, _ina
 
 @dataclass
 class UIState:
@@ -74,6 +74,11 @@ class UIManager:
         self.frame_dash.pack(fill=tk.BOTH, expand=True)
         self.render_dashboard()
 
+    # ==== Plots =====
+    def show_current_plot(self):
+        from plots.current_plot import CurrentPlotWindow
+        CurrentPlotWindow(self.root, _ina)
+
     # ===== Rendering =====
     def render_menu(self):
         key = self.menu_stack[-1]
@@ -102,6 +107,8 @@ class UIManager:
         self.lbl_dash_score.config(text=f"Score actuel : {self.state.score_current}")
         st = "Match en cours…" if self.state.match_running else "En attente"
         if self.state.debug: st += " | DEBUG ON"
+        cpu = psutil.cpu_percent(interval=None)
+        st += f" | CPU {cpu:.0f}%"
         self.lbl_dash_state.config(text=st)
 
     # ===== Navigation (GPIO) =====

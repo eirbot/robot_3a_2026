@@ -1,4 +1,7 @@
-import os, socket, subprocess
+import os, socket, subprocess, psutil
+from Rasp.ihm.sensors.ina226_reader import INA226
+
+_ina = INA226(address=0x40, shunt_resistance=0.01)
 
 def _first_or(s, default="N/A"):
     return s.strip().split()[0] if s and s.strip() else default
@@ -18,20 +21,27 @@ def get_cpu_temp():
         return f"{t:.1f} °C"
     except Exception:
         return "N/A"
+    
+
+def get_cpu_usage():
+    try:
+        return f"{psutil.cpu_percent(interval=None):.1f} %"
+    except Exception:
+        return "N/A"
 
 
 def get_battery_voltage():
-    # Adapter selon ton capteur (ADC/I2C). Placeholder :
-    path_candidates = [
-        "/sys/class/power_supply/battery/voltage_now",
-        "/sys/class/power_supply/axp20x-battery/voltage_now"
-    ]
-    for p in path_candidates:
-        try:
-            return f"{int(open(p).read())/1e6:.2f} V"
-        except Exception:
-            pass
-    return "Inconnue"
+    try:
+        return f"{_ina.voltage:.2f} V"
+    except Exception:
+        return "Erreur capteur"
+
+
+def get_battery_current():
+    try:
+        return f"{_ina.current:.2f} A"
+    except Exception:
+        return "—"
 
 
 def make_menus(ui):
@@ -68,17 +78,23 @@ def make_menus(ui):
         },
         "sys": {
             "title": "📊 Infos système",
-            # dynamic(): lignes informatives non‑sélectionnables
             "dynamic": lambda: [
                 f"IP : {get_ip()}",
+                f"Tension : {get_battery_voltage()}",
+                f"Courant : {get_battery_current()}",
                 f"CPU Temp : {get_cpu_temp()}",
-                f"Batterie : {get_battery_voltage()}",
-                f"Équipe : {ui.state.team}",
-                f"Score objectif : {ui.state.score_target}",
-                f"Score courant : {ui.state.score_current}"
+                f"CPU Usage : {get_cpu_usage()}"
             ],
             "items": [
+                ("Voir graphique courant", lambda: ui.open_menu("current")),
                 ("Retour", lambda: ui.open_menu("root"))
+            ]
+        },
+        "current": {
+            "title": "📈 Graphique courant",
+            "items": [
+                ("Ouvrir fenêtre graphique", ui.show_current_plot),
+                ("Retour", lambda: ui.open_menu("sys"))
             ]
         },
         "strat": {
