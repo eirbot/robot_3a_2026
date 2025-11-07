@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
-import serial, time
+import serial, time # type: ignore
 import numpy as np
+import matplotlib.pyplot as plt
 
 class RPLidarC1M1:
-    """Gestion bas-niveau du LIDAR RPLiDAR C1M1 (mode standard 0x20)."""
+    """Gestion du LIDAR RPLiDAR C1M1 (mode standard 0x20)."""
 
     CMD_SCAN = b"\xA5\x20"
     CMD_STOP = b"\xA5\x25"
@@ -48,7 +49,7 @@ class RPLidarC1M1:
 
     @staticmethod
     def _decode_sample(b):
-        """Décodage d’un paquet de 5 octets selon la spec officielle."""
+        """Décodage d’un paquet de 5 octets selon la spec C1M1."""
         if len(b) != 5:
             return None
         b0, b1, b2, b3, b4 = b
@@ -122,6 +123,45 @@ class RPLidarC1M1:
                     return np.array(revolution)
                 self.last_S = S
 
-                # Enregistrement point valide
                 if min_dist < dist < max_dist:
                     revolution.append((angle, dist, qual))
+
+    # ---------------------
+    # Mode affichage temps réel
+    # ---------------------
+
+    def plot_live(self, rmax=4000):
+        """
+        Affiche en direct les scans successifs sur un graphique polaire.
+        Appuyer sur Ctrl+C pour arrêter.
+        """
+        print("[LIVE] Démarrage du scan continu (Ctrl+C pour quitter)...")
+        self.start_scan()
+
+        plt.ion()
+        fig = plt.figure(facecolor='black')
+        ax = fig.add_subplot(111, projection='polar')
+        ax.set_facecolor('black')
+        ax.set_xticks([]); ax.set_yticks([]); ax.grid(False)
+        ax.set_rmax(rmax)
+        sc = ax.scatter([], [], s=6, c=[], cmap='turbo', vmin=0, vmax=63)
+
+        try:
+            while True:
+                scan = self.get_scan(min_dist=20, max_dist=12000)
+                if len(scan) == 0:
+                    continue
+                angles = np.radians(scan[:, 0])
+                dists = scan[:, 1]
+                qual = scan[:, 2]
+
+                sc.set_offsets(np.c_[angles, dists])
+                sc.set_array(qual)
+                plt.draw()
+                plt.pause(0.001)
+        except KeyboardInterrupt:
+            print("\n[STOP] utilisateur.")
+        finally:
+            self.close()
+            plt.ioff()
+            plt.close(fig)

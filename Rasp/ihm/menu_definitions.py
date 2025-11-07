@@ -1,7 +1,7 @@
-import os, socket, subprocess, psutil
-from Rasp.ihm.sensors.ina226_reader import INA226
+import os, socket, subprocess, psutil # type: ignore
+from sensors.ina226_reader import INA226
 
-_ina = INA226(address=0x40, shunt_resistance=0.01)
+_ina = None #INA226(address=0x40, shunt_resistance=0.01)
 
 def _first_or(s, default="N/A"):
     return s.strip().split()[0] if s and s.strip() else default
@@ -47,7 +47,7 @@ def get_battery_current():
 def make_menus(ui):
     return {
         "root": {
-            "title": "🏠 Menu principal",
+            "title": "Menu principal",
             "items": [
                 ("Mode & Équipe", lambda: ui.open_menu("mode")),
                 ("Diagnostic I/O", lambda: ui.open_menu("diag")),
@@ -57,7 +57,7 @@ def make_menus(ui):
             ]
         },
         "mode": {
-            "title": "⚙️ Mode & Équipe",
+            "title": "Mode & Équipe",
             "items": [
                 ("Changer équipe", ui.toggle_team),
                 ("Basculer Debug", ui.toggle_debug),
@@ -66,7 +66,7 @@ def make_menus(ui):
             ]
         },
         "diag": {
-            "title": "🔍 Diagnostic I/O",
+            "title": "Diagnostic I/O",
             "items": [
                 ("Tester LED (respire)", lambda: ui.leds.match_start() if ui.leds else None),
                 ("LED Off", lambda: ui.leds.off() if ui.leds else None),
@@ -77,7 +77,7 @@ def make_menus(ui):
             ]
         },
         "sys": {
-            "title": "📊 Infos système",
+            "title": "Infos système",
             "dynamic": lambda: [
                 f"IP : {get_ip()}",
                 f"Tension : {get_battery_voltage()}",
@@ -91,14 +91,14 @@ def make_menus(ui):
             ]
         },
         "current": {
-            "title": "📈 Graphique courant",
+            "title": "Graphique courant",
             "items": [
                 ("Ouvrir fenêtre graphique", ui.show_current_plot),
                 ("Retour", lambda: ui.open_menu("sys"))
             ]
         },
         "strat": {
-            "title": "🧠 Mode stratégie",
+            "title": "Mode stratégie",
             "items": [
                 ("Lancer match", ui.start_match),
                 ("Stopper match", ui.stop_match),
@@ -107,7 +107,7 @@ def make_menus(ui):
             ]
         },
         "power": {
-            "title": "⏻ Arrêt / Reboot",
+            "title": "Arrêt / Reboot",
             "items": [
                 ("Redémarrer", lambda: os.system("sudo reboot")),
                 ("Éteindre",   lambda: os.system("sudo shutdown now")),

@@ -1,6 +1,5 @@
 gpiozero==2.0
 rpi_ws281x==5.0.0
-pygame==2.5.2
 matplotlib==3.9.2
 smbus2==0.4.3
 psutil==5.9.8

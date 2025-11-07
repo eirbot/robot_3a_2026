@@ -20,15 +20,18 @@
     "enabled": true,
     "num_leds": 60,
     "pin_pwm": 18,
-    "brightness": 128
+    "brightness": 128,
+    "invert": false,
+    "freq_hz": 800000,
+    "dma": 10
   },
   "audio": {
     "enabled": true,
     "volume": 0.8,
     "tracks": {
-      "intro": "/home/pi/eirbot/ihm/audio/intro.mp3",
-      "match": "/home/pi/eirbot/ihm/audio/match_theme.mp3",
-      "end": "/home/pi/eirbot/ihm/audio/end_fanfare.mp3"
+        "intro": "intro.mp3",
+        "match": "match_loop.mp3",
+        "end": "outro.mp3"
     }
   }
 }

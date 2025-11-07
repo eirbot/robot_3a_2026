@@ -1,0 +1,16 @@
+[Unit]
+Description=Eirbot LED Controller (root)
+After=network.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/home/eirbot/Documents/robot_3a_2026/ihm
+ExecStart=/usr/bin/python3 /home/eirbot/Documents/robot_3a_2026/ihm/led_service.py
+Restart=always
+RestartSec=2
+StandardOutput=append:/var/log/led_service.log
+StandardError=append:/var/log/led_service.log
+
+[Install]
+WantedBy=multi-user.target

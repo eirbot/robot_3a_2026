@@ -1,4 +1,4 @@
-import serial, time
+import serial, time # type: ignore
 
 ESP_PORTS = ["/dev/ttyUSB1", "/dev/ttyUSB2"]
 

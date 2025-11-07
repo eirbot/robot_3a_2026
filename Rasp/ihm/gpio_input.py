@@ -1,5 +1,5 @@
 try:
-    from gpiozero import Button
+    from gpiozero import Button # type: ignore
 except Exception:
     Button = None
 

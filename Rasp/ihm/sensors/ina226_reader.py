@@ -1,4 +1,4 @@
-import smbus2, time, threading, collections
+import smbus2, time, threading, collections # type: ignore
 
 class INA226:
     def __init__(self, address=0x40, shunt_resistance=0.01):

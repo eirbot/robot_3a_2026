@@ -3,9 +3,9 @@ Description=Eirbot Control Interface (IHM)
 After=network.target sound.target
 
 [Service]
-User=pi
-WorkingDirectory=/home/pi/eirbot/ihm
-ExecStart=/usr/bin/python3 /home/pi/eirbot/ihm/main.py
+User=eirbot
+WorkingDirectory=/home/eirbot/Documents/robot_3a_2026/ihm
+ExecStart=/home/eirbot/Documents/robot_3a_2026/.venv/bin/python3 /home/eirbot/Documents/robot_3a_2026/ihm/main.py
 Restart=always
 RestartSec=2
 StandardOutput=append:/var/log/ihm.log

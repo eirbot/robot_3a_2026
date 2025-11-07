@@ -1,4 +1,4 @@
-import time, psutil
+import time, psutil # type: ignore
 import tkinter as tk
 from dataclasses import dataclass
 from strategy_link import ui_queue
@@ -62,6 +62,15 @@ class UIManager:
         # Loop timers
         root.after(100, self._poll_queue)
         root.after(200, self._tick)
+
+                # ===== Keyboard navigation =====
+        root.bind("<Up>", lambda e: self.nav_up())
+        root.bind("<Down>", lambda e: self.nav_down())
+        root.bind("<Return>", lambda e: self.nav_select())
+        root.bind("<BackSpace>", lambda e: self.nav_back())
+        root.bind("<Escape>", lambda e: self.nav_back())
+        print("[UI] Contrôles clavier activés (↑ ↓ Entrée Backspace).")
+
 
     # ===== Views =====
     def show_menu(self):
