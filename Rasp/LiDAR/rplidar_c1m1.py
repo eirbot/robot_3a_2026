@@ -130,38 +130,199 @@ class RPLidarC1M1:
     # Mode affichage temps réel
     # ---------------------
 
-    def plot_live(self, rmax=4000):
+    def plot_live_pygame_threaded(self, rmax=4000, fps=15, step=500):
         """
-        Affiche en direct les scans successifs sur un graphique polaire.
-        Appuyer sur Ctrl+C pour arrêter.
+        Affichage temps réel PyGame (fluide + interactif + auto seuil)
+        -----------------------------------------------------------------
+        - Thread acquisition LIDAR séparé
+        - Orientation corrigée
+        - ↑ / ↓ : ajuste le seuil manuel
+        - A : seuil automatique (top 5 % des points)
+        - Échelle de distance (cercles + labels)
+        - Points > seuil = blanc (bande réfléchissante)
+        - ESC ou croix pour quitter proprement
         """
-        print("[LIVE] Démarrage du scan continu (Ctrl+C pour quitter)...")
+        import pygame, math, threading, queue, numpy as np, time
+
+        print("[PYGAME-LIVE] Démarrage du LIDAR (thread séparé)...")
         self.start_scan()
 
-        plt.ion()
-        fig = plt.figure(facecolor='black')
-        ax = fig.add_subplot(111, projection='polar')
-        ax.set_facecolor('black')
-        ax.set_xticks([]); ax.set_yticks([]); ax.grid(False)
-        ax.set_rmax(rmax)
-        sc = ax.scatter([], [], s=6, c=[], cmap='turbo', vmin=0, vmax=63)
+        # --- paramètres d'affichage ---
+        size = 600
+        scale = size / (2 * rmax)
+        center = size // 2
+        bg_color = (0, 0, 0)
 
-        try:
-            while True:
-                scan = self.get_scan(min_dist=20, max_dist=12000)
-                if len(scan) == 0:
-                    continue
-                angles = np.radians(scan[:, 0])
-                dists = scan[:, 1]
-                qual = scan[:, 2]
+        pygame.init()
+        screen = pygame.display.set_mode((size, size))
+        pygame.display.set_caption("RPLidarC1M1 — Live PyGame (threaded)")
+        clock = pygame.time.Clock()
+        font = pygame.font.SysFont("Arial", 14)
 
-                sc.set_offsets(np.c_[angles, dists])
-                sc.set_array(qual)
-                plt.draw()
-                plt.pause(0.001)
-        except KeyboardInterrupt:
-            print("\n[STOP] utilisateur.")
-        finally:
-            self.close()
-            plt.ioff()
-            plt.close(fig)
+        q_scans = queue.Queue(maxsize=2)
+        running = True
+        qual_thresh = 50
+        auto_mode = False
+
+        # --- thread acquisition LIDAR ---
+        def lidar_thread():
+            while running:
+                try:
+                    scan = self.get_scan(min_dist=20, max_dist=rmax)
+                    if len(scan) == 0:
+                        continue
+                    if q_scans.full():
+                        q_scans.get_nowait()
+                    q_scans.put_nowait(scan)
+                except Exception as e:
+                    print("[LIDAR-THREAD] erreur:", e)
+                    time.sleep(0.05)
+
+        t = threading.Thread(target=lidar_thread, daemon=True)
+        t.start()
+
+        def mm_to_px(x_mm, y_mm):
+            return int(center + x_mm * scale), int(center - y_mm * scale)
+
+        def draw_scale():
+            """Dessine les cercles d’échelle et les labels distance."""
+            for r in range(step, rmax + step, step):
+                pygame.draw.circle(screen, (50, 50, 50), (center, center), int(r * scale), 1)
+                label = font.render(f"{r} mm", True, (150, 150, 150))
+                x, y = mm_to_px(0, -r)
+                screen.blit(label, (x + 5, y - 10))
+
+        frame = 0
+        last_scan = None
+
+        while running:
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    running = False
+                elif event.type == pygame.KEYDOWN:
+                    if event.key == pygame.K_ESCAPE:
+                        running = False
+                    elif event.key == pygame.K_UP:
+                        qual_thresh = min(qual_thresh + 5, 63)
+                        auto_mode = False
+                        print(f"[QUAL] seuil manuel = {qual_thresh}")
+                    elif event.key == pygame.K_DOWN:
+                        qual_thresh = max(qual_thresh - 5, 0)
+                        auto_mode = False
+                        print(f"[QUAL] seuil manuel = {qual_thresh}")
+                    elif event.key == pygame.K_a:
+                        auto_mode = True
+                        print("[AUTO] mode adaptatif activé")
+
+            screen.fill(bg_color)
+            draw_scale()
+
+            # lecture du dernier scan dispo
+            if not q_scans.empty():
+                last_scan = q_scans.get_nowait()
+
+            if last_scan is not None:
+                angles = np.radians(last_scan[:, 0])
+                dists = last_scan[:, 1]
+                qual = last_scan[:, 2]
+
+                # mode auto : top 5 % des valeurs
+                if auto_mode and len(qual) > 20:
+                    qual_thresh = int(np.percentile(qual, 95))
+
+                x = dists * np.sin(angles)
+                y = -dists * np.cos(angles)
+
+                for i in range(len(x)):
+                    q = int(qual[i])
+                    px, py = mm_to_px(x[i], y[i])
+                    if not (0 <= px < size and 0 <= py < size):
+                        continue
+
+                    if q >= qual_thresh:
+                        color = (255, 255, 255)  # bande réfléchissante
+                    else:
+                        color = pygame.Color(0)
+                        color.hsva = (int(240 - 240 * q / 63), 100, 100, 100)
+
+                    screen.set_at((px, py), color)
+
+            # centre et infos
+            pygame.draw.circle(screen, (100, 100, 100), (center, center), 3)
+            txt = font.render(
+                f"{frame:04d} | Seuil: {qual_thresh} ({'AUTO' if auto_mode else 'MANU'})",
+                True, (220, 220, 220),
+            )
+            screen.blit(txt, (10, 10))
+
+            pygame.display.flip()
+            clock.tick(fps)
+            frame += 1
+
+        self.close()
+        pygame.quit()
+        print("[PYGAME-LIVE] Fin de l'affichage propre.")
+
+    
+    # ---------------------
+    # Mode analyse qualité (interactif)
+    # ---------------------
+
+    def plot_reflectivity(self, rmax=6000, qual_min=0):
+        """
+        Affiche une carte (x, y) de la qualité des mesures.
+        Permet d'ajuster dynamiquement le seuil de qualité avec ↑/↓.
+        """
+        import matplotlib.pyplot as plt
+
+        print("[REFLECTIVITY] Scan en cours...")
+        self.start_scan()
+        scan = self.get_scan(min_dist=20, max_dist=rmax)
+        self.close()
+
+        if len(scan) == 0:
+            print("[WARN] Aucun point détecté.")
+            return
+
+        angles = np.radians(scan[:, 0])
+        dists = scan[:, 1]
+        qual = scan[:, 2]
+        x = dists * np.cos(angles)
+        y = dists * np.sin(angles)
+
+        fig, ax = plt.subplots(figsize=(8, 6))
+        sc = ax.scatter(x, y, c=qual, s=10, cmap='turbo', vmin=0, vmax=63)
+        cbar = plt.colorbar(sc, label='Qualité (0–63)')
+        ax.set_title(f"Carte de qualité LIDAR — seuil {qual_min}")
+        ax.set_xlabel("x [mm]")
+        ax.set_ylabel("y [mm]")
+        ax.set_xlim(-rmax, rmax)
+        ax.set_ylim(-rmax, rmax)
+        ax.set_aspect('equal', 'box')
+
+        # Filtrage initial
+        def update_plot(threshold):
+            mask = qual >= threshold
+            sc.set_offsets(np.c_[x[mask], y[mask]])
+            sc.set_array(qual[mask])
+            ax.set_title(f"Carte de qualité LIDAR — seuil {threshold}")
+            fig.canvas.draw_idle()
+
+        # Interaction clavier
+        current = qual_min
+
+        def on_key(event):
+            nonlocal current
+            if event.key == "up":
+                current = min(current + 1, 63)
+                update_plot(current)
+            elif event.key == "down":
+                current = max(current - 1, 0)
+                update_plot(current)
+            elif event.key == "escape":
+                plt.close(fig)
+
+        fig.canvas.mpl_connect("key_press_event", on_key)
+        update_plot(qual_min)
+        plt.show()
+
