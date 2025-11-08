@@ -142,7 +142,7 @@ class RPLidarC1M1:
         - Points > seuil = blanc (bande réfléchissante)
         - ESC ou croix pour quitter proprement
         """
-        import pygame, math, threading, queue, numpy as np, time
+        import pygame, math, threading, queue, numpy as np, time # type: ignore
 
         print("[PYGAME-LIVE] Démarrage du LIDAR (thread séparé)...")
         self.start_scan()
