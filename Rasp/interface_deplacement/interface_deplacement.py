@@ -1,12 +1,107 @@
 import tkinter as tk
+import numpy as np
+import bezier
+import ClassPoint
 from PIL import Image, ImageTk
 
-def resize_image(event):
+def on_drag(event):
+    """Quand on déplace la souris tout en maintenant le clic"""
+    if drag_data["item"]==point1.id:
+        dx = event.x - drag_data["x"]
+        dy = event.y - drag_data["y"]
+        point1.move(dx,dy)
+        drag_data["x"] = event.x
+        drag_data["y"] = event.y
+    elif drag_data["item"]==point2.id:
+        dx = event.x - drag_data["x"]
+        dy = event.y - drag_data["y"]
+        point2.move(dx,dy)
+        drag_data["x"] = event.x
+        drag_data["y"] = event.y
+    elif drag_data["item"]==point3.id:
+        dx = event.x - drag_data["x"]
+        dy = event.y - drag_data["y"]
+        point3.move(dx,dy)
+        drag_data["x"] = event.x
+        drag_data["y"] = event.y
+    elif drag_data["item"]==point4.id:
+        dx = event.x - drag_data["x"]
+        dy = event.y - drag_data["y"]
+        point4.move(dx,dy)
+        drag_data["x"] = event.x
+        drag_data["y"] = event.y
+
+    trajectoire_bezier = bezier.bezier_cubique_discret(200, np.array([point1.x, point1.y]), np.array([point2.x, point2.y]), np.array([point3.x, point3.y]), np.array([point4.x, point4.y]))
+    traj_pix = np.zeros_like(trajectoire_bezier)
+    traj_pix[:, 0] = offset_x + (trajectoire_bezier[:, 0] + 1.5) / 3 * displayed_image.width
+    traj_pix[:, 1] = offset_y + (trajectoire_bezier[:, 1]) / 2 * displayed_image.height
+
+    canvas.delete("courbe_bezier")
+    affiche_points(traj_pix)
+
+def on_release(event):
+    x_click = event.x
+    y_click = event.y
+
+    if drag_data["item"] is not None:
+        if offset_x <= x_click <= offset_x + displayed_image.width and \
+        offset_y <= y_click <= offset_y + displayed_image.height:
+            x_img = float((x_click - offset_x) / displayed_image.width * 3 - 1.5)
+            y_img = float((y_click - offset_y) / displayed_image.height * 2)
+            if drag_data["item"]==point1.id:
+                indice_point = drag_data["item"]- point1.id
+                point1.x = x_img
+                point1.y = y_img
+                print(f"Point numéro {drag_data["item"]- point1.id} placé : (x= {point1.x:.3f} m, y= {point1.y:.3f} m) ")
+            if drag_data["item"]==point2.id:
+                indice_point = drag_data["item"]- point2.id
+                point2.x = x_img
+                point2.y = y_img
+                print(f"Point numéro {drag_data["item"]- point2.id} placé : (x= {point2.x:.3f} m, y= {point2.y:.3f} m) ")
+            if drag_data["item"]==point3.id:
+                indice_point = drag_data["item"]- point3.id
+                point3.x = x_img
+                point3.y = y_img
+                print(f"Point numéro {drag_data["item"]- point3.id} placé : (x= {point3.x:.3f} m, y= {point3.y:.3f} m) ")
+            if drag_data["item"]==point4.id:
+                indice_point = drag_data["item"]- point4.id
+                point4.x = x_img
+                point4.y = y_img
+                print(f"Point numéro {drag_data["item"]- point4.id} placé : (x= {point4.x:.3f} m, y= {point4.y:.3f} m) ")
+        else:
+            print("Clic en dehors de l’image")
+
+        print("Calcul de la courbe de bézier correspondante")
+        trajectoire_bezier = bezier.bezier_cubique_discret(200, np.array([point1.x, point1.y]), np.array([point2.x, point2.y]), np.array([point3.x, point3.y]), np.array([point4.x, point4.y]))
+
+        print(f"point1.x: {point1.x}, point1.y: {point1.y}")
+
+        # Transformation vers coordonnées écran
+        traj_pix = np.zeros_like(trajectoire_bezier)
+        traj_pix[:, 0] = offset_x + (trajectoire_bezier[:, 0] + 1.5) / 3 * displayed_image.width
+        traj_pix[:, 1] = offset_y + (trajectoire_bezier[:, 1]) / 2 * displayed_image.height
+
+        canvas.delete("courbe_bezier")
+        affiche_points(traj_pix)
+
+
+    drag_data["item"] = None
+
+def affiche_points(liste_coordonnes):
+    """Affiche la courbe de Bézier sous forme de segments"""
+    for i_coord in range(liste_coordonnes.shape[0] - 1):
+        canvas.create_line(
+            liste_coordonnes[i_coord][0], liste_coordonnes[i_coord][1],
+            liste_coordonnes[i_coord + 1][0], liste_coordonnes[i_coord + 1][1],
+            fill="red", width=2, tags="courbe_bezier"
+        )
+
+def resize_image():
     """Redimensionne l’image en gardant le ratio"""
     global displayed_image, photo, img_scale, offset_x, offset_y
 
-    container_width = event.width
-    container_height = event.height
+    container_width = 900
+    container_height = 600
 
     img_ratio = original_image.width / original_image.height
     container_ratio = container_width / container_height
@@ -18,31 +113,40 @@ def resize_image(event):
         new_width = container_width
         new_height = int(new_width / img_ratio)
 
-    # Calcul du facteur d’échelle et des marges (centrage)
     img_scale = new_width / original_image.width
     offset_x = (container_width - new_width) // 2
     offset_y = (container_height - new_height) // 2
 
-    # Redimensionnement de l’image
     displayed_image = original_image.resize((new_width, new_height), Image.LANCZOS)
     photo = ImageTk.PhotoImage(displayed_image)
-    label.config(image=photo)
-    label.image = photo
+
+    # Supprime uniquement l’ancienne image de fond
+    canvas.delete("background")
+    bg = canvas.create_image(offset_x, offset_y, anchor="nw", image=photo, tags="background")
+    canvas.tag_lower(bg)
+    canvas.image = photo  # éviter le garbage collector
 
 def on_click(event):
-    """Récupère les coordonnées du clic (dans l’image originale)"""
-    x_click = event.x
-    y_click = event.y
+    """Quand on clique, on vérifie si on clique sur le point"""
+    items = canvas.find_overlapping(event.x, event.y, event.x, event.y)
+    if point1.id in items:
+        drag_data["item"] = point1.id
+        drag_data["x"] = event.x
+        drag_data["y"] = event.y
+    elif point2.id in items:
+        drag_data["item"] = point2.id
+        drag_data["x"] = event.x
+        drag_data["y"] = event.y
+    elif point3.id in items:
+        drag_data["item"] = point3.id
+        drag_data["x"] = event.x
+        drag_data["y"] = event.y
+    elif point4.id in items:
+        drag_data["item"] = point4.id
+        drag_data["x"] = event.x
+        drag_data["y"] = event.y
 
-    # Vérifie si le clic est à l’intérieur de l’image affichée
-    if offset_x <= x_click <= offset_x + displayed_image.width and \
-       offset_y <= y_click <= offset_y + displayed_image.height:
-        # Convertit les coordonnées en repère de l’image originale
-        x_img = float((x_click - offset_x) / displayed_image.width *3 - 1.5)
-        y_img = float((y_click - offset_y) / displayed_image.height *2)
-        print(f"Clic sur l’image : (x= {x_img:.3f} m, y= {y_img:.3f} m) ")
-    else:
-        print("Clic en dehors de l’image")
+    
 
 root = tk.Tk()
 root.title("Interface de déplacement")
@@ -50,17 +154,28 @@ root.geometry("900x600+0+0")
 
 original_image = Image.open("table_coupe_2026.png")
 
-photo = ImageTk.PhotoImage(original_image)
-label = tk.Label(root, image=photo, bg="black")
-label.pack(fill="both", expand=True)
+canvas = tk.Canvas(root, bg="black")
+canvas.pack(fill="both", expand=True)
 
-# Variables globales pour l’échelle et le décalage
+photo = ImageTk.PhotoImage(original_image)
+bg = canvas.create_image(0, 0, anchor="nw", image=photo, tags="background")
+canvas.tag_lower(bg)
+
 img_scale = 1.0
 offset_x = offset_y = 0
 displayed_image = original_image
 
-# Événements
-label.bind("<Configure>", resize_image)
-label.bind("<Button-1>", on_click)  # clic gauche
+point1 = ClassPoint.Point(canvas, 1, 1)
+point2 = ClassPoint.Point(canvas, 1, 1.1)
+point3 = ClassPoint.Point(canvas, 1, 1.2)
+point4 = ClassPoint.Point(canvas, 1, 1.3)
+
+drag_data = {"x": 0, "y": 0, "item": None}
+
+resize_image()
+canvas.bind("<Button-1>", on_click)
+canvas.bind("<B1-Motion>", on_drag)
+canvas.bind("<ButtonRelease-1>", on_release)
 
 root.mainloop()
+
