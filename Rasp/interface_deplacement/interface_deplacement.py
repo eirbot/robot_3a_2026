@@ -1,43 +1,39 @@
 import tkinter as tk
+from tkinter import simpledialog
 import numpy as np
 import bezier
 import ClassPoint
+import ClassDialogue
 from PIL import Image, ImageTk
 
 def on_drag(event):
     """Quand on déplace la souris tout en maintenant le clic"""
     if drag_data["item"]==point1.id:
-        dx = event.x - drag_data["x"]
-        dy = event.y - drag_data["y"]
-        point1.move(dx,dy)
+        dx = (event.x - drag_data["x"])/900*3
+        dy = (event.y - drag_data["y"])/600*2
+        point1.moved(dx,dy)
         drag_data["x"] = event.x
         drag_data["y"] = event.y
     elif drag_data["item"]==point2.id:
-        dx = event.x - drag_data["x"]
-        dy = event.y - drag_data["y"]
-        point2.move(dx,dy)
+        dx = (event.x - drag_data["x"])/900*3
+        dy = (event.y - drag_data["y"])/600*2
+        point2.moved(dx,dy)
         drag_data["x"] = event.x
         drag_data["y"] = event.y
     elif drag_data["item"]==point3.id:
-        dx = event.x - drag_data["x"]
-        dy = event.y - drag_data["y"]
-        point3.move(dx,dy)
+        dx = (event.x - drag_data["x"])/900*3
+        dy = (event.y - drag_data["y"])/600*2
+        point3.moved(dx,dy)
         drag_data["x"] = event.x
         drag_data["y"] = event.y
     elif drag_data["item"]==point4.id:
-        dx = event.x - drag_data["x"]
-        dy = event.y - drag_data["y"]
-        point4.move(dx,dy)
+        dx = (event.x - drag_data["x"])/900*3
+        dy = (event.y - drag_data["y"])/600*2
+        point4.moved(dx,dy)
         drag_data["x"] = event.x
         drag_data["y"] = event.y
 
-    trajectoire_bezier = bezier.bezier_cubique_discret(200, np.array([point1.x, point1.y]), np.array([point2.x, point2.y]), np.array([point3.x, point3.y]), np.array([point4.x, point4.y]))
-    traj_pix = np.zeros_like(trajectoire_bezier)
-    traj_pix[:, 0] = offset_x + (trajectoire_bezier[:, 0] + 1.5) / 3 * displayed_image.width
-    traj_pix[:, 1] = offset_y + (trajectoire_bezier[:, 1]) / 2 * displayed_image.height
-
-    canvas.delete("courbe_bezier")
-    affiche_points(traj_pix)
+    affiche_bezier() # Commenter si manque de puissance sur la machine
 
 def on_release(event):
     x_click = event.x
@@ -52,40 +48,42 @@ def on_release(event):
                 indice_point = drag_data["item"]- point1.id
                 point1.x = x_img
                 point1.y = y_img
-                print(f"Point numéro {drag_data["item"]- point1.id} placé : (x= {point1.x:.3f} m, y= {point1.y:.3f} m) ")
+                Boite1.schema_to_boite(x_img, y_img)
             if drag_data["item"]==point2.id:
                 indice_point = drag_data["item"]- point2.id
                 point2.x = x_img
                 point2.y = y_img
-                print(f"Point numéro {drag_data["item"]- point2.id} placé : (x= {point2.x:.3f} m, y= {point2.y:.3f} m) ")
+                Boite2.schema_to_boite(x_img, y_img)
             if drag_data["item"]==point3.id:
                 indice_point = drag_data["item"]- point3.id
                 point3.x = x_img
                 point3.y = y_img
-                print(f"Point numéro {drag_data["item"]- point3.id} placé : (x= {point3.x:.3f} m, y= {point3.y:.3f} m) ")
+                Boite3.schema_to_boite(x_img, y_img)
             if drag_data["item"]==point4.id:
                 indice_point = drag_data["item"]- point4.id
                 point4.x = x_img
                 point4.y = y_img
-                print(f"Point numéro {drag_data["item"]- point4.id} placé : (x= {point4.x:.3f} m, y= {point4.y:.3f} m) ")
+                Boite4.schema_to_boite(x_img, y_img)
         else:
             print("Clic en dehors de l’image")
-
-        print("Calcul de la courbe de bézier correspondante")
-        trajectoire_bezier = bezier.bezier_cubique_discret(200, np.array([point1.x, point1.y]), np.array([point2.x, point2.y]), np.array([point3.x, point3.y]), np.array([point4.x, point4.y]))
-
-        print(f"point1.x: {point1.x}, point1.y: {point1.y}")
-
-        # Transformation vers coordonnées écran
-        traj_pix = np.zeros_like(trajectoire_bezier)
-        traj_pix[:, 0] = offset_x + (trajectoire_bezier[:, 0] + 1.5) / 3 * displayed_image.width
-        traj_pix[:, 1] = offset_y + (trajectoire_bezier[:, 1]) / 2 * displayed_image.height
-
-        canvas.delete("courbe_bezier")
-        affiche_points(traj_pix)
+        affiche_bezier()
 
 
     drag_data["item"] = None
+
+def affiche_bezier():
+    trajectoire_bezier = bezier.bezier_cubique_discret(200, np.array([point1.x, point1.y]), np.array([point2.x, point2.y]), np.array([point3.x, point3.y]), np.array([point4.x, point4.y]))
+    traj_pix = np.zeros_like(trajectoire_bezier)
+    traj_pix[:, 0] = offset_x + (trajectoire_bezier[:, 0] + 1.5) / 3 * displayed_image.width
+    traj_pix[:, 1] = offset_y + (trajectoire_bezier[:, 1]) / 2 * displayed_image.height
+
+    
+    canvas.delete("vecteur")
+    canvas.create_line((point1.x+1.5)/3*900, point1.y/2*600, (point2.x+1.5)/3*900, point2.y/2*600, fill="blue", width=2, tags="vecteur")
+    canvas.create_line((point3.x+1.5)/3*900, point3.y/2*600, (point4.x+1.5)/3*900, point4.y/2*600, fill="blue", width=2, tags="vecteur")
+    
+    canvas.delete("courbe_bezier")
+    affiche_points(traj_pix)
 
 def affiche_points(liste_coordonnes):
     """Affiche la courbe de Bézier sous forme de segments"""
@@ -146,11 +144,13 @@ def on_click(event):
         drag_data["x"] = event.x
         drag_data["y"] = event.y
 
-    
+def on_enter(event):
+    affiche_bezier()
+
 
 root = tk.Tk()
 root.title("Interface de déplacement")
-root.geometry("900x600+0+0")
+root.geometry("900x770+0+0")
 
 original_image = Image.open("table_coupe_2026.png")
 
@@ -170,12 +170,18 @@ point2 = ClassPoint.Point(canvas, 1, 1.1)
 point3 = ClassPoint.Point(canvas, 1, 1.2)
 point4 = ClassPoint.Point(canvas, 1, 1.3)
 
+Boite1 = ClassDialogue.Dialogue(root, point1)
+Boite2 = ClassDialogue.Dialogue(root, point2)
+Boite3 = ClassDialogue.Dialogue(root, point3)
+Boite4 = ClassDialogue.Dialogue(root, point4)
+
 drag_data = {"x": 0, "y": 0, "item": None}
 
 resize_image()
 canvas.bind("<Button-1>", on_click)
 canvas.bind("<B1-Motion>", on_drag)
 canvas.bind("<ButtonRelease-1>", on_release)
+root.bind("<Return>", on_enter)
 
 root.mainloop()
 

@@ -10,10 +10,15 @@ class Point:
         self.r = r
         self.id = canvas.create_oval(x*900/3-r+450, y*600/2-r, x*900/3+r+450, y*600/2+r, fill="blue", outline="")
 
-    def move(self, dx, dy):
-        self.canvas.move(self.id, dx, dy)
-        self.x += dx/900*3
-        self.y += dy/600*2
+    def moved(self, dx, dy):
+        self.canvas.move(self.id, dx*900/3, dy*600/2)
+        self.x += dx
+        self.y += dy
+        
+    def move(self, x, y):
+        self.canvas.coords(self.id, x*900/3-self.r+450, y*600/2-self.r, x*900/3+self.r+450, y*600/2+self.r)
+        self.x = x
+        self.y = y
 
     def __repr__(self):
         """Représentation lisible dans la console."""
