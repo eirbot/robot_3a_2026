@@ -4,6 +4,10 @@ import numpy as np
 import bezier
 import ClassPoint
 import ClassDialogue
+import serial
+import json
+from serial.serialutil import SerialException
+import time
 from PIL import Image, ImageTk
 
 def on_drag(event):
@@ -72,10 +76,13 @@ def on_release(event):
     drag_data["item"] = None
 
 def affiche_bezier():
-    trajectoire_bezier = bezier.bezier_cubique_discret(200, np.array([point1.x, point1.y]), np.array([point2.x, point2.y]), np.array([point3.x, point3.y]), np.array([point4.x, point4.y]))
+    global trajectoire_bezier
+    # On inverse les axes par rapport à tkinter pour correspondre à la table
+    trajectoire_bezier = bezier.bezier_cubique_discret(50, np.array([point1.y, point1.x]), np.array([point2.y, point2.x]), np.array([point3.y, point3.x]), np.array([point4.y, point4.x]))
+    
     traj_pix = np.zeros_like(trajectoire_bezier)
-    traj_pix[:, 0] = offset_x + (trajectoire_bezier[:, 0] + 1.5) / 3 * displayed_image.width
-    traj_pix[:, 1] = offset_y + (trajectoire_bezier[:, 1]) / 2 * displayed_image.height
+    traj_pix[:, 0] = offset_x + (trajectoire_bezier[:, 1] + 1.5) / 3 * displayed_image.width # On inverse les axes par rapport à tkinter pour correspondre à la table
+    traj_pix[:, 1] = offset_y + (trajectoire_bezier[:, 0]) / 2 * displayed_image.height # On inverse les axes par rapport à tkinter pour correspondre à la table
 
     
     canvas.delete("vecteur")
@@ -147,12 +154,31 @@ def on_click(event):
 def on_enter(event):
     affiche_bezier()
 
+def envoyer():
+    global trajectoire_bezier
+    print(trajectoire_bezier)
+    trajectoire_bezier_string = json.dumps(trajectoire_bezier.tolist())
+
+    try :
+        ser = serial.Serial(
+        port='COM3',
+        baudrate=115200,
+        timeout=1
+        )
+        time.sleep(2)
+        ser.write(trajectoire_bezier_string)
+        ser.close()
+    except SerialException as e:
+        print("Echec de l'envoie des données vers le port COM :\n", e)
+
 
 root = tk.Tk()
 root.title("Interface de déplacement")
-root.geometry("900x770+0+0")
+root.geometry("900x730+0+0")
 
 original_image = Image.open("table_coupe_2026.png")
+
+trajectoire_bezier = np.array([])
 
 canvas = tk.Canvas(root, bg="black")
 canvas.pack(fill="both", expand=True)
@@ -182,6 +208,9 @@ canvas.bind("<Button-1>", on_click)
 canvas.bind("<B1-Motion>", on_drag)
 canvas.bind("<ButtonRelease-1>", on_release)
 root.bind("<Return>", on_enter)
+
+bouton = tk.Button(root, text="Envoyer", command=envoyer)
+bouton.pack()
 
 root.mainloop()
 

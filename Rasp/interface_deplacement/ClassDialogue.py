@@ -9,19 +9,20 @@ class Dialogue:
         self.point = point
             
         frame = tk.Frame(root)
-        frame.pack(pady=10)
+        frame.pack(pady=2)
 
-        tk.Label(frame, text="X :").pack(side="left", padx=5)
+        tk.Label(frame, text="X :").pack(side="left", padx=5) # On inverse les axes par rapport à tkinter pour correspondre à la table
+        self.entreey = tk.Entry(frame, width=10)
+        self.entreey.pack(side="left", padx=5)
+        self.entreey.insert(0, str(math.floor(point.y*100)/100))
+        self.entreey.bind("<Return>", self.human_to_boite)
+
+        tk.Label(frame, text="Y :").pack(side="left", padx=5) # On inverse les axes par rapport à tkinter pour correspondre à la table
         self.entreex = tk.Entry(frame, width=10)
         self.entreex.pack(side="left", padx=5)
         self.entreex.insert(0, str(math.floor(point.x*100)/100))
         self.entreex.bind("<Return>", self.human_to_boite)
 
-        tk.Label(frame, text="Y :").pack(side="left", padx=5)
-        self.entreey = tk.Entry(frame, width=10)
-        self.entreey.pack(side="left", padx=5)
-        self.entreey.insert(0, str(math.floor(point.y*100)/100))
-        self.entreey.bind("<Return>", self.human_to_boite)
     
     def human_to_boite(self, event):
         try:
