@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 import sys, time
-from rpi_ws281x import PixelStrip, Color
+from rpi_ws281x import PixelStrip, Color # type: ignore
 
 # === Config ===
 LED_COUNT = 60
