@@ -23,31 +23,18 @@ extern TaskHandle_t vAscHandle;
 
 
 // pour ClassMotors
-extern float X_POS_INIT;
-extern float Y_POS_INIT;
-extern float ANGLE_INIT;
+
+#define MOTOR_LEFT_STEP_PIN   26
+#define MOTOR_LEFT_DIR_PIN    27
+
+#define MOTOR_RIGHT_STEP_PIN  14
+#define MOTOR_RIGHT_DIR_PIN   12
+
+// Structure d'une commande de vitesse
 typedef struct {
-    int distance;
-    int angle;
-    int direction;
-    int vitesse;
+    float vitesseGauche;  // m/s
+    float vitesseDroite;  // m/s
 } TaskParams;
-#define dRoues 100.0
-#define stepPerRev 3200
-#define ecartRoues 253.0
-#define STEPD 17
-#define DIRD 16 
-#define STEPG 4
-#define DIRG 2
-extern AccelStepper moteurGauche; 
-extern AccelStepper moteurDroit; 
-extern volatile bool* FLAG_CLEAR;
-extern bool FLAG_STOP;
-extern bool FLAG_TIRETTE;
-extern bool FLAG_DEBUG;
-extern bool FLAG_TOF;
-extern TaskHandle_t vMotorsHandle;
-extern SemaphoreHandle_t xPositionMutex;
-#define SPEEDMAX 650
+
 
 #endif

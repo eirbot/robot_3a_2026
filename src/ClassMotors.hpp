@@ -1,53 +1,57 @@
-#ifndef CLASSMOTORS_H
-#define CLASSMOTORS_H
-
-#include "Arduino.h"
-#include <cmath>
-
+#pragma once
+#include <Arduino.h>
+#include <AccelStepper.h>
 #include "utilities.hpp"
-#include "AccelStepper.h"
-
-#define DECCEL 30000.0
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
+#include "freertos/queue.h"
+#include "freertos/semphr.h"
 
 class ClassMotors {
 public:
     ClassMotors();
-    static void vMotors(void* pvParameters);
-
-    void WaitUntilDone();
     void StartMotors();
-    void EnvoyerDonnees(void* Params);
-    void TransferQueueBuffer();
-    void RestoreQueueBuffer();
+
+    // Envoi d'une nouvelle commande
+    void EnvoyerVitesse(TaskParams* params);
+
+    // STOP immédiat
     void Stop();
-    void RestartMotors();
 
-    long GetStepDid() const { return stepDid; }
-    long GetCurrentStep() const { return currentStep; }
-    float GetDistanceDid() const { return distanceDid; }
-    void UpdateOdometry();
+    // Odométrie
+    void GetPosition(float &x, float &y, float &angle);
 
-    void GetPosition(float& x, float& y, float& angle);
-    void SetPosition(float x, float y, float angle);
+    // Remise à zéro de la position
+    void ResetPosition(float x = 0, float y = 0, float angle = 0);
 
 private:
+    static void vMotors(void* pvParameters);
+    void UpdateOdometry();
+
+private:
+    // Les deux moteurs
+    AccelStepper moteurGauche;
+    AccelStepper moteurDroit;
+
+    // File FreeRTOS
     QueueHandle_t xQueue;
-    QueueHandle_t xQueueBuffer;
 
-    long stepDid;
-    long currentStep;
-    float distanceDid;
+    // Task handle
+    TaskHandle_t vMotorsHandle;
 
-    float x_pos = X_POS_INIT;
-    float y_pos = Y_POS_INIT;
-    float orientation = ANGLE_INIT; // radians
+    // Mutex position
+    SemaphoreHandle_t posMutex;
 
-    long lastStepGauche = 0;
-    long lastStepDroit = 0;
+    // Odométrie
+    float x_pos;
+    float y_pos;
+    float orientation;
+
+    long lastStepGauche;
+    long lastStepDroit;
+
+    // Constantes robot
+    const float dRoues = 0.065f;      // diamètre roue (m)
+    const float ecartRoues = 0.22f;   // entraxe (m)
+    const float stepPerRev = 200.0f;  // steps par tour moteur (sans microstepping)
 };
-
-void StopStepper(AccelStepper& moteur1, AccelStepper& moteur2);
-
-extern ClassMotors mot;
-
-#endif
