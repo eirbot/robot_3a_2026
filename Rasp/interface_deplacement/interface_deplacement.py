@@ -156,8 +156,9 @@ def on_enter(event):
 
 def envoyer():
     global trajectoire_bezier
-    print(trajectoire_bezier)
+    # print(trajectoire_bezier)
     trajectoire_bezier_string = json.dumps(trajectoire_bezier.tolist())
+    print(trajectoire_bezier_string)
 
     try :
         ser = serial.Serial(
