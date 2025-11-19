@@ -162,8 +162,8 @@ def envoyer():
 
     try :
         ser = serial.Serial(
-        port='COM3',
-        baudrate=115200,
+        port='COM9',
+        baudrate=1000000,
         timeout=1
         )
         time.sleep(2)

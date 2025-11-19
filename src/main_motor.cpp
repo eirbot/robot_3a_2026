@@ -6,6 +6,8 @@
 #define SERIAL_PI   Serial
 #define BAUD_PI     1000000
 
+#define EN_Motor 21
+
 ClassMotors motors;
 TrajectoryFollower follower;
 
@@ -21,6 +23,9 @@ void setup() {
     SERIAL_PI.begin(BAUD_PI);
     delay(500);
     SERIAL_PI.println("ESP32 Trajectory + Motors ready");
+
+    pinMode(EN_Motor, OUTPUT);
+    digitalWrite(EN_Motor ,HIGH);
 
     motors.StartMotors();
 
