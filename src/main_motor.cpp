@@ -4,7 +4,7 @@
 
 // UART vers la Raspberry : ici Serial (USB)
 #define SERIAL_PI   Serial
-#define BAUD_PI     1000000
+#define BAUD_PI     115200//1000000
 
 #define EN_Motor 21
 
@@ -71,6 +71,13 @@ void taskControl(void* arg) {
         Pose2D odomPose { x, y, th };
 
         float v, w;
+        SERIAL_PI.print("[");
+        SERIAL_PI.print(odomPose.x);
+        SERIAL_PI.print(", ");
+        SERIAL_PI.print(odomPose.y);
+        SERIAL_PI.print(", ");
+        SERIAL_PI.print(odomPose.theta);
+        SERIAL_PI.println("]");
         follower.computeCommand(odomPose, dt, v, w);
 
         applyVW(v, w);
@@ -135,7 +142,7 @@ void taskSerialTx(void* arg) {
         float x_mm = x * 1000.0f;
         float y_mm = y * 1000.0f;
 
-        SERIAL_PI.printf("ODOM %.1f %.1f %.5f\n", x_mm, y_mm, th);
+        // SERIAL_PI.printf("ODOM %.1f %.1f %.5f\n", x_mm, y_mm, th);
 
         vTaskDelayUntil(&lastWake, pdMS_TO_TICKS(20)); // 50 Hz
     }

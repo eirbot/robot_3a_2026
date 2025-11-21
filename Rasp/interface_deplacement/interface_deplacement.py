@@ -4,10 +4,12 @@ import numpy as np
 import bezier
 import ClassPoint
 import ClassDialogue
+import ClassRobot
 import serial
 import json
 from serial.serialutil import SerialException
 import time
+import ast
 from PIL import Image, ImageTk
 
 def on_drag(event):
@@ -105,8 +107,8 @@ def resize_image():
     """Redimensionne l’image en gardant le ratio"""
     global displayed_image, photo, img_scale, offset_x, offset_y
 
-    container_width = 900
-    container_height = 600
+    global container_width
+    global container_height
 
     img_ratio = original_image.width / original_image.height
     container_ratio = container_width / container_height
@@ -132,6 +134,7 @@ def resize_image():
     canvas.image = photo  # éviter le garbage collector
 
 def on_click(event):
+
     """Quand on clique, on vérifie si on clique sur le point"""
     items = canvas.find_overlapping(event.x, event.y, event.x, event.y)
     if point1.id in items:
@@ -157,25 +160,41 @@ def on_enter(event):
 def envoyer():
     global trajectoire_bezier
     # print(trajectoire_bezier)
-    trajectoire_bezier_string = json.dumps(trajectoire_bezier.tolist())
+
+    trajectoire_bezier_mm = trajectoire_bezier
+    for coordonnee in trajectoire_bezier_mm:
+        coordonnee[0] *= 1000
+        coordonnee[1] *= 1000
+
+    trajectoire_bezier_string = json.dumps(trajectoire_bezier_mm.tolist())
     print(trajectoire_bezier_string)
 
     try :
-        ser = serial.Serial(
-        port='COM9',
-        baudrate=1000000,
-        timeout=1
-        )
-        time.sleep(2)
-        ser.write(trajectoire_bezier_string)
-        ser.close()
+        with serial.Serial(port='COM13',baudrate=115200,timeout=1) as ser:
+            time.sleep(2)
+            ser.write((trajectoire_bezier_string+'\n').encode())
+            print("Trajectoire envoyé")
+            print("Réponse ESP (ctrl+C pour stoper) : ")
+            while True:
+                msg = ser.readline().decode(errors="ignore").strip()
+                if msg:
+                    print(">>", msg)
+                    if(msg[0]=='['):
+                        msg_list = ast.literal_eval(msg)
+                        robot.move_absolu(msg_list[0], msg_list[1], msg_list[2]*180/np.pi)
+                        root.update()
     except SerialException as e:
         print("Echec de l'envoie des données vers le port COM :\n", e)
+    except KeyboardInterrupt:
+        print("Arrêt du programme.")
 
 
 root = tk.Tk()
 root.title("Interface de déplacement")
 root.geometry("900x730+0+0")
+container_width = 900
+container_height = 600
+pixels_to_meters = 3/container_width
 
 original_image = Image.open("table_coupe_2026.png")
 
@@ -187,6 +206,26 @@ canvas.pack(fill="both", expand=True)
 photo = ImageTk.PhotoImage(original_image)
 bg = canvas.create_image(0, 0, anchor="nw", image=photo, tags="background")
 canvas.tag_lower(bg)
+
+robot = ClassRobot.Robot(canvas, pixels_to_meters, 0, 0, 0)
+
+
+
+def simu_robot(k=0):
+    # positions = [[0,-1.5],[0,1.5],[2,1.5],[2,-1.5]]
+    # robot.move_absolu(positions[k%4][0], positions[k%4][1], k*10)
+
+    if(trajectoire_bezier.size!=0):
+        len = trajectoire_bezier.shape[0]
+        theta = 180+ np.atan2(( trajectoire_bezier[(k-1)%len][1] - trajectoire_bezier[k%len][1]),(trajectoire_bezier[(k-1)%len][0] - trajectoire_bezier[k%len][0] ))*180/np.pi
+        robot.move_absolu(trajectoire_bezier[k%len][0], trajectoire_bezier[k%len][1], theta)
+    else:
+        k=0
+
+    if k < 10000:
+        root.after(100, rotate_loop, k+1)
+
+# simu_robot()
 
 img_scale = 1.0
 offset_x = offset_y = 0
@@ -214,4 +253,5 @@ bouton = tk.Button(root, text="Envoyer", command=envoyer)
 bouton.pack()
 
 root.mainloop()
+
 

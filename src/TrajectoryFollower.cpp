@@ -4,7 +4,7 @@
 
 TrajectoryFollower::TrajectoryFollower()
 : nPoints(0), currentIdx(0), active(false), hasCorr(false),
-  Ld(0.2f), v_nom(0.2f) // 20cm lookahead, 0.2m/s par défaut
+  Ld(0.2f), v_nom(0.1f) // 20cm lookahead, 0.2m/s par défaut
 {
     poseCorr = {0.0f, 0.0f, 0.0f};
 }
