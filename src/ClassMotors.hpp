@@ -51,7 +51,7 @@ private:
     long lastStepDroit;
 
     // Constantes robot
-    const float dRoues = 0.065f;      // diamètre roue (m)
-    const float ecartRoues = 0.22f;   // entraxe (m)
-    const float stepPerRev = 200.0f;  // steps par tour moteur (sans microstepping)
+    const float dRoues = 0.0723f;      // diamètre roue (m)
+    const float ecartRoues = 0.343f;   // entraxe (m)
+    const float stepPerRev = 3200.0f;  // steps par tour moteur (sans microstepping)
 };

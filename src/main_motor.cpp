@@ -30,7 +30,7 @@ void setup() {
     motors.StartMotors();
 
     // Paramètres pure pursuit (à tuner)
-    follower.setLookahead(0.25f);    // 25 cm
+    follower.setLookahead(0.02f);    // 25 cm
     follower.setNominalSpeed(0.25f); // 0.25 m/s
 
     xTaskCreatePinnedToCore(taskControl, "Control", 6000, nullptr, 3, nullptr, 1);
@@ -82,7 +82,7 @@ void taskControl(void* arg) {
 
         applyVW(v, w);
 
-        vTaskDelayUntil(&lastWake, pdMS_TO_TICKS(20)); // 50 Hz
+        vTaskDelayUntil(&lastWake, pdMS_TO_TICKS(200)); // 50 Hz
     }
 }
 
@@ -113,6 +113,18 @@ void taskSerialRx(void* arg) {
                             p.y = y_mm / 1000.0f;
                             p.theta = th;
                             follower.setCorrectedPose(p);
+                        }
+                    }
+                    else if (line.startsWith("SET POSE")){
+                        float x_mm, y_mm, th;
+                        if (sscanf(line.c_str(), "SET POSE %f %f %f", &x_mm, &y_mm, &th) == 3) {
+                            SERIAL_PI.print("SET POSE ");
+                            SERIAL_PI.print(x_mm);
+                            SERIAL_PI.print(" ");
+                            SERIAL_PI.print(y_mm);
+                            SERIAL_PI.print(" ");
+                            SERIAL_PI.println(th);
+                            motors.ResetPosition(x_mm/ 1000.0f, y_mm/ 1000.0f, th);
                         }
                     }
                     // 3) STOP

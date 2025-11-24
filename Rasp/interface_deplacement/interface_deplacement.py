@@ -11,9 +11,20 @@ from serial.serialutil import SerialException
 import time
 import ast
 from PIL import Image, ImageTk
+from esp32_detect import find_esp32_port
 
 def on_drag(event):
     """Quand on déplace la souris tout en maintenant le clic"""
+    if drag_data["item"]==point0.id:
+        dx = (event.x - drag_data["x"])/900*3
+        dy = (event.y - drag_data["y"])/600*2
+        point0.moved(dx,dy)
+        drag_data["x"] = event.x
+        drag_data["y"] = event.y
+
+        robot.move_absolu(point0.y, point0.x, 0) # Commenter ces lignes si manque de puissance sur la machine
+        root.update()
+
     if drag_data["item"]==point1.id:
         dx = (event.x - drag_data["x"])/900*3
         dy = (event.y - drag_data["y"])/600*2
@@ -39,7 +50,8 @@ def on_drag(event):
         drag_data["x"] = event.x
         drag_data["y"] = event.y
 
-    affiche_bezier() # Commenter si manque de puissance sur la machine
+    
+    affiche_bezier() 
 
 def on_release(event):
     x_click = event.x
@@ -50,6 +62,13 @@ def on_release(event):
         offset_y <= y_click <= offset_y + displayed_image.height:
             x_img = float((x_click - offset_x) / displayed_image.width * 3 - 1.5)
             y_img = float((y_click - offset_y) / displayed_image.height * 2)
+            if drag_data["item"]==point0.id:
+                indice_point = drag_data["item"]- point0.id
+                point0.x = x_img
+                point0.y = y_img
+                Boite0.schema_to_boite(x_img, y_img)
+                envoyer("SET POSE")
+
             if drag_data["item"]==point1.id:
                 indice_point = drag_data["item"]- point1.id
                 point1.x = x_img
@@ -73,6 +92,9 @@ def on_release(event):
         else:
             print("Clic en dehors de l’image")
         affiche_bezier()
+
+        robot.move_absolu(point0.y, point0.x, 0)
+        root.update()
 
 
     drag_data["item"] = None
@@ -137,6 +159,10 @@ def on_click(event):
 
     """Quand on clique, on vérifie si on clique sur le point"""
     items = canvas.find_overlapping(event.x, event.y, event.x, event.y)
+    if point0.id in items:
+        drag_data["item"] = point0.id
+        drag_data["x"] = event.x
+        drag_data["y"] = event.y
     if point1.id in items:
         drag_data["item"] = point1.id
         drag_data["x"] = event.x
@@ -157,37 +183,62 @@ def on_click(event):
 def on_enter(event):
     affiche_bezier()
 
-def envoyer():
-    global trajectoire_bezier
-    # print(trajectoire_bezier)
+def envoyer(message):
 
-    trajectoire_bezier_mm = trajectoire_bezier
-    for coordonnee in trajectoire_bezier_mm:
-        coordonnee[0] *= 1000
-        coordonnee[1] *= 1000
+    if(len(message)!=0):
+        # print(trajectoire_bezier)
+        port = find_esp32_port()
 
-    trajectoire_bezier_string = json.dumps(trajectoire_bezier_mm.tolist())
-    print(trajectoire_bezier_string)
+        if port:
+            print("ESP32 détecté sur :", port)
+        else:
+            print("Aucun ESP32 détecté.")
 
-    try :
-        with serial.Serial(port='COM13',baudrate=115200,timeout=1) as ser:
-            time.sleep(2)
-            ser.write((trajectoire_bezier_string+'\n').encode())
-            print("Trajectoire envoyé")
-            print("Réponse ESP (ctrl+C pour stoper) : ")
-            while True:
-                msg = ser.readline().decode(errors="ignore").strip()
-                if msg:
-                    print(">>", msg)
-                    if(msg[0]=='['):
-                        msg_list = ast.literal_eval(msg)
-                        robot.move_absolu(msg_list[0], msg_list[1], msg_list[2]*180/np.pi)
-                        root.update()
-    except SerialException as e:
-        print("Echec de l'envoie des données vers le port COM :\n", e)
-    except KeyboardInterrupt:
-        print("Arrêt du programme.")
+        try :
+            with serial.Serial(port=port,baudrate=115200,timeout=1) as ser:
+                time.sleep(0.1)
 
+                if not isinstance(message, str):
+                    trajectoire_bezier_mm = message
+                    for coordonnee in trajectoire_bezier_mm:
+                        coordonnee[0] *= 1000
+                        coordonnee[1] *= 1000
+                    trajectoire_bezier_string = json.dumps(trajectoire_bezier_mm.tolist())
+
+                    ser.write((trajectoire_bezier_string+'\n').encode())
+                    print("Trajectoire envoyé")
+                    print("Réponse ESP (ctrl+C pour stoper) : ")
+                    while True:
+                        msg = ser.readline().decode(errors="ignore").strip()
+                        if msg:
+                            print(">>", msg)
+                            if(msg[0]=='['):
+                                msg_list = ast.literal_eval(msg)
+                                robot.move_absolu(msg_list[0], msg_list[1], msg_list[2]*180/np.pi)
+                                root.update()
+                elif(message[0:8]=="SET POSE"):
+                    print("Changement de position de robot depuis l'interface")
+                    ser.write((f"SET POSE {robot.y*1000} {robot.x*1000} {robot.theta}\n").encode())
+        except SerialException as e:
+            print("Echec de l'envoie des données vers le port COM :\n", e)
+        except KeyboardInterrupt:
+            print("Arrêt du programme.")
+    else:
+        print("message vide")
+
+def simu_robot(k=0):
+    # positions = [[0,-1.5],[0,1.5],[2,1.5],[2,-1.5]]
+    # robot.move_absolu(positions[k%4][0], positions[k%4][1], k*10)
+
+    if(trajectoire_bezier.size!=0):
+        len = trajectoire_bezier.shape[0]
+        theta = 180+ np.atan2(( trajectoire_bezier[(k-1)%len][1] - trajectoire_bezier[k%len][1]),(trajectoire_bezier[(k-1)%len][0] - trajectoire_bezier[k%len][0] ))*180/np.pi
+        robot.move_absolu(trajectoire_bezier[k%len][0], trajectoire_bezier[k%len][1], theta)
+    else:
+        k=0
+
+    if k < 10000:
+        root.after(100, rotate_loop, k+1)
 
 root = tk.Tk()
 root.title("Interface de déplacement")
@@ -209,37 +260,28 @@ canvas.tag_lower(bg)
 
 robot = ClassRobot.Robot(canvas, pixels_to_meters, 0, 0, 0)
 
-
-
-def simu_robot(k=0):
-    # positions = [[0,-1.5],[0,1.5],[2,1.5],[2,-1.5]]
-    # robot.move_absolu(positions[k%4][0], positions[k%4][1], k*10)
-
-    if(trajectoire_bezier.size!=0):
-        len = trajectoire_bezier.shape[0]
-        theta = 180+ np.atan2(( trajectoire_bezier[(k-1)%len][1] - trajectoire_bezier[k%len][1]),(trajectoire_bezier[(k-1)%len][0] - trajectoire_bezier[k%len][0] ))*180/np.pi
-        robot.move_absolu(trajectoire_bezier[k%len][0], trajectoire_bezier[k%len][1], theta)
-    else:
-        k=0
-
-    if k < 10000:
-        root.after(100, rotate_loop, k+1)
-
 # simu_robot()
 
 img_scale = 1.0
 offset_x = offset_y = 0
 displayed_image = original_image
 
-point1 = ClassPoint.Point(canvas, 1, 1)
-point2 = ClassPoint.Point(canvas, 1, 1.1)
-point3 = ClassPoint.Point(canvas, 1, 1.2)
-point4 = ClassPoint.Point(canvas, 1, 1.3)
+point0 = ClassPoint.Point(canvas, 0, 0) #position initiale du robot
 
-Boite1 = ClassDialogue.Dialogue(root, point1)
-Boite2 = ClassDialogue.Dialogue(root, point2)
-Boite3 = ClassDialogue.Dialogue(root, point3)
-Boite4 = ClassDialogue.Dialogue(root, point4)
+point1 = ClassPoint.Point(canvas, 1, 1) #parametres courbe de bezier
+point2 = ClassPoint.Point(canvas, 1, 1.1) #parametres courbe de bezier
+point3 = ClassPoint.Point(canvas, 1, 1.2) #parametres courbe de bezier
+point4 = ClassPoint.Point(canvas, 1, 1.3) #parametres courbe de bezier
+
+Boite0 = ClassDialogue.Dialogue(root, "Position Robot", point0)
+
+Boite1 = ClassDialogue.Dialogue(root, "Point1", point1)
+Boite2 = ClassDialogue.Dialogue(root, "Point2", point2)
+Boite3 = ClassDialogue.Dialogue(root, "Point3", point3)
+Boite4 = ClassDialogue.Dialogue(root, "Point4", point4)
+
+bouton = tk.Button(root, text="Envoyer", command=lambda: envoyer(trajectoire_bezier))
+bouton.pack()
 
 drag_data = {"x": 0, "y": 0, "item": None}
 
@@ -249,8 +291,7 @@ canvas.bind("<B1-Motion>", on_drag)
 canvas.bind("<ButtonRelease-1>", on_release)
 root.bind("<Return>", on_enter)
 
-bouton = tk.Button(root, text="Envoyer", command=envoyer)
-bouton.pack()
+
 
 root.mainloop()
 

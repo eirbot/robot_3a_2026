@@ -4,14 +4,16 @@ import math
 
 class Dialogue:
 
-    def __init__(self, root, point):
+    def __init__(self, root, label, point):
         self.root = root
         self.point = point
+        self.label = label
             
         frame = tk.Frame(root)
         frame.pack(pady=2)
 
-        tk.Label(frame, text="X :").pack(side="left", padx=5) # On inverse les axes par rapport à tkinter pour correspondre à la table
+        txt = self.label + "    X :"
+        tk.Label(frame, text=txt).pack(side="left", padx=5) # On inverse les axes par rapport à tkinter pour correspondre à la table
         self.entreey = tk.Entry(frame, width=10)
         self.entreey.pack(side="left", padx=5)
         self.entreey.insert(0, str(math.floor(point.y*100)/100))
