@@ -1,0 +1,6 @@
+gpiozero
+rpi_ws281x
+matplotlib
+smbus2
+psutil
+pygame
