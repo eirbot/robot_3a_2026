@@ -15,6 +15,7 @@
 #define HOMING_SPEED_MM_S 10.0f
 #define HOMING_BACKOFF_MM 5.0f
 #define MM_PAR_TOUR 8.0f
+#define WHEEL_BASE 0.345f // m
 
 // extern declarations
 
@@ -35,6 +36,8 @@ typedef struct {
     float vitesseGauche;  // m/s
     float vitesseDroite;  // m/s
 } TaskParams;
+
+
 
 
 #endif

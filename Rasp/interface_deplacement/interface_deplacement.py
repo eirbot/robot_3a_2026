@@ -102,7 +102,7 @@ def on_release(event):
 def affiche_bezier():
     global trajectoire_bezier
     # On inverse les axes par rapport à tkinter pour correspondre à la table
-    trajectoire_bezier = bezier.bezier_cubique_discret(50, np.array([point1.y, point1.x]), np.array([point2.y, point2.x]), np.array([point3.y, point3.x]), np.array([point4.y, point4.x]))
+    trajectoire_bezier = bezier.bezier_cubique_discret(5, np.array([point1.y, point1.x]), np.array([point2.y, point2.x]), np.array([point3.y, point3.x]), np.array([point4.y, point4.x]))
     
     traj_pix = np.zeros_like(trajectoire_bezier)
     traj_pix[:, 0] = offset_x + (trajectoire_bezier[:, 1] + 1.5) / 3 * displayed_image.width # On inverse les axes par rapport à tkinter pour correspondre à la table

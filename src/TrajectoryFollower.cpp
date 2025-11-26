@@ -60,6 +60,7 @@ bool TrajectoryFollower::loadFromJson(const char* json) {
     Serial.print("Trajectoire chargee avec ");
     Serial.print(nPoints);
     Serial.println(" points.");
+    currentIdx = 0;
     return true;
 }
 
@@ -90,10 +91,14 @@ void TrajectoryFollower::setNominalSpeed(float v_mps) {
     v_nom = v_mps;
 }
 
-void TrajectoryFollower::computeCommand(const Pose2D& poseOdom, float dt, float& v_out, float& w_out) {
+void TrajectoryFollower::computeCommand(const Pose2D& poseOdom, float dt, float& vL_out, float& vR_out, float& temps_arc) {
+
+    Serial.print("Point suivant, currentIdx : ");
+    Serial.println( currentIdx );
+    
     if (!active || nPoints == 0) {
-        v_out = 0.0f;
-        w_out = 0.0f;
+        vL_out = 0.0f;
+        vR_out = 0.0f;
         return;
     }
 
@@ -104,8 +109,7 @@ void TrajectoryFollower::computeCommand(const Pose2D& poseOdom, float dt, float&
     }
 
     // Sélection du point lookahead (pure pursuit)
-    int idx = currentIdx;
-    Point2D target = points[idx];
+    Point2D target = points[currentIdx];
 
     // Distance du robot à ce point
     auto dist = [&](const Point2D& p) {
@@ -116,20 +120,10 @@ void TrajectoryFollower::computeCommand(const Pose2D& poseOdom, float dt, float&
 
     float d = dist(target);
 
-    // Avance dans les points tant que la distance est < Ld
-    while (idx < nPoints - 1 && d < Ld) {
-        idx++;
-        target = points[idx];
-        d = dist(target);
-    }
 
-    currentIdx = idx;
-
-    // Si on est très proche du dernier point -> arrêt
-    const float stopThresh = 0.02f; // 2 cm
-    if (idx == nPoints - 1 && d < stopThresh) {
-        v_out = 0.0f;
-        w_out = 0.0f;
+    if (currentIdx == nPoints - 1) {
+        vL_out = 0.0f;
+        vR_out = 0.0f;
         active = false;
         return;
     }
@@ -146,28 +140,36 @@ void TrajectoryFollower::computeCommand(const Pose2D& poseOdom, float dt, float&
     float y_r = -s*dx + c*dy;     // gauche
 
     // Angle par rapport à l'axe avant robot
-    float alpha = atan2f(y_r, x_r);
+    float theta = 2.0*atan2f(y_r, x_r);
+    float R = 0;
 
-    // Pure pursuit : courbure kappa = 2 * sin(alpha) / Ld
-    float L = max(Ld, 0.05f); // éviter division par 0
-    float kappa = 2.0f * sinf(alpha) / L;
-
-    // Vitesse linéaire : on peut réduire un peu si on est proche de la fin
-    float v = v_nom;
-    if (idx == nPoints - 1) {
-        // ralentit quand on approche du dernier point
-        float ratio = d / L;
-        ratio = constrain(ratio, 0.2f, 1.0f);
-        v *= ratio;
+    float Dist = x_r;
+    if(theta!=0){
+        Dist = theta/2.0*d/sinf(theta/2.0);
+        R = d/(2.0*sin(theta/2.0));
     }
+    temps_arc = Dist/v_nom;
 
-    float w = kappa * v;
+    float Dist_L = (R-WHEEL_BASE/2.0)*theta;
+    float Dist_R = (R+WHEEL_BASE/2.0)*theta;
 
-    // Saturation vitesse angulaire (sécurité)
-    const float w_max = 3.0f; // rad/s
-    if (w > w_max)  w = w_max;
-    if (w < -w_max) w = -w_max;
+    Serial.print("Dist_L : ");
+    Serial.print(Dist_L);
+    Serial.print("  Dist_R : ");
+    Serial.println(Dist_R);
 
-    v_out = v;
-    w_out = w;
+    float vL = Dist_L/temps_arc;
+    float vR = Dist_R/temps_arc;
+
+    Serial.print("vL : ");
+    Serial.print(vL);
+    Serial.print("  vR : ");
+    Serial.println(vR);
+
+    vL_out = vL;
+    vR_out = vR;
+
+    currentIdx++;
+    Serial.print("  temps_arc: ");
+    Serial.println(temps_arc);
 }

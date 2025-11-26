@@ -66,7 +66,10 @@ void ClassMotors::vMotors(void* pvParameters) {
             // conversion m/s → steps/s
             speedL = params.vitesseGauche * stepPerMeter;
             speedR = params.vitesseDroite * stepPerMeter;
-
+            Serial.print("speedL ");
+            Serial.print(speedL);
+            Serial.print(" speedR ");
+            Serial.println(speedR);
             instance->moteurGauche.setSpeed(speedL);
             instance->moteurDroit.setSpeed(speedR);
         }

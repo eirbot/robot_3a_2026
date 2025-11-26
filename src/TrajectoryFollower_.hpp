@@ -1,6 +1,5 @@
 #pragma once
 #include <Arduino.h>
-#include "utilities.hpp"
 
 // Pose robot (repère monde)
 // x : avant, y : gauche, theta : rad
@@ -19,6 +18,12 @@ class TrajectoryFollower {
 public:
     static constexpr int MAX_POINTS = 64;
 
+    float seg_v;
+    float seg_w;
+    float seg_time_total;
+    float seg_time_elapsed;
+    bool segmentActive;
+
     TrajectoryFollower();
 
     // Charge une trajectoire depuis un JSON style [[x0,y0],[x1,y1],...]
@@ -35,21 +40,26 @@ public:
     // Réinitialise l’état interne (annule la traj en cours)
     void reset();
 
+    void computeSegment(const Pose2D& pose);
+
     // Pure pursuit : calcule (v,w) à partir de la pose actuelle
     // - poseOdom : odom interne ESP32 (m, m, rad)
     // - dt : période de contrôle (s), au cas où tu veux lisser plus tard
     // Résultat en m/s et rad/s
-    void computeCommand(const Pose2D& poseOdom, float dt, float& vL_out, float& vR_out, float& temps_arc);
+    void computeCommand(const Pose2D& poseOdom, float dt, float& v_out, float& w_out, float& temps_deplacement);
+    
 
     // Paramètres
     void setLookahead(float Ld_m);    // distance d’anticipation (m)
     void setNominalSpeed(float v_mps); // vitesse linéaire nominale (m/s)
 
-private:
     Point2D   points[MAX_POINTS];
     int       nPoints;
     int       currentIdx;
     bool      active;
+
+private:
+    
 
     Pose2D    poseCorr;      // dernière pose corrigée
     bool      hasCorr;

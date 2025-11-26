@@ -12,7 +12,7 @@ ClassMotors motors;
 TrajectoryFollower follower;
 
 // Géométrie robot (cohérente avec ClassMotors)
-constexpr float WHEEL_BASE = 0.22f; // m
+
 
 // Tâches
 void taskControl(void* arg);
@@ -39,15 +39,13 @@ void setup() {
 }
 
 void loop() {
-    vTaskDelay(pdMS_TO_TICKS(1000));
+    
+
+    vTaskDelay(pdMS_TO_TICKS(100));
 }
 
-// Convertit (v, w) -> vitesses roue gauche/droite, puis envoie à ClassMotors
-static void applyVW(float v, float w) {
-    // Diff drive
-    float vL = v - (WHEEL_BASE / 2.0f) * w;
-    float vR = v + (WHEEL_BASE / 2.0f) * w;
 
+static void applyVLVR(float vL, float vR) {
     TaskParams p;
     p.vitesseGauche = vL;
     p.vitesseDroite = vR;
@@ -59,18 +57,22 @@ void taskControl(void* arg) {
     TickType_t lastWake = xTaskGetTickCount();
     uint32_t lastMicros = micros();
 
+    float lastComputeCommand = micros()/ 1e6f;
+    float temps_arc = 0;
+
+
     while (true) {
         uint32_t now = micros();
         float dt = (now - lastMicros) / 1e6f;
         if (dt <= 0.0f) dt = 0.001f;
         lastMicros = now;
 
+        float now_long = micros()/ 1e6f;
+
         // Récupère odom interne
-        float x, y, th;
+        float x, y, th, temps_deplacement;
         motors.GetPosition(x, y, th);
         Pose2D odomPose { x, y, th };
-
-        float v, w;
         SERIAL_PI.print("[");
         SERIAL_PI.print(odomPose.x);
         SERIAL_PI.print(", ");
@@ -78,11 +80,31 @@ void taskControl(void* arg) {
         SERIAL_PI.print(", ");
         SERIAL_PI.print(odomPose.theta);
         SERIAL_PI.println("]");
-        follower.computeCommand(odomPose, dt, v, w);
 
-        applyVW(v, w);
-
-        vTaskDelayUntil(&lastWake, pdMS_TO_TICKS(200)); // 50 Hz
+        float vL, vR;
+        
+        // Serial.print("lastComputeCommand : ");
+        // Serial.print(lastComputeCommand);
+        // Serial.print("  now_long : ");
+        // Serial.print(now_long);
+        // Serial.print("  now_long - lastComputeCommand: ");
+        // Serial.print(now_long - lastComputeCommand);
+        // Serial.print("  temps_arc : ");
+        // Serial.println(temps_arc);
+        
+        if(now_long - lastComputeCommand >= temps_arc){
+            lastComputeCommand = now_long; 
+            follower.computeCommand(odomPose, dt, vL, vR, temps_arc);
+            // Serial.print("Envoie : ");
+            // Serial.print(" vL : ");
+            // Serial.print(vL);
+            // Serial.print(" vR : ");
+            // Serial.print(vR);
+            // SERIAL_PI.print(" temps_arc : ");
+            // SERIAL_PI.println(temps_arc);
+            applyVLVR(vL, vR);
+        }
+        vTaskDelayUntil(&lastWake, pdMS_TO_TICKS(20)); // 50 Hz
     }
 }
 
