@@ -4,3 +4,5 @@ matplotlib
 smbus2
 psutil
 pygame
+pillow
+numpy

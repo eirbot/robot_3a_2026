@@ -48,7 +48,7 @@ class EKFLocalizer(RPLidarC1M1):
             "A": (50.0, -1594.0),
             "B": (1950.0, -1594.0),
             "C": (1000.0, 1594.0),
-            "D": (-100.0, 200.0),
+            # "D": (-100.0, 200.0),
         }
 
         # Etat initial (x, y, theta)
@@ -73,11 +73,11 @@ class EKFLocalizer(RPLidarC1M1):
 
         # Bruits de mesure LIDAR (balises) — à tuner
         self.sigma_r = 30.0     # mm
-        self.sigma_b = np.deg2rad(1.0)  # rad
+        self.sigma_b = np.deg2rad(2.0)  # rad
 
         # Fenêtres de recherche autour de la mesure attendue
-        self.bearing_window = np.deg2rad(6.0)   # ±6°
-        self.range_window = 150.0               # ±150 mm
+        self.bearing_window = np.deg2rad(20.0)   # ±20°
+        self.range_window = 300.0               # ±300 mm
 
         # Gestion d’obstruction (miss counters par balise)
         self.miss_max = 8
@@ -163,14 +163,20 @@ class EKFLocalizer(RPLidarC1M1):
         """
         x, y, th = self.x
         obs = []
-
-        # Angles en rad, distances en mm, qual en [0..63]
-        angles = np.radians(scan[:, 0])
+        # On suppose que angle_offset est en radians (ex: pi/2)
+        angle_offset = np.radians(-90.0) 
+        
+        # D'abord convertir le scan (deg) en radians
+        raw_angles = np.radians(scan[:, 0]) 
+        # Ajouter l'offset
+        shifted_angles = raw_angles + angle_offset
+        # Ramener dans [-pi, pi]
+        angles = (shifted_angles + np.pi) % (2 * np.pi) - np.pi
         dists = scan[:, 1]
         qual = scan[:, 2]
 
         # Optionnel: filtrage brut
-        valid = (dists > 80.0) & (dists < 6000.0)
+        valid = (dists > 40.0) & (dists < 4500.0)
         angles = angles[valid]
         dists = dists[valid]
         qual = qual[valid]
@@ -224,6 +230,9 @@ class EKFLocalizer(RPLidarC1M1):
                     (self.sigma_b * miss_factor) ** 2,
                 ]
             )
+
+            print(f"[DEBUG] Balise {key} : "f"r_hat={r_hat:.1f}  b_hat={b_hat*180/np.pi:.1f}°")
+            print("   points trouvés dans fenêtre ?", np.sum(mask))
 
             obs.append((key, z, R))
 
@@ -294,7 +303,7 @@ class EKFLocalizer(RPLidarC1M1):
         self.predict(dt, v=v, w=w, dx=dx, dy=dy, dtheta=dtheta)
 
         # 2) SCAN + extractions
-        scan = self.get_scan(min_dist=60, max_dist=6000)
+        scan = self.get_scan(min_dist=40, max_dist=6000)
         obs = self._extract_beacon_measurements(scan)
 
         # 3) UPDATE si on a au moins une balise
@@ -318,7 +327,7 @@ class EKFLocalizer(RPLidarC1M1):
         """
 
         # 1) Lire un seul scan
-        scan = self.get_scan(min_dist=60, max_dist=6000)
+        scan = self.get_scan(min_dist=40, max_dist=6000)
 
         # 2) Extraire les mesures valides
         obs = self._extract_beacon_measurements(scan)
@@ -333,4 +342,9 @@ class EKFLocalizer(RPLidarC1M1):
 
         # 4) Retourner la pose courante
         return (float(self.x[0]), float(self.x[1]), float(self.x[2])), nb, obs
+    
+    def close(self):
+        """Ferme la connexion au LIDAR proprement."""
+        super().close()
+        print("LIDAR fermé.")
 
