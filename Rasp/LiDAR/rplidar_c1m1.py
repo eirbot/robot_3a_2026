@@ -104,27 +104,70 @@ class RPLidarC1M1:
 
     def get_scan(self, min_dist=50, max_dist=6000):
         """
-        Lit un tour complet et renvoie un tableau Nx3 [angle_deg, dist_mm, qual].
+        Lit un tour complet avec re-synchronisation robuste.
         """
         revolution = []
-        while True:
-            self.buf.extend(self.ser.read(256))
-            while len(self.buf) >= 5:
-                pkt = bytes(self.buf[:5])
-                del self.buf[:5]
-                decoded = self._decode_sample(pkt)
-                if not decoded:
-                    continue
+        # Sécurité pour ne pas bloquer indéfiniment si le Lidar est débranché
+        max_loops = 20000 
+        loops = 0
 
+        while loops < max_loops:
+            loops += 1
+            
+            # On lit tout ce qui arrive
+            if self.ser.in_waiting > 0:
+                self.buf.extend(self.ser.read(self.ser.in_waiting))
+            
+            # Si on n'a pas assez de données, on attend un peu (lecture bloquante courte)
+            if len(self.buf) < 5:
+                chunk = self.ser.read(32)
+                if not chunk:
+                    continue
+                self.buf.extend(chunk)
+
+            # --- C'est ici que ça change ---
+            while len(self.buf) >= 5:
+                # On regarde les 5 premiers octets SANS les supprimer
+                pkt = bytes(self.buf[:5])
+                
+                decoded = self._decode_sample(pkt)
+                
+                if not decoded:
+                    # ECHEC : On n'est pas aligné. 
+                    # On supprime JUSTE le 1er octet pour décaler la fenêtre ("Sliding Window")
+                    del self.buf[0]
+                    continue
+                
+                # SUCCES : Le paquet est valide, on supprime les 5 octets traités
+                del self.buf[:5]
+                
                 angle, dist, qual, S = decoded
 
-                # Détection d'une révolution complète (S : 0→1)
-                if S == 1 and self.last_S == 0 and len(revolution) > 100:
-                    return np.array(revolution)
+                # Logique de détection de tour (identique à avant)
+                if S == 1 and self.last_S == 0:
+                    if len(revolution) > 50:
+                        self.last_S = S
+                        return np.array(revolution)
+                    else:
+                        revolution = [] # Tour incomplet, on reset
+                
                 self.last_S = S
 
                 if min_dist < dist < max_dist:
                     revolution.append((angle, dist, qual))
+        
+        return None
+    
+    def clean_input(self):
+        """Vide les buffers série et Python pour éviter la latence."""
+        try:
+            self.ser.reset_input_buffer() # Vide le buffer de l'OS (Windows/Linux)
+        except Exception:
+            pass
+        self.buf.clear()              # Vide ton buffer bytearray
+        self.last_S = 0               # Reset l'état du bit de synchro
+    
+
 
     # ---------------------
     # Mode affichage temps réel
