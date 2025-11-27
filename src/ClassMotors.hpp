@@ -28,6 +28,10 @@ private:
     static void vMotors(void* pvParameters);
     void UpdateOdometry();
 
+    static ClassMotors* instancePtr;
+    static void IRAM_ATTR onTimer();
+    hw_timer_t* timer = nullptr;
+
 private:
     // Les deux moteurs
     AccelStepper moteurGauche;

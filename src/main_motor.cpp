@@ -31,7 +31,7 @@ void setup() {
 
     // Paramètres pure pursuit (à tuner)
     follower.setLookahead(0.02f);    // 25 cm
-    follower.setNominalSpeed(0.25f); // 0.25 m/s
+    follower.setNominalSpeed(0.35f); // 0.25 m/s // 0.12f maximum pour 5 points sur la courbe
 
     xTaskCreatePinnedToCore(taskControl, "Control", 6000, nullptr, 3, nullptr, 1);
     xTaskCreatePinnedToCore(taskSerialRx, "SerialRx", 6000, nullptr, 2, nullptr, 1);
@@ -58,9 +58,8 @@ void taskControl(void* arg) {
     uint32_t lastMicros = micros();
 
     float lastComputeCommand = micros()/ 1e6f;
+    float vL, vR;
     float temps_arc = 0;
-
-
     while (true) {
         uint32_t now = micros();
         float dt = (now - lastMicros) / 1e6f;
@@ -81,30 +80,12 @@ void taskControl(void* arg) {
         SERIAL_PI.print(odomPose.theta);
         SERIAL_PI.println("]");
 
-        float vL, vR;
-        
-        // Serial.print("lastComputeCommand : ");
-        // Serial.print(lastComputeCommand);
-        // Serial.print("  now_long : ");
-        // Serial.print(now_long);
-        // Serial.print("  now_long - lastComputeCommand: ");
-        // Serial.print(now_long - lastComputeCommand);
-        // Serial.print("  temps_arc : ");
-        // Serial.println(temps_arc);
-        
         if(now_long - lastComputeCommand >= temps_arc){
             lastComputeCommand = now_long; 
             follower.computeCommand(odomPose, dt, vL, vR, temps_arc);
-            // Serial.print("Envoie : ");
-            // Serial.print(" vL : ");
-            // Serial.print(vL);
-            // Serial.print(" vR : ");
-            // Serial.print(vR);
-            // SERIAL_PI.print(" temps_arc : ");
-            // SERIAL_PI.println(temps_arc);
-            applyVLVR(vL, vR);
         }
-        vTaskDelayUntil(&lastWake, pdMS_TO_TICKS(20)); // 50 Hz
+        applyVLVR(vL, vR);
+        vTaskDelayUntil(&lastWake, pdMS_TO_TICKS(10)); // 50 Hz
     }
 }
 

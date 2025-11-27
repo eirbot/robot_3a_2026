@@ -1,5 +1,7 @@
 #include "ClassMotors.hpp"
 
+ClassMotors* ClassMotors::instancePtr = nullptr;
+
 ClassMotors::ClassMotors()
 : moteurGauche(AccelStepper::DRIVER, MOTOR_LEFT_STEP_PIN, MOTOR_LEFT_DIR_PIN),
   moteurDroit(AccelStepper::DRIVER, MOTOR_RIGHT_STEP_PIN, MOTOR_RIGHT_DIR_PIN)
@@ -16,10 +18,15 @@ ClassMotors::ClassMotors()
     // Grande vitesse max, aucun frein logiciel
     moteurGauche.setMaxSpeed(50000);
     moteurDroit.setMaxSpeed(50000);
+    instancePtr = this;
 }
 
 void ClassMotors::StartMotors() {
-    xTaskCreatePinnedToCore(vMotors, "vMotors", 8000, this, 2, &vMotorsHandle, 1);
+    xTaskCreatePinnedToCore(vMotors, "vMotors", 8000, this, 2, &vMotorsHandle, 0);
+    timer = timerBegin(0, 80, true);
+    timerAttachInterrupt(timer, &ClassMotors::onTimer, true);
+    timerAlarmWrite(timer, 50, true);
+    timerAlarmEnable(timer);
 }
 
 void ClassMotors::EnvoyerVitesse(TaskParams* params) {
@@ -47,6 +54,12 @@ void ClassMotors::ResetPosition(float x, float y, float angle) {
     lastStepDroit  = 0;
 }
 
+void IRAM_ATTR ClassMotors::onTimer() {
+    if (instancePtr == nullptr) return;
+
+    instancePtr->moteurGauche.runSpeed();
+    instancePtr->moteurDroit.runSpeed();
+}
 
 void ClassMotors::vMotors(void* pvParameters) {
     ClassMotors* instance = (ClassMotors*)pvParameters;
@@ -66,17 +79,14 @@ void ClassMotors::vMotors(void* pvParameters) {
             // conversion m/s → steps/s
             speedL = params.vitesseGauche * stepPerMeter;
             speedR = params.vitesseDroite * stepPerMeter;
-            Serial.print("speedL ");
-            Serial.print(speedL);
-            Serial.print(" speedR ");
-            Serial.println(speedR);
+
             instance->moteurGauche.setSpeed(speedL);
             instance->moteurDroit.setSpeed(speedR);
         }
 
         // Exécute les steps
-        instance->moteurGauche.runSpeed();
-        instance->moteurDroit.runSpeed();
+        // instance->moteurGauche.runSpeed();
+        // instance->moteurDroit.runSpeed();
 
         // Mise à jour odométrie
         instance->UpdateOdometry();

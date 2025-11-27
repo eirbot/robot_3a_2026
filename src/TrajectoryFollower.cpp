@@ -94,7 +94,7 @@ void TrajectoryFollower::setNominalSpeed(float v_mps) {
 void TrajectoryFollower::computeCommand(const Pose2D& poseOdom, float dt, float& vL_out, float& vR_out, float& temps_arc) {
 
     Serial.print("Point suivant, currentIdx : ");
-    Serial.println( currentIdx );
+    Serial.println( currentIdx +1);
     
     if (!active || nPoints == 0) {
         vL_out = 0.0f;
@@ -109,7 +109,7 @@ void TrajectoryFollower::computeCommand(const Pose2D& poseOdom, float dt, float&
     }
 
     // Sélection du point lookahead (pure pursuit)
-    Point2D target = points[currentIdx];
+    Point2D target = points[currentIdx+1];
 
     // Distance du robot à ce point
     auto dist = [&](const Point2D& p) {
@@ -119,14 +119,6 @@ void TrajectoryFollower::computeCommand(const Pose2D& poseOdom, float dt, float&
     };
 
     float d = dist(target);
-
-
-    if (currentIdx == nPoints - 1) {
-        vL_out = 0.0f;
-        vR_out = 0.0f;
-        active = false;
-        return;
-    }
 
     // Coordonnées du point cible dans le repère robot
     float dx = target.x - pose.x;
@@ -172,4 +164,11 @@ void TrajectoryFollower::computeCommand(const Pose2D& poseOdom, float dt, float&
     currentIdx++;
     Serial.print("  temps_arc: ");
     Serial.println(temps_arc);
+
+    if (currentIdx == nPoints) {
+        vL_out = 0.0f;
+        vR_out = 0.0f;
+        active = false;
+        return;
+    }
 }
