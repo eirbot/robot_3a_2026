@@ -31,7 +31,7 @@ class Dialogue:
             self.point.x = float(self.entreex.get())
             self.point.y = float(self.entreey.get())
             self.point.move(self.point.x, self.point.y)
-            print(f"Nouvelle valeur : {self.point.x}, {self.point.y}")
+            print(f"Nouvelle valeur : {self.point.y}, {self.point.x}")
         except ValueError:
             print("Entrée invalide")
 

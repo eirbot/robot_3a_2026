@@ -60,7 +60,6 @@ bool TrajectoryFollower::loadFromJson(const char* json) {
     Serial.print("Trajectoire chargee avec ");
     Serial.print(nPoints);
     Serial.println(" points.");
-    currentIdx = 0;
     return true;
 }
 
@@ -91,7 +90,7 @@ void TrajectoryFollower::setNominalSpeed(float v_mps) {
     v_nom = v_mps;
 }
 
-void TrajectoryFollower::computeCommand(const Pose2D& poseOdom, float dt, float& vL_out, float& vR_out, float& temps_arc) {
+bool TrajectoryFollower::computeCommand(const Pose2D& poseOdom, float dt, float& vL_out, float& vR_out, float& temps_arc) {
 
     Serial.print("Point suivant, currentIdx : ");
     Serial.println( currentIdx +1);
@@ -99,7 +98,7 @@ void TrajectoryFollower::computeCommand(const Pose2D& poseOdom, float dt, float&
     if (!active || nPoints == 0) {
         vL_out = 0.0f;
         vR_out = 0.0f;
-        return;
+        return false;
     }
 
     // Pose utilisée pour le suivi : si pose corrigée dispo -> on la prend
@@ -169,6 +168,7 @@ void TrajectoryFollower::computeCommand(const Pose2D& poseOdom, float dt, float&
         vL_out = 0.0f;
         vR_out = 0.0f;
         active = false;
-        return;
+        return false;
     }
+    return true;
 }

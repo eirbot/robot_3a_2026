@@ -5,6 +5,7 @@ import bezier
 import ClassPoint
 import ClassDialogue
 import ClassRobot
+import ClassBezier
 import serial
 import json
 from serial.serialutil import SerialException
@@ -12,6 +13,40 @@ import time
 import ast
 from PIL import Image, ImageTk
 from esp32_detect import find_esp32_port
+
+points_courbe_bezier = 20
+
+def resize_image():
+    """Redimensionne l’image en gardant le ratio"""
+    global displayed_image, photo, img_scale, offset_x, offset_y
+
+    global container_width
+    global container_height
+
+    img_ratio = original_image.width / original_image.height
+    container_ratio = container_width / container_height
+
+    if container_ratio > img_ratio:
+        new_height = container_height
+        new_width = int(new_height * img_ratio)
+    else:
+        new_width = container_width
+        new_height = int(new_width / img_ratio)
+
+    img_scale = new_width / original_image.width
+    offset_x = (container_width - new_width) // 2
+    offset_y = (container_height - new_height) // 2
+
+    displayed_image = original_image.resize((new_width, new_height), Image.LANCZOS)
+    photo = ImageTk.PhotoImage(displayed_image)
+
+    # Supprime uniquement l’ancienne image de fond
+    canvas.delete("background")
+    bg = canvas.create_image(offset_x, offset_y, anchor="nw", image=photo, tags="background")
+    canvas.tag_lower(bg)
+    canvas.image = photo  # éviter le garbage collector
+
+
 
 def on_drag(event):
     """Quand on déplace la souris tout en maintenant le clic"""
@@ -50,8 +85,9 @@ def on_drag(event):
         drag_data["x"] = event.x
         drag_data["y"] = event.y
 
-    
-    affiche_bezier() 
+    if len(segments):
+        segments[segment_on_edit].calcul(points_courbe_bezier)
+        segments[segment_on_edit].affiche() 
 
 def on_release(event):
     x_click = event.x
@@ -91,69 +127,16 @@ def on_release(event):
                 Boite4.schema_to_boite(x_img, y_img)
         else:
             print("Clic en dehors de l’image")
-        affiche_bezier()
+        
+        if(len(segments)):
+            segments[segment_on_edit].calcul(points_courbe_bezier)
+            segments[segment_on_edit].affiche()
 
         robot.move_absolu(point0.y, point0.x, 0)
         root.update()
 
 
     drag_data["item"] = None
-
-def affiche_bezier():
-    global trajectoire_bezier
-    # On inverse les axes par rapport à tkinter pour correspondre à la table
-    trajectoire_bezier = bezier.bezier_cubique_discret(50, np.array([point1.y, point1.x]), np.array([point2.y, point2.x]), np.array([point3.y, point3.x]), np.array([point4.y, point4.x]))
-    
-    traj_pix = np.zeros_like(trajectoire_bezier)
-    traj_pix[:, 0] = offset_x + (trajectoire_bezier[:, 1] + 1.5) / 3 * displayed_image.width # On inverse les axes par rapport à tkinter pour correspondre à la table
-    traj_pix[:, 1] = offset_y + (trajectoire_bezier[:, 0]) / 2 * displayed_image.height # On inverse les axes par rapport à tkinter pour correspondre à la table
-
-    
-    canvas.delete("vecteur")
-    canvas.create_line((point1.x+1.5)/3*900, point1.y/2*600, (point2.x+1.5)/3*900, point2.y/2*600, fill="blue", width=2, tags="vecteur")
-    canvas.create_line((point3.x+1.5)/3*900, point3.y/2*600, (point4.x+1.5)/3*900, point4.y/2*600, fill="blue", width=2, tags="vecteur")
-    
-    canvas.delete("courbe_bezier")
-    affiche_points(traj_pix)
-
-def affiche_points(liste_coordonnes):
-    """Affiche la courbe de Bézier sous forme de segments"""
-    for i_coord in range(liste_coordonnes.shape[0] - 1):
-        canvas.create_line(
-            liste_coordonnes[i_coord][0], liste_coordonnes[i_coord][1],
-            liste_coordonnes[i_coord + 1][0], liste_coordonnes[i_coord + 1][1],
-            fill="red", width=2, tags="courbe_bezier"
-        )
-
-def resize_image():
-    """Redimensionne l’image en gardant le ratio"""
-    global displayed_image, photo, img_scale, offset_x, offset_y
-
-    global container_width
-    global container_height
-
-    img_ratio = original_image.width / original_image.height
-    container_ratio = container_width / container_height
-
-    if container_ratio > img_ratio:
-        new_height = container_height
-        new_width = int(new_height * img_ratio)
-    else:
-        new_width = container_width
-        new_height = int(new_width / img_ratio)
-
-    img_scale = new_width / original_image.width
-    offset_x = (container_width - new_width) // 2
-    offset_y = (container_height - new_height) // 2
-
-    displayed_image = original_image.resize((new_width, new_height), Image.LANCZOS)
-    photo = ImageTk.PhotoImage(displayed_image)
-
-    # Supprime uniquement l’ancienne image de fond
-    canvas.delete("background")
-    bg = canvas.create_image(offset_x, offset_y, anchor="nw", image=photo, tags="background")
-    canvas.tag_lower(bg)
-    canvas.image = photo  # éviter le garbage collector
 
 def on_click(event):
 
@@ -181,12 +164,13 @@ def on_click(event):
         drag_data["y"] = event.y
 
 def on_enter(event):
-    affiche_bezier()
+    if len(segments):
+        segments[segment_on_edit].calcul(points_courbe_bezier)
+        segments[segment_on_edit].affiche() 
 
 def envoyer(message):
 
     if(len(message)!=0):
-        # print(trajectoire_bezier)
         port = find_esp32_port()
 
         if port:
@@ -226,6 +210,20 @@ def envoyer(message):
     else:
         print("message vide")
 
+def nouveau_segment():
+    global segments, segment_on_edit
+    label = "bezier"+ str(segment_on_edit+1)
+    
+    if(len(segments)):
+        point1.move(point4.x, point4.y)
+        point2.move(point4.x+0.1, point4.y)
+        point3.move(point4.x+0.2, point4.y)
+        point4.move(point4.x+0.3, point4.y)
+
+    new_bezier = ClassBezier.Bezier(canvas, displayed_image, label, point1, point2, point3, point4)
+    segments.append(new_bezier)
+    segment_on_edit = len(segments)-1
+
 def simu_robot(k=0):
     # positions = [[0,-1.5],[0,1.5],[2,1.5],[2,-1.5]]
     # robot.move_absolu(positions[k%4][0], positions[k%4][1], k*10)
@@ -249,8 +247,6 @@ pixels_to_meters = 3/container_width
 
 original_image = Image.open("table_coupe_2026.png")
 
-trajectoire_bezier = np.array([])
-
 canvas = tk.Canvas(root, bg="black")
 canvas.pack(fill="both", expand=True)
 
@@ -268,10 +264,13 @@ displayed_image = original_image
 
 point0 = ClassPoint.Point(canvas, 0, 0) #position initiale du robot
 
-point1 = ClassPoint.Point(canvas, 1, 1) #parametres courbe de bezier
-point2 = ClassPoint.Point(canvas, 1, 1.1) #parametres courbe de bezier
-point3 = ClassPoint.Point(canvas, 1, 1.2) #parametres courbe de bezier
-point4 = ClassPoint.Point(canvas, 1, 1.3) #parametres courbe de bezier
+point1 = ClassPoint.Point(canvas, 1, 1, 6, "red") #parametres courbe de bezier
+point2 = ClassPoint.Point(canvas, 1.1, 1, 6, "yellow") #parametres courbe de bezier
+point3 = ClassPoint.Point(canvas, 1.2, 1, 6, "green") #parametres courbe de bezier
+point4 = ClassPoint.Point(canvas, 1.3, 1, 6, "blue") #parametres courbe de bezier
+
+segments = []
+segment_on_edit = -1
 
 Boite0 = ClassDialogue.Dialogue(root, "Position Robot", point0)
 
@@ -280,12 +279,16 @@ Boite2 = ClassDialogue.Dialogue(root, "Point2", point2)
 Boite3 = ClassDialogue.Dialogue(root, "Point3", point3)
 Boite4 = ClassDialogue.Dialogue(root, "Point4", point4)
 
-bouton = tk.Button(root, text="Envoyer", command=lambda: envoyer(trajectoire_bezier))
-bouton.pack()
+bouton1 = tk.Button(root, text="Envoyer", command=lambda: envoyer(segments[segment_on_edit].trajectoire))
+bouton1.pack()
+
+bouton2 = tk.Button(root, text="Nouveau segment", command=lambda: nouveau_segment())
+bouton2.pack()
 
 drag_data = {"x": 0, "y": 0, "item": None}
 
 resize_image()
+
 canvas.bind("<Button-1>", on_click)
 canvas.bind("<B1-Motion>", on_drag)
 canvas.bind("<ButtonRelease-1>", on_release)

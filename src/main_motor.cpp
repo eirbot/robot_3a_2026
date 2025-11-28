@@ -11,7 +11,8 @@
 ClassMotors motors;
 TrajectoryFollower follower;
 
-// Géométrie robot (cohérente avec ClassMotors)
+bool newTrajectory = false;
+bool trajectoryFinished = false;
 
 
 // Tâches
@@ -39,8 +40,9 @@ void setup() {
 }
 
 void loop() {
-    
-
+    if(trajectoryFinished){
+        SERIAL_PI.println("trajectoryFinished");
+    }
     vTaskDelay(pdMS_TO_TICKS(100));
 }
 
@@ -59,7 +61,7 @@ void taskControl(void* arg) {
 
     float lastComputeCommand = micros()/ 1e6f;
     float vL, vR;
-    float temps_arc = 0;
+    float temps_arc = 1;
     while (true) {
         uint32_t now = micros();
         float dt = (now - lastMicros) / 1e6f;
@@ -80,9 +82,10 @@ void taskControl(void* arg) {
         SERIAL_PI.print(odomPose.theta);
         SERIAL_PI.println("]");
 
-        if(now_long - lastComputeCommand >= temps_arc){
+        if(now_long - lastComputeCommand >= temps_arc || newTrajectory){
+            newTrajectory = false;
             lastComputeCommand = now_long; 
-            follower.computeCommand(odomPose, dt, vL, vR, temps_arc);
+            trajectoryFinished = not(follower.computeCommand(odomPose, dt, vL, vR, temps_arc));
         }
         applyVLVR(vL, vR);
         vTaskDelayUntil(&lastWake, pdMS_TO_TICKS(10)); // 50 Hz
@@ -103,6 +106,7 @@ void taskSerialRx(void* arg) {
                     if (line[0] == '[') {
                         if (follower.loadFromJson(line.c_str())) {
                             SERIAL_PI.println("BEZ OK");
+                            newTrajectory = true;
                         } else {
                             SERIAL_PI.println("BEZ ERR");
                         }

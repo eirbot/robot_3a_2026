@@ -3,12 +3,12 @@
 class Point:
     """Une classe représentant un point 2D."""
 
-    def __init__(self, canvas, x=0, y=0, r=6):
+    def __init__(self, canvas, x=0, y=0, r=6, color="black"):
         self.canvas = canvas
         self.x = x
         self.y = y
         self.r = r
-        self.id = canvas.create_oval(x*900/3-r+450, y*600/2-r, x*900/3+r+450, y*600/2+r, fill="blue", outline="")
+        self.id = canvas.create_oval(x*900/3-r+450, y*600/2-r, x*900/3+r+450, y*600/2+r, fill=color, outline="")
 
     def moved(self, dx, dy):
         self.canvas.move(self.id, dx*900/3, dy*600/2)
