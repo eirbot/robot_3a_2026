@@ -39,7 +39,7 @@ class UIManager:
         for l in self.menu_lines: l.pack(fill=tk.X, padx=24, pady=2)
 
         # Dashboard widgets
-        self.lbl_dash_title = tk.Label(self.frame_dash, text="🤖 EIRBOT — DASHBOARD", font=("DejaVu Sans", 26, "bold"), fg="#E6EDF3", bg="#101418")
+        self.lbl_dash_title = tk.Label(self.frame_dash, text="EIRBOT — DASHBOARD", font=("DejaVu Sans", 26, "bold"), fg="#E6EDF3", bg="#101418")
         self.lbl_dash_title.pack(pady=10)
         self.lbl_dash_team = tk.Label(self.frame_dash, text="", font=("DejaVu Sans", 20), fg="#7BC4FF", bg="#101418")
         self.lbl_dash_team.pack()
@@ -201,7 +201,7 @@ class UIManager:
         self.root.update_idletasks()
         try:
             test_esp32()
-            self.lbl_dyn.config(text="Actionneurs testés ✅")
+            self.lbl_dyn.config(text="Actionneurs testés")
         except Exception as e:
             self.lbl_dyn.config(text=f"Erreur test actionneurs : {e}")
 
