@@ -126,19 +126,41 @@ class RPLidarC1M1:
                 self.buf.extend(chunk)
 
             # --- C'est ici que ça change ---
+            # [OPTIMISATION] : On évite de traiter le buffer s'il ne commence pas par le header
+            # On utilise une boucle pour "sauter" directement au prochain octet 0xA5 (165)
             while len(self.buf) >= 5:
-                # On regarde les 5 premiers octets SANS les supprimer
-                pkt = bytes(self.buf[:5])
                 
+                # 1. RECHERCHE RAPIDE DU DÉBUT DE TRAME
+                if self.buf[0] != 0xA5:
+                    try:
+                        # On cherche l'index du prochain 0xA5 dans tout le buffer d'un coup
+                        # C'est optimisé en C par Python, très rapide.
+                        idx = self.buf.index(0xA5)
+                        
+                        # On supprime tout ce qui précède en UNE SEULE opération
+                        del self.buf[:idx]
+                        
+                    except ValueError:
+                        # Aucun 0xA5 trouvé ? Tout le buffer est inutile, on vide tout.
+                        self.buf.clear()
+                        continue
+                
+                # Sécurité après nettoyage : a-t-on encore assez de données ?
+                if len(self.buf) < 5:
+                    continue
+
+                # 2. DÉCODAGE (Ton code original reprend ici)
+                pkt = bytes(self.buf[:5])
                 decoded = self._decode_sample(pkt)
                 
                 if not decoded:
-                    # ECHEC : On n'est pas aligné. 
-                    # On supprime JUSTE le 1er octet pour décaler la fenêtre ("Sliding Window")
+                    # Aïe, c'était un faux positif (un 0xA5 qui n'était pas un header)
+                    # On supprime juste cet octet pour avancer et on recommence
                     del self.buf[0]
                     continue
                 
-                # SUCCES : Le paquet est valide, on supprime les 5 octets traités
+                # SUCCÈS : On a un point valide !
+                # On supprime les 5 octets traités
                 del self.buf[:5]
                 
                 angle, dist, qual, S = decoded
