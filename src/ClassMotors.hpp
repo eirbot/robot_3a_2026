@@ -24,6 +24,8 @@ public:
     // Remise à zéro de la position
     void ResetPosition(float x = 0, float y = 0, float angle = 0);
 
+    long out[10];
+
 private:
     static void vMotors(void* pvParameters);
     void UpdateOdometry();
@@ -57,5 +59,5 @@ private:
     // Constantes robot
     const float dRoues = 0.0723f;      // diamètre roue (m)
     const float ecartRoues = 0.343f;   // entraxe (m)
-    const float stepPerRev = 3200.0f;  // steps par tour moteur (sans microstepping)
+    const float stepPerRev = 3200.0f; //3200.0f  // steps par tour moteur (sans microstepping)
 };

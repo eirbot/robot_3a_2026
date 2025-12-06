@@ -11,6 +11,7 @@ import json
 from serial.serialutil import SerialException
 import time
 import ast
+import json
 from PIL import Image, ImageTk
 from esp32_detect import find_esp32_port
 
@@ -46,8 +47,6 @@ def resize_image():
     canvas.tag_lower(bg)
     canvas.image = photo  # éviter le garbage collector
 
-
-
 def on_drag(event):
     """Quand on déplace la souris tout en maintenant le clic"""
     if drag_data["item"]==point0.id:
@@ -57,7 +56,7 @@ def on_drag(event):
         drag_data["x"] = event.x
         drag_data["y"] = event.y
 
-        robot.move_absolu(point0.y, point0.x, 0) # Commenter ces lignes si manque de puissance sur la machine
+        robot.move_absolu(point0.y, point0.x, robot.theta) # Commenter ces lignes si manque de puissance sur la machine
         root.update()
 
     if drag_data["item"]==point1.id:
@@ -132,7 +131,7 @@ def on_release(event):
             segments[segment_on_edit].calcul(points_courbe_bezier)
             segments[segment_on_edit].affiche()
 
-        robot.move_absolu(point0.y, point0.x, 0)
+        robot.move_absolu(point0.y, point0.x, robot.theta)
         root.update()
 
 
@@ -189,17 +188,35 @@ def envoyer(message):
                         coordonnee[1] *= 1000
                     trajectoire_bezier_string = json.dumps(trajectoire_bezier_mm.tolist())
 
+                    print(f"robot.y = {robot.y}, robot.x = {robot.x}, robot.theta = {robot.theta}")
+                    ser.write((f"SET POSE {robot.y*1000} {robot.x*1000} {robot.theta*np.pi/180}\n").encode())
                     ser.write((trajectoire_bezier_string+'\n').encode())
                     print("Trajectoire envoyé")
                     print("Réponse ESP (ctrl+C pour stoper) : ")
-                    while True:
+                    msg = ""
+                    while msg!="BEZ OK":
+                        msg = ser.readline().decode(errors="ignore").strip()
+                        if msg:
+                            print(f">>{msg}, en attente de BEZ OK")
+                    with open('logs_vitesse.txt', 'w') as f:
+                                    f.write("")
+                    while msg!="trajectoryFinished":
                         msg = ser.readline().decode(errors="ignore").strip()
                         if msg:
                             print(">>", msg)
                             if(msg[0]=='['):
                                 msg_list = ast.literal_eval(msg)
-                                robot.move_absolu(msg_list[0], msg_list[1], msg_list[2]*180/np.pi)
+                                robot.x = msg_list[0]
+                                robot.y = msg_list[1]
+                                print(f"robot.theta avant recup de msg_list[2] = {robot.theta}")
+                                robot.theta = msg_list[2]*180/np.pi
+                                print(f"robot.theta après = {robot.theta}")
+                                point0.move(robot.y, robot.x)
+                                robot.move_absolu(robot.x, robot.y, robot.theta)
                                 root.update()
+                                ligne_log = {"time":time.time(),"x":msg_list[0],"y":msg_list[1],"theta":msg_list[2]*180/np.pi}
+                                with open('logs_vitesse.txt', 'a') as f:
+                                    f.write(json.dumps(ligne_log)+"\n")
                 elif(message[0:8]=="SET POSE"):
                     print("Changement de position de robot depuis l'interface")
                     ser.write((f"SET POSE {robot.y*1000} {robot.x*1000} {robot.theta}\n").encode())
@@ -220,9 +237,10 @@ def nouveau_segment():
         point3.move(point4.x+0.2, point4.y)
         point4.move(point4.x+0.3, point4.y)
 
-    new_bezier = ClassBezier.Bezier(canvas, displayed_image, label, point1, point2, point3, point4)
+    new_bezier = ClassBezier.Bezier(canvas, displayed_image, label, point1, point2, point3, point4, points_courbe_bezier)
     segments.append(new_bezier)
     segment_on_edit = len(segments)-1
+    segments[segment_on_edit].affiche() 
 
 def simu_robot(k=0):
     # positions = [[0,-1.5],[0,1.5],[2,1.5],[2,-1.5]]
@@ -254,23 +272,27 @@ photo = ImageTk.PhotoImage(original_image)
 bg = canvas.create_image(0, 0, anchor="nw", image=photo, tags="background")
 canvas.tag_lower(bg)
 
-robot = ClassRobot.Robot(canvas, pixels_to_meters, 0, 0, 0)
-
 # simu_robot()
 
 img_scale = 1.0
 offset_x = offset_y = 0
 displayed_image = original_image
 
-point0 = ClassPoint.Point(canvas, 0, 0) #position initiale du robot
+resize_image()
 
-point1 = ClassPoint.Point(canvas, 1, 1, 6, "red") #parametres courbe de bezier
-point2 = ClassPoint.Point(canvas, 1.1, 1, 6, "yellow") #parametres courbe de bezier
-point3 = ClassPoint.Point(canvas, 1.2, 1, 6, "green") #parametres courbe de bezier
-point4 = ClassPoint.Point(canvas, 1.3, 1, 6, "blue") #parametres courbe de bezier
+point0 = ClassPoint.Point(canvas, 1.18, 0.38) #position initiale du robot
+robot = ClassRobot.Robot(canvas, pixels_to_meters, point0.x, point0.y, 0)
+
+point1 = ClassPoint.Point(canvas, 1.18, 0.39, 6, "red") #parametres courbe de bezier
+point2 = ClassPoint.Point(canvas, 1.17, 1.01, 6, "yellow") #parametres courbe de bezier
+point3 = ClassPoint.Point(canvas, 0.36, 0.77, 6, "green") #parametres courbe de bezier
+point4 = ClassPoint.Point(canvas, 0.35, 1.11, 6, "blue") #parametres courbe de bezier
 
 segments = []
-segment_on_edit = -1
+segments.append(ClassBezier.Bezier(canvas, displayed_image, "bezier0", point1, point2, point3, point4, points_courbe_bezier))
+segment_on_edit = 0
+segments[segment_on_edit].affiche() 
+
 
 Boite0 = ClassDialogue.Dialogue(root, "Position Robot", point0)
 
@@ -286,8 +308,6 @@ bouton2 = tk.Button(root, text="Nouveau segment", command=lambda: nouveau_segmen
 bouton2.pack()
 
 drag_data = {"x": 0, "y": 0, "item": None}
-
-resize_image()
 
 canvas.bind("<Button-1>", on_click)
 canvas.bind("<B1-Motion>", on_drag)

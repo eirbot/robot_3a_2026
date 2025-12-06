@@ -24,7 +24,7 @@ class Robot:
         self.robot_PIL_resized = self.robot_image.resize((self.width, self.height), Image.LANCZOS)
         self.robot_PIL = self.robot_PIL_resized
         self.afficher_robot()
-        self.rotate(self.theta)
+        self.move_absolu(self.x, self.y, self.theta)
 
     def afficher_robot(self):
         self.robot_photo = ImageTk.PhotoImage(self.robot_PIL)

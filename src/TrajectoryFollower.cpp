@@ -91,6 +91,7 @@ void TrajectoryFollower::setNominalSpeed(float v_mps) {
 }
 
 bool TrajectoryFollower::computeCommand(const Pose2D& poseOdom, float dt, float& vL_out, float& vR_out, float& temps_arc) {
+    v_nom = 0.35;
 
     Serial.print("Point suivant, currentIdx : ");
     Serial.println( currentIdx +1);
@@ -107,7 +108,8 @@ bool TrajectoryFollower::computeCommand(const Pose2D& poseOdom, float dt, float&
         pose = poseOdom;
     }
 
-    // Sélection du point lookahead (pure pursuit)
+    // Point suivant
+    Point2D supposed_position = points[currentIdx];
     Point2D target = points[currentIdx+1];
 
     // Distance du robot à ce point
@@ -139,23 +141,21 @@ bool TrajectoryFollower::computeCommand(const Pose2D& poseOdom, float dt, float&
         Dist = theta/2.0*d/sinf(theta/2.0);
         R = d/(2.0*sin(theta/2.0));
     }
+
+    float ratio_supposed_position = 0.0; //0.1
+    float ratio_theta = 0.1;
+
+    // v_nom = 1.0f; //1
+    v_nom *= (1.1-dist(supposed_position)*ratio_supposed_position- abs(theta) * ratio_theta); //2
+    
+
     temps_arc = Dist/v_nom;
 
     float Dist_L = (R-WHEEL_BASE/2.0)*theta;
     float Dist_R = (R+WHEEL_BASE/2.0)*theta;
 
-    Serial.print("Dist_L : ");
-    Serial.print(Dist_L);
-    Serial.print("  Dist_R : ");
-    Serial.println(Dist_R);
-
     float vL = Dist_L/temps_arc;
     float vR = Dist_R/temps_arc;
-
-    Serial.print("vL : ");
-    Serial.print(vL);
-    Serial.print("  vR : ");
-    Serial.println(vR);
 
     vL_out = vL;
     vR_out = vR;

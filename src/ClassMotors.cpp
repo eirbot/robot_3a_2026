@@ -19,6 +19,8 @@ ClassMotors::ClassMotors()
     moteurGauche.setMaxSpeed(50000);
     moteurDroit.setMaxSpeed(50000);
     instancePtr = this;
+
+    long out[10] = {1,1,1,1,1,1,1,1,1,1};
 }
 
 void ClassMotors::StartMotors() {
@@ -122,6 +124,8 @@ void ClassMotors::UpdateOdometry() {
     lastStepDroit  = csR;
 
     // Conversion step → mètres
+    
+    
     const float mPerStep = (M_PI * dRoues) / stepPerRev;
 
     float sL = dL * mPerStep;   // déplacement roue gauche en mètres

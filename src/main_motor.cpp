@@ -32,7 +32,7 @@ void setup() {
 
     // Paramètres pure pursuit (à tuner)
     follower.setLookahead(0.02f);    // 25 cm
-    follower.setNominalSpeed(0.35f); // 0.25 m/s // 0.12f maximum pour 5 points sur la courbe
+    follower.setNominalSpeed(0.35f); // 0.25 m/s
 
     xTaskCreatePinnedToCore(taskControl, "Control", 6000, nullptr, 3, nullptr, 1);
     xTaskCreatePinnedToCore(taskSerialRx, "SerialRx", 6000, nullptr, 2, nullptr, 1);
@@ -75,11 +75,11 @@ void taskControl(void* arg) {
         motors.GetPosition(x, y, th);
         Pose2D odomPose { x, y, th };
         SERIAL_PI.print("[");
-        SERIAL_PI.print(odomPose.x);
+        SERIAL_PI.print(odomPose.x, 6);
         SERIAL_PI.print(", ");
-        SERIAL_PI.print(odomPose.y);
+        SERIAL_PI.print(odomPose.y, 6);
         SERIAL_PI.print(", ");
-        SERIAL_PI.print(odomPose.theta);
+        SERIAL_PI.print(odomPose.theta, 6);
         SERIAL_PI.println("]");
 
         if(now_long - lastComputeCommand >= temps_arc || newTrajectory){

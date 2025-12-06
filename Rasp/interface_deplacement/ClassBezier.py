@@ -4,7 +4,7 @@ import numpy as np
 
 class Bezier:
 
-    def __init__(self, canvas, displayed_image, label, point1, point2, point3, point4):
+    def __init__(self, canvas, displayed_image, label, point1, point2, point3, point4, nb_points):
         self.canvas = canvas
         self.displayed_image = displayed_image
         self.label = label
@@ -13,10 +13,12 @@ class Bezier:
         self.point3 = point3
         self.point4 = point4
 
+        self.nb_points = nb_points
+
         self.offset_x = 0
         self.offset_y = 0
         
-        self.calcul(5)
+        self.calcul(nb_points)
 
     def resize_affichage(self, displayed_image, offset_x, offset_y):
         self.displayed_image = displayed_image
