@@ -5,8 +5,8 @@ After=network.target
 [Service]
 Type=simple
 User=root
-WorkingDirectory=/home/eirbot/Documents/robot_3a_2026/ihm
-ExecStart=/usr/bin/python3 /home/eirbot/Documents/robot_3a_2026/ihm/led_service.py
+ExecStart=/home/eirbot/Documents/robot_3a_2026/.venv/bin/python /home/eirbot/Documents/robot_3a_2026/utils/led_service.py
+WorkingDirectory=/home/eirbot/Documents/robot_3a_2026/utils
 Restart=always
 RestartSec=2
 StandardOutput=append:/var/log/led_service.log

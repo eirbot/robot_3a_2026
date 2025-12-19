@@ -1,0 +1,16 @@
+[Unit]
+Description=Eirbot Central Units
+After=network.target sound.target
+
+[Service]
+User=eirbot
+WorkingDirectory=/home/eirbot/Documents/robot_3a_2026
+ExecStart=/home/eirbot/Documents/robot_3a_2026/.venv/bin/python /home/eirbot/Documents/robot_3a_2026/main_robot.py
+Restart=always
+RestartSec=2
+StandardOutput=append:/var/log/ihm.log
+StandardError=append:/var/log/ihm.log
+Environment=PYTHONUNBUFFERED=1
+
+[Install]
+WantedBy=multi-user.target

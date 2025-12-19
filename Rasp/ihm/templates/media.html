@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>MÉDIA MANAGER</title>
+    <link rel="stylesheet" href="/static/style.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
+    <script src="/static/script.js" defer></script>
+</head>
+<body class="mode-BLEUE">
+    <div class="header">
+        <a href="/debug" class="btn-back">← Retour</a>
+        <div style="font-weight:bold;">SON & LUMIÈRE</div>
+        <div class="sys-info" id="sys-info">...</div>
+    </div>
+
+    <div class="debug-grid">
+        <div class="card">
+            <h3>🎵 Audio</h3>
+            <form action="/api/upload_sound" method="post" enctype="multipart/form-data" style="margin-bottom:20px; border:1px dashed #555; padding:10px;">
+                <input type="file" name="file" accept=".mp3" id="file-input">
+                <input type="submit" value="Envoyer" class="btn-sys" style="width:auto; display:inline-block; padding:5px 10px;">
+            </form>
+
+            <table style="width:100%; text-align:left; font-size:0.9em;">
+                <tr><th>Fichier</th><th>Action</th></tr>
+                {% for f in files %}
+                <tr>
+                    <td style="color:#C3E88D">{{ f }}</td>
+                    <td>
+                        <button onclick="setTrack('intro', '{{f}}')" class="btn-tiny">Intro</button>
+                        <button onclick="setTrack('match', '{{f}}')" class="btn-tiny">Match</button>
+                        <button onclick="setTrack('end', '{{f}}')" class="btn-tiny">Fin</button>
+                    </td>
+                </tr>
+                {% endfor %}
+            </table>
+            <hr>
+            <p><strong>Actuel :</strong><br>
+               Intro: {{ audio_cfg.get('tracks', {}).get('intro', '-') }}<br>
+               Match: {{ audio_cfg.get('tracks', {}).get('match', '-') }}<br>
+               Fin: {{ audio_cfg.get('tracks', {}).get('end', '-') }}
+            </p>
+        </div>
+
+        <div class="card">
+            <h3>💡 LEDs</h3>
+            <div style="margin-bottom: 20px;">
+                <label>Couleur :</label>
+                <input type="color" id="col-picker" value="#0000ff" style="width:100%; height:40px; border:none;">
+                <button class="btn-led" onclick="sendColor()">APPLIQUER</button>
+            </div>
+            <hr style="border-color:#444">
+            <div>
+                <label>Dégradé :</label>
+                <div style="display:flex; gap:10px;">
+                    <input type="color" id="grad-1" value="#ff0000" style="flex:1; height:40px;">
+                    <input type="color" id="grad-2" value="#0000ff" style="flex:1; height:40px;">
+                </div>
+                <button class="btn-led" onclick="sendGradient()">APPLIQUER</button>
+            </div>
+            <br>
+            <button class="btn-stop" onclick="sendColor('#000000')" style="font-size:1em; padding:10px; width:100%">ÉTEINDRE</button>
+        </div>
+    </div>
+</body>
+</html>

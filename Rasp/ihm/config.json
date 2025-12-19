@@ -25,6 +25,12 @@
     "freq_hz": 800000,
     "dma": 10
   },
+  "camera": {
+    "id": 0,
+    "width": 320,
+    "height": 240,
+    "fps": 20
+  },
   "audio": {
     "enabled": true,
     "volume": 0.8,
