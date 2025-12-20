@@ -6,25 +6,11 @@ import threading
 
 # Import de l'IHM
 from ihm import run_ihm
-import ihm.shared as shared
+import shared as shared
+from main_strat import strat_loop
 
 # Import des logiques
-from hardware_thread import hardware_loop  # <--- LE NOUVEAU
-# (Tu peux aussi mettre ta strategy_loop dans un fichier strategy_thread.py pour faire propre)
-
-# --- STRATEGIE (Simplifiée pour l'exemple) ---
-def strategy_loop():
-    print("[STRAT] Démarrage logique...")
-    while True:
-        # La stratégie lit simplement la position mise à jour par le Hardware !
-        x = shared.robot_pos['x']
-        y = shared.robot_pos['y']
-        
-        if shared.state["match_running"]:
-            # Logique de match...
-            pass
-            
-        time.sleep(0.1)
+from hardware_thread import hardware_loop
 
 # --- MAIN ---
 if __name__ == "__main__":
@@ -36,7 +22,7 @@ if __name__ == "__main__":
         hw_thread.start()
 
         # 2. Thread STRATEGIE (IA, Décisions)
-        strat_thread = threading.Thread(target=strategy_loop, daemon=True)
+        strat_thread = threading.Thread(target=strat_loop, daemon=True)
         strat_thread.start()
         
         # 3. Thread IHM (Serveur Web - Bloquant)
