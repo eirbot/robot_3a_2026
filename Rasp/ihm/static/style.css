@@ -203,19 +203,11 @@ body.breathing-JAUNE { animation: breathe-yellow 2s infinite ease-in-out; }
 .card { background: #1c232b; padding: 20px; border-radius: 10px; margin-bottom: 10px; }
 .debug-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; padding: 20px; }
 #map-container { flex-grow: 1; background: #222; display: flex; justify-content: center; align-items: center; position: relative; }
-canvas { background: #eee; border-radius: 4px; }
+canvas { background: #1c232b; border-radius: 4px; box-shadow: 0 0 10px #000; }
 .info-pos { position: absolute; bottom: 20px; background: rgba(0,0,0,0.7); padding: 5px 15px; border-radius: 20px; }
 
-/* CARDS & MAP */
-.card { background: #1c232b; padding: 20px; border-radius: 10px; margin-bottom: 10px; }
-.debug-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; padding: 20px; }
-#map-container { flex-grow: 1; background: #222; display: flex; justify-content: center; align-items: center; position: relative; }
-
-/* CANVAS SOMBRE */
-canvas { 
-    background: #1c232b; /* FOND SOMBRE */
-    border-radius: 4px; 
-    box-shadow: 0 0 10px #000;
-}
-
-.info-pos { position: absolute; bottom: 20px; background: rgba(0,0,0,0.7); padding: 5px 15px; border-radius: 20px; }
+/* --- AJOUT POUR LE BADGE FSM --- */
+.badge { padding: 5px 10px; border-radius: 5px; font-weight: bold; color: white; background: #555; }
+.badge-wait { background: #1976D2; }
+.badge-run { background: #E91E63; animation: blink 1s infinite; }
+.badge-end { background: #388E3C; }

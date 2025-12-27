@@ -13,6 +13,8 @@ AUDIO_DIR = os.path.join(BASE_DIR, "audio")
 
 if not os.path.exists(AUDIO_DIR): os.makedirs(AUDIO_DIR)
 
+strategies_list = {}
+
 def load_config():
     if not os.path.exists(CONFIG_PATH): return {}
     with open(CONFIG_PATH, 'r') as f: return json.load(f)
@@ -45,6 +47,8 @@ state = {
     "music_enabled": cfg.get("music_enabled", True),
     "leds_enabled": cfg.get("leds_enabled", True),
     "manual_score_enabled": cfg.get("manual_score_enabled", True),
+    "strat_id": "strat_homologation", 
+    "fsm_state": "INIT",
     "strat_mode": cfg.get("strat_mode", "DYNAMIC"),
     "strat_id": cfg.get("strat_id", 1)
 }

@@ -89,6 +89,17 @@ function updateIndexPage(state) {
         else tirDiv.innerText = "TIRETTE: NON ARMÉE";
     }
 
+    // --- AJOUT POUR LE BADGE FSM ---
+    const fsmBadge = document.getElementById('fsm-display');
+    if(fsmBadge) {
+        fsmBadge.innerText = state.fsm_state || "INIT";
+        fsmBadge.className = "badge"; // reset classes
+        if(state.fsm_state === "RUNNING") fsmBadge.classList.add("badge-run");
+        else if(state.fsm_state === "FINISHED") fsmBadge.classList.add("badge-end");
+        else fsmBadge.classList.add("badge-wait");
+    }
+    // -----------------------------
+
     const btnStart = document.getElementById('btn-start');
     const btnStop = document.getElementById('btn-stop');
     const btnReset = document.getElementById('btn-reset');

@@ -1,4 +1,11 @@
 # strat/strategies/strat_homologation.py
+from strat import RobotActions
+
+# --- METADONNÉES POUR L'IHM ---
+METADATA = {
+    "name": "Homologation",   # Nom affiché
+    "score": 69               # Score estimé
+}
 
 def run(robot):
     print("[STRAT] Démarrage Homologation !")

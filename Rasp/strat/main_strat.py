@@ -1,84 +1,101 @@
 # strat/main_strat.py
 import time
 import importlib
+import os
+import glob
 import threading
 import ihm.shared as shared
-
-# Import des actions et de l'exception
 from strat.actions import RobotActions, EndOfMatchException
 
-def get_strategy_module(strat_id):
-    """Charge le fichier de stratégie correspondant à l'ID"""
-    try:
-        # Mapping ID -> Nom du fichier (sans .py)
-        # Assure-toi d'avoir créé le fichier 'strat/strategies/strat_homologation.py'
-        strats = {
-            1: "strat.strategies.strat_homologation",
-            2: "strat.strategies.strat_match_1",
-            # Ajoute tes autres strats ici
-        }
-        mod_name = strats.get(strat_id, strats.get(1)) # ID 1 par défaut
-        return importlib.import_module(mod_name)
-    except ImportError as e:
-        print(f"[STRAT] Erreur : Fichier de stratégie introuvable ({e})")
-        return None
-    except Exception as e:
-        print(f"[STRAT] Erreur chargement module : {e}")
-        return None
+# Dossier des stratégies (relatif au main)
+STRAT_DIR = "strat/strategies"
+
+def discover_strategies():
+    """
+    Scanne les fichiers .py, charge les METADATA et retourne une liste.
+    """
+    strats = {}
+    # On cherche tous les fichiers .py dans strat/strategies
+    files = glob.glob(os.path.join(STRAT_DIR, "*.py"))
+    
+    print(f"[STRAT] Recherche de stratégies dans {STRAT_DIR}...")
+    
+    for filepath in files:
+        filename = os.path.basename(filepath)
+        if filename == "__init__.py": continue
+        
+        # Nom du module pour l'import (ex: strat.strategies.strat_match_1)
+        mod_name = filename[:-3] # Enlève .py
+        full_mod_path = f"strat.strategies.{mod_name}"
+        
+        try:
+            # On importe temporairement pour lire les METADATA
+            mod = importlib.import_module(full_mod_path)
+            meta = getattr(mod, "METADATA", {"name": mod_name, "score": 0})
+            
+            # On stocke avec comme clé le nom de fichier sans 'strat_' si possible
+            # ID unique = le nom du fichier (c'est plus simple que des numéros)
+            strats[mod_name] = meta
+            print(f"   -> Trouvé : {meta['name']} ({meta['score']} pts)")
+            
+        except Exception as e:
+            print(f"   [ERREUR] Impossible de charger {filename}: {e}")
+
+    return strats
+
+# On charge la liste au démarrage du script
+AVAILABLE_STRATS = discover_strategies()
+# On envoie cette liste à l'IHM via shared
+shared.strategies_list = AVAILABLE_STRATS 
 
 def strat_loop():
-    print("[STRAT] Thread démarré. Prêt.")
-    
-    # On instancie les actions (connexion hardware virtuelle ou réelle)
+    print("[STRAT] Thread démarré.")
     robot = RobotActions()
     
-    # Machine à état simple
-    state_fsm = "WAIT_START"
+    # On initialise l'état dans le partagé pour l'affichage Web
+    shared.state["fsm_state"] = "WAIT_START"
     
     while True:
-        # --- ETAT 1 : ATTENTE DEPART ---
-        if state_fsm == "WAIT_START":
+        # On synchronise l'état local avec l'IHM à chaque tour de boucle
+        current_state = shared.state["fsm_state"]
+
+        # --- ETAT 1 : ATTENTE ---
+        if current_state == "WAIT_START":
             if shared.state["match_running"]:
-                print(f"[STRAT] GO ! Lancement Stratégie #{shared.state['strat_id']}")
-                # Important : On remet le flag de retour à zéro
-                robot.is_returning = False 
-                state_fsm = "RUNNING"
+                print(f"[STRAT] GO ! Lancement : {shared.state['strat_id']}")
+                robot.is_returning = False
+                shared.state["fsm_state"] = "RUNNING" # Update Etat
             else:
                 time.sleep(0.1)
 
-        # --- ETAT 2 : MATCH EN COURS ---
-        elif state_fsm == "RUNNING":
+        # --- ETAT 2 : MATCH ---
+        elif current_state == "RUNNING":
             try:
-                # 1. Chargement dynamique de la stratégie
-                module = get_strategy_module(shared.state["strat_id"])
+                # On récupère l'ID (qui est maintenant le nom du fichier, ex: "strat_match_1")
+                strat_name = shared.state["strat_id"]
                 
-                if module:
-                    # 2. Exécution de la stratégie
-                    # C'est ici que ça tourne pendant 90s
-                    module.run(robot)
+                # Import dynamique
+                if strat_name in AVAILABLE_STRATS:
+                    mod = importlib.import_module(f"strat.strategies.{strat_name}")
+                    # Mise à jour du score théorique
+                    shared.state["score_current"] = AVAILABLE_STRATS[strat_name].get("score", 0)
+                    mod.run(robot)
+                else:
+                    print(f"[STRAT] Erreur : Stratégie '{strat_name}' inconnu !")
                 
-                print("[STRAT] Stratégie terminée en avance. On attend la fin.")
-                # Si tu veux qu'il rentre dès qu'il a fini, décommente la ligne dessous :
-                # robot.GoBase()
+                print("[STRAT] Fini.")
 
             except EndOfMatchException:
-                # 3. INTERCEPTION DU TEMPS (90s)
-                print("[STRAT] ⚠️ TIMEOUT 90s -> FORCAGE RETOUR BASE")
+                print("[STRAT] ⚠️ TIMEOUT -> RETOUR BASE")
                 robot.GoBase()
-                
             except Exception as e:
-                # 4. Gestion des erreurs (Stop bouton, crash code...)
-                print(f"[STRAT] Arrêt ou Erreur : {e}")
+                print(f"[STRAT] Erreur : {e}")
                 robot.stop()
-            
             finally:
-                # Quoi qu'il arrive, le match est considéré comme fini pour la strat
-                state_fsm = "FINISHED"
+                shared.state["fsm_state"] = "FINISHED"
 
-        # --- ETAT 3 : FIN DE MATCH ---
-        elif state_fsm == "FINISHED":
-            # On attend que l'utilisateur fasse "Reset" sur l'IHM
+        # --- ETAT 3 : FINI ---
+        elif current_state == "FINISHED":
             if not shared.state["match_running"]:
-                print("[STRAT] Reset reçu. Retour en attente.")
-                state_fsm = "WAIT_START"
+                shared.state["fsm_state"] = "WAIT_START"
             time.sleep(0.5)

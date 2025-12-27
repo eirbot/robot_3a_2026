@@ -1,81 +1,86 @@
 # ihm/events.py
-import os
-import time
-from ihm.shared import socketio, state, cfg, save_config, send_led_cmd, audio, robot_pos
+import ihm.shared as shared 
+from ihm.shared import socketio
 
-STRAT_POINTS = {1: 10, 2: 25, 3: 40}
+# --- GESTION CONNEXION ---
 
-def get_strat_score(sid):
-    return STRAT_POINTS.get(int(sid), 0)
-
-# --- SOCKET HANDLERS ---
 @socketio.on('connect')
-def handle_connect(): socketio.emit('state_update', state)
+def handle_connect(auth=None): # <--- AJOUT DE auth=None pour éviter le TypeError
+    print(f"[IHM] Client connecté.")
+    # 1. Envoie l'état global
+    socketio.emit('state_update', shared.state)
+    # 2. Envoie la liste des stratégies disponibles
+    socketio.emit('strategies_list', shared.strategies_list)
+    # 3. Envoie les infos système initiales
+    # (optionnel, elles arriveront à la prochaine boucle de toute façon)
 
-@socketio.on('map_connect')
-def handle_map_connect(): socketio.emit('robot_position', robot_pos)
+@socketio.on('disconnect')
+def handle_disconnect():
+    print("[IHM] Client déconnecté.")
 
-@socketio.on('update_score')
-def handle_update_score(data):
-    if not state["match_running"] and state["manual_score_enabled"]:
-        state["score_current"] = max(0, state["score_current"] + int(data.get('delta', 0)))
-        socketio.emit('state_update', state)
-
-@socketio.on('update_config')
-def handle_config(data):
-    changed = False
-    keys = ['lidar_enabled', 'music_enabled', 'leds_enabled', 'manual_score_enabled', 'strat_mode', 'strat_id']
-    old_mode = state.get('strat_mode')
-    old_id = state.get('strat_id')
-    
-    for k in keys:
-        if k in data:
-            state[k] = data[k]; changed = True
-            
-    if not state['match_running'] and state['strat_mode'] == 'STATIC':
-        if old_mode != 'STATIC' or old_id != state['strat_id']:
-            state['score_current'] = get_strat_score(state['strat_id'])
-
-    if changed:
-        save_config({k: state[k] for k in keys if k in state})
-        socketio.emit('state_update', state)
+# --- COMMANDES ROBOT (ACTION) ---
 
 @socketio.on('action')
 def handle_action(data):
-    perform_action(data.get('cmd'))
-
-# --- LOGIQUE MATCH ---
-def perform_action(cmd):
-    if cmd == 'team':
-        state["team"] = "JAUNE" if state["team"] == "BLEUE" else "BLEUE"
-        save_config({"team": state["team"]})
-        send_led_cmd(f"TEAM:{state['team']}")
-        
-    elif cmd == 'start':
-        if not state["match_running"]:
-            state["match_running"] = True
-            state["match_finished"] = False
-            state["start_time"] = time.time()
-            if state['score_current'] == 0 and state['strat_mode'] == 'STATIC':
-                 state['score_current'] = get_strat_score(state['strat_id'])
-            if state["music_enabled"] and audio: audio.stop(); audio.play('match', loop=True)
-            send_led_cmd("MATCH_START")
+    cmd = data.get('cmd')
+    print(f"[IHM] Action reçue : {cmd}")
+    
+    if cmd == 'start':
+        shared.state['match_running'] = True
+        shared.state['match_finished'] = False
+        if shared.state['start_time'] is None:
+            import time
+            shared.state['start_time'] = time.time()
             
     elif cmd == 'stop':
-        if state["match_running"]:
-            state["match_running"] = False
-            if state["music_enabled"] and audio: audio.stop(); audio.play('end')
-            send_led_cmd("MATCH_STOP")
-
+        shared.state['match_running'] = False
+        # On ne met pas finished à True pour permettre de reprendre si erreur
+        
     elif cmd == 'reset':
-        state["match_running"] = False; state["match_finished"] = False
-        state["score_current"] = get_strat_score(state['strat_id']) if state['strat_mode'] == 'STATIC' else 0
-        state["timer_str"] = "100.0"; state["start_time"] = None
-        state["tirette"] = "NON-ARMED"
-        send_led_cmd("OFF")
-        if state["music_enabled"] and audio: audio.stop(); audio.play('intro')
+        shared.state['match_running'] = False
+        shared.state['match_finished'] = False
+        shared.state['start_time'] = None
+        shared.state['score_current'] = 0
+        shared.state['timer_str'] = "100.0"
+        shared.state['fsm_state'] = "WAIT_START"
+        
+    elif cmd == 'team':
+        # Bascule Bleu <-> Jaune
+        if shared.state['team'] == "BLEUE":
+            shared.state['team'] = "JAUNE"
+        else:
+            shared.state['team'] = "BLEUE"
+            
+    # Mise à jour immédiate de l'interface pour réactivité
+    socketio.emit('state_update', shared.state)
 
-    elif cmd == 'reboot': os.system("sudo reboot")
-    elif cmd == 'shutdown': os.system("sudo shutdown now")
-    
-    socketio.emit('state_update', state)
+# --- CONFIGURATION ---
+
+@socketio.on('update_config')
+def handle_config(data):
+    # Mise à jour des clés reçues
+    for key, val in data.items():
+        if key in shared.state:
+            shared.state[key] = val
+            
+    # Si on change de stratégie, on peut logguer
+    if 'strat_id' in data:
+        print(f"[IHM] Stratégie changée pour : {data['strat_id']}")
+
+    # On renvoie l'état à tout le monde pour synchroniser
+    socketio.emit('state_update', shared.state)
+
+# --- SCORE MANUEL ---
+
+@socketio.on('update_score')
+def handle_score(data):
+    delta = int(data.get('delta', 0))
+    shared.state['score_current'] += delta
+    if shared.state['score_current'] < 0: shared.state['score_current'] = 0
+    socketio.emit('state_update', shared.state)
+
+# --- INFO CARTE (Optionnel) ---
+@socketio.on('map_connect')
+def handle_map_connect():
+    # Envoie la position actuelle du robot quand on ouvre la page Map
+    socketio.emit('robot_position', shared.robot_pos)
