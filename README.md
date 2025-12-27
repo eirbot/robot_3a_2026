@@ -138,8 +138,8 @@ Le code bas niveau utilise PlatformIO.
 | Ordinateur de bord | Raspberry Pi 4B | Intelligence, Vision, Web |
 | Microcontrôleur | ESP32 / Teensy 4.1 | Gestion temps réel, PWM, Encodeurs |
 | Lidar | RPLIDAR C1 / M1 | Détection d'obstacles et recalage |
-| Moteurs | DC avec Encodeurs | Propulsion |
-| Actionneurs | Servomoteurs AX-12 / Dynamixel | Manipulation des éléments de jeu (Tour) |
+| Moteurs | Stepper avec MKS | Propulsion |
+| Actionneurs | Servomoteurs AX-12 | Manipulation des éléments de jeu (Tour) |
 
 ---
 

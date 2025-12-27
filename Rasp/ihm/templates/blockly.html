@@ -18,7 +18,10 @@
         <select id="stratSelect"><option value="" disabled selected>Choisir...</option></select>
         <button id="loadBtn">📂 Charger</button>
         
-        <div style="flex-grow: 1;"></div> <button id="simuBtn">▶️ Simuler</button> <div style="width: 2px; height: 30px; background: #555; margin: 0 15px;"></div>
+        <div style="flex-grow: 1;"></div> 
+        <div style="width: 2px; height: 30px; background: #555; margin: 0 15px;"></div>
+        <button id="previewBtn" style="background: #6f42c1; color: white;">👁️ Voir Trajet</button>
+        <button id="simuBtn">▶️ Simuler</button>
 
         <input type="text" id="filename" placeholder="Nom de la strat" value="nouvelle_strat">
         <button id="saveBtn">💾 Sauvegarder</button>
@@ -41,6 +44,9 @@
     </div>
 
     <xml xmlns="https://developers.google.com/blockly/xml" id="toolbox" style="display: none">
+        <category name="Configuration" colour="#a55b80">
+            <block type="robot_start"></block>
+        </category>
         <category name="Mouvements" colour="#5C81A6">
             <block type="robot_goto"></block>
             <block type="robot_stop"></block>
