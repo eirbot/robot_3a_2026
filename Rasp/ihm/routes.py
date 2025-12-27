@@ -2,11 +2,14 @@
 import os
 import time
 import cv2
+import glob
 import serial.tools.list_ports
 from flask import render_template, request, jsonify, redirect, url_for, Response
 from werkzeug.utils import secure_filename
 from ihm.shared import app, state, cfg, audio, save_config, send_led_cmd, AUDIO_DIR
 from utils import ThreadedCamera
+
+STRAT_DIR = os.path.join(os.getcwd(), 'strat', 'strategies')
 
 # --- CAMERA ---
 cam_cfg = cfg.get("camera", {})
@@ -56,6 +59,15 @@ def video_feed():
         
     return Response(generate_frames(), mimetype='multipart/x-mixed-replace; boundary=frame')
 
+@app.route('/blockly')
+def blockly_interface():
+    return render_template('blockly.html')
+
+# Ajoute cette route pour dire au navigateur "Pas d'icone, tout va bien"
+@app.route('/favicon.ico')
+def favicon():
+    return "", 204
+
 # --- API ---
 @app.route('/api/upload_sound', methods=['POST'])
 def upload_sound():
@@ -85,3 +97,52 @@ def led_control():
         c2 = tuple(int(d['c2'].lstrip('#')[i:i+2], 16) for i in (0, 2, 4))
         send_led_cmd(f"GRADIENT:{c1[0]},{c1[1]},{c1[2]},{c2[0]},{c2[1]},{c2[2]}")
     return jsonify({"status": "ok"})
+
+@app.route('/api/save_strat', methods=['POST'])
+def save_strat():
+    data = request.json
+    filename = data.get('filename')
+    code_python = data.get('code')
+    code_xml = data.get('xml')  # <--- Nouveau champ
+
+    if not filename or not code_python:
+        return jsonify({'status': 'error', 'msg': 'Données manquantes'}), 400
+
+    # Nettoyage du nom
+    safe_name = filename.replace('.py', '').replace('.xml', '')
+    
+    try:
+        # 1. Sauvegarde du Python (Pour le Robot)
+        py_path = os.path.join(STRAT_DIR, safe_name + ".py")
+        with open(py_path, 'w') as f:
+            f.write(code_python)
+            
+        # 2. Sauvegarde du XML (Pour Blockly)
+        if code_xml:
+            xml_path = os.path.join(STRAT_DIR, safe_name + ".xml")
+            with open(xml_path, 'w') as f:
+                f.write(code_xml)
+
+        return jsonify({'status': 'success', 'msg': f'Stratégie {safe_name} sauvegardée !'})
+    except Exception as e:
+        return jsonify({'status': 'error', 'msg': str(e)}), 500
+
+@app.route('/api/list_blockly_strats')
+def list_blockly_strats():
+    """Renvoie la liste des stratégies qui ont un fichier XML (donc modifiables)"""
+    files = glob.glob(os.path.join(STRAT_DIR, "*.xml"))
+    strats = [os.path.basename(f).replace('.xml', '') for f in files]
+    return jsonify(strats)
+
+@app.route('/api/load_strat/<name>')
+def load_strat(name):
+    """Renvoie le contenu XML d'une strat"""
+    safe_name = name.replace('.xml', '') # Sécurité
+    xml_path = os.path.join(STRAT_DIR, safe_name + ".xml")
+    
+    if os.path.exists(xml_path):
+        with open(xml_path, 'r') as f:
+            content = f.read()
+        return jsonify({'status': 'success', 'xml': content})
+    else:
+        return jsonify({'status': 'error', 'msg': 'Fichier XML introuvable'}), 404

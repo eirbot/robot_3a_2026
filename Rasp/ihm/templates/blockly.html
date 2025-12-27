@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <title>Studio Stratégie - Robot 2026</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='blockly_style.css') }}">
+    
+    <script src="https://unpkg.com/blockly/blockly_compressed.js"></script>
+    <script src="https://unpkg.com/blockly/blocks_compressed.js"></script>
+    <script src="https://unpkg.com/blockly/python_compressed.js"></script>
+    <script src="https://unpkg.com/blockly/msg/fr.js"></script>
+</head>
+<body>
+
+    <div id="controls">
+        <h3 style="margin-right: 20px;">🤖 Strat Studio</h3>
+        
+        <select id="stratSelect"><option value="" disabled selected>Choisir...</option></select>
+        <button id="loadBtn">📂 Charger</button>
+        
+        <div style="flex-grow: 1;"></div> <button id="simuBtn">▶️ Simuler</button> <div style="width: 2px; height: 30px; background: #555; margin: 0 15px;"></div>
+
+        <input type="text" id="filename" placeholder="Nom de la strat" value="nouvelle_strat">
+        <button id="saveBtn">💾 Sauvegarder</button>
+        
+        <span id="status">Prêt</span>
+    </div>
+
+    <div id="main-container">
+        <div id="blocklyArea">
+            <div id="blocklyDiv"></div>
+        </div>
+
+        <div id="simuArea">
+            <h4 style="margin-top: 0;">Simulation (3000x2000 mm)</h4>
+            <canvas id="simCanvas" width="600" height="400"></canvas>
+            <div id="simConsole" style="width: 100%; height: 150px; background: #222; color: #0f0; font-family: monospace; padding: 10px; margin-top: 10px; overflow-y: auto; font-size: 0.8em;">
+                > Console de simulation prête...
+            </div>
+        </div>
+    </div>
+
+    <xml xmlns="https://developers.google.com/blockly/xml" id="toolbox" style="display: none">
+        <category name="Mouvements" colour="#5C81A6">
+            <block type="robot_goto"></block>
+            <block type="robot_stop"></block>
+        </category>
+        <category name="Actionneurs" colour="#5CA65C">
+            <block type="prendre_kapla"></block>
+            <block type="poser_kapla"></block>
+            <block type="retourner_kapla"></block>
+        </category>
+        <category name="Logique" colour="%{BKY_LOGIC_HUE}">
+            <block type="controls_repeat_ext"></block>
+            <block type="math_number"></block>
+        </category>
+    </xml>
+
+    <img id="imgTable" src="{{ url_for('static', filename='table_coupe_2026.png') }}" style="display:none">
+    <img id="imgRobot" src="{{ url_for('static', filename='robot.png') }}" style="display:none">
+
+    <script src="{{ url_for('static', filename='blockly_script.js') }}"></script>
+</body>
+</html>

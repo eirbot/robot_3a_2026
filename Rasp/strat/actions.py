@@ -91,9 +91,19 @@ class RobotActions:
         # serial_motors.send("STOP")
 
     # --- ACTIONNEURS SPECIFIQUES ---
+    # TODO: Adapter ces fonctions aux vrais actionneurs du robot
     def prendreKapla(self, hauteur=0):
         self._check_abort()
         print(f"[ACTION] Prise Kapla (Hauteur: {hauteur}mm)")
+        # Simulation délai
+        time.sleep(1)
+        self._check_abort()
+        
+    def retournerKapla(self):
+        self._check_abort()
+        # TODO: implementer la detection réelle des Kaplas
+        kapla_a_retourner = [0,1,2,3] # Exemple de numéros de Kapla à retourner 
+        print(f"[ACTION] Retourne Kapla (Kapla: {kapla_a_retourner})")
         # Simulation délai
         time.sleep(1)
         self._check_abort()
