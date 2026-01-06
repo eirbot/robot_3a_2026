@@ -2,10 +2,14 @@
 <html>
 <head>
     <title>DEBUG & CONFIG</title>
-    <link rel="stylesheet" href="/static/style.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/common.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/debug.css') }}">
+    
     <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script src="/static/script.js" defer></script>
+    
+    <script src="{{ url_for('static', filename='js/common.js') }}" defer></script>
+    <script src="{{ url_for('static', filename='js/debug.js') }}" defer></script>
 </head>
 <body class="mode-BLEUE">
     <div class="header">
@@ -15,92 +19,69 @@
     </div>
 
     <div class="debug-grid">
+        
         <div class="card" style="grid-column: span 2;">
             <h3>Consommation (A)</h3>
-            <canvas id="currentChart" height="100"></canvas>
+            <div class="chart-container">
+                <canvas id="currentChart"></canvas>
+            </div>
         </div>
 
         <div class="card">
             <h3>🔌 État Périphériques</h3>
-            <div class="dev-status">
-                <span>LiDAR</span>
-                <div id="status-lidar" class="status-dot"></div>
-            </div>
-            <div class="dev-status">
-                <span>ESP Moteurs</span>
-                <div id="status-esp_motors" class="status-dot"></div>
-            </div>
-            <div class="dev-status">
-                <span>ESP Bras</span>
-                <div id="status-esp_arms" class="status-dot"></div>
-            </div>
-            <div class="dev-status">
-                <span>Caméra (MIPI)</span>
-                <div id="status-camera" class="status-dot"></div>
-            </div>
+            <div class="dev-status"><span>LiDAR</span> <div id="status-lidar" class="status-dot"></div></div>
+            <div class="dev-status"><span>ESP Moteurs</span> <div id="status-esp_motors" class="status-dot"></div></div>
+            <div class="dev-status"><span>ESP Bras</span> <div id="status-esp_arms" class="status-dot"></div></div>
+            <div class="dev-status"><span>Caméra</span> <div id="status-camera" class="status-dot"></div></div>
         </div>
 
         <div class="card">
-            <h3>🛠️ Config Match</h3>
-            <div class="switch-row"><label>LiDAR :</label><input type="checkbox" id="chk-lidar" onchange="sendConfigUpdate()"></div>
-            <div class="switch-row"><label>Musique :</label><input type="checkbox" id="chk-music" onchange="sendConfigUpdate()"></div>
-            <div class="switch-row"><label>LEDs :</label><input type="checkbox" id="chk-leds" onchange="sendConfigUpdate()"></div>
-            <div class="switch-row"><label>Score Manuel :</label><input type="checkbox" id="chk-score" onchange="sendConfigUpdate()"></div>
-            <hr style="border-color:#444">
-            <div class="switch-row">
-                <label>Mode Strat :</label>
-                <select id="sel-strat-mode" onchange="sendConfigUpdate()">
-                    <option value="DYNAMIC">Dynamique</option>
-                    <option value="STATIC">En Dur</option>
+            <h3>🧠 Stratégie & Modules</h3>
+            
+            <div style="margin-bottom: 15px; padding-bottom: 10px; border-bottom: 1px solid #444;">
+                <label>Mode Stratégie :</label>
+                <select id="strat-mode" onchange="updateStratConfig()" style="background:#333; color:white; border:1px solid #555; padding:5px; width: 100%; margin-top:5px;">
+                    <option value="DYNAMIC">Dynamique (Auto)</option>
+                    <option value="STATIC">Statique (Blockly)</option>
                 </select>
-            </div>
-            <div class="switch-row" id="row-strat-id" style="display:none;">
-                <label>Numéro :</label>
-                <select id="sel-strat-id" class="input-dark">
-                    <option value="" disabled>Chargement...</option>
-                </select>
-            </div>
-        </div>
-
-        <div class="card" style="grid-column: span 2;">
-            <h3>💻 Console Série ESP</h3>
-            <div style="margin-bottom:10px;">
-                <select id="serial-port" style="width:100%; padding:8px; margin-bottom:5px;">
-                    {% for p in ports %}
-                    <option value="{{p}}">{{p}}</option>
-                    {% else %}
-                    <option value="/dev/ttyUSB0">/dev/ttyUSB0</option>
-                    {% endfor %}
-                </select>
-                <div style="display:flex; gap:5px;">
-                    <input type="text" id="serial-cmd" placeholder="Commande (ex: HELP)" style="flex:1; padding:8px;">
-                    <button class="btn-tiny" onclick="sendSerial()" style="padding:8px;">Envoyer</button>
+                
+                <div id="static-strat-box" style="margin-top:10px; display:none;">
+                    <label>Fichier Blockly :</label>
+                    <select id="strat-select" onchange="updateStratConfig()" style="width:100%; background:#333; color:white; border:1px solid #555; padding:5px;">
+                        <option value="" disabled selected>Chargement...</option>
+                    </select>
                 </div>
             </div>
-            <div id="serial-output" style="background:#000; color:#0f0; height:150px; overflow-y:auto; padding:10px; font-family:monospace; font-size:0.8em; border:1px solid #444;">
-                > Prêt.
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; text-align: left;">
+                <label><input type="checkbox" id="chk-lidar" onchange="toggleConfig('lidar', this)"> LiDAR</label>
+                <label><input type="checkbox" id="chk-lidar-simu" onchange="toggleConfig('lidar_simu', this)"> Simu LiDAR</label>
+                
+                <label><input type="checkbox" id="chk-ekf" onchange="toggleConfig('ekf', this)"> EKF (Pos)</label>
+                <label><input type="checkbox" id="chk-cam" onchange="toggleConfig('camera', this)"> Caméra</label>
+                
+                <label><input type="checkbox" id="chk-avoid" onchange="toggleConfig('avoidance', this)"> Évitement</label>
+                <label><input type="checkbox" id="chk-skip-homolog" onchange="toggleConfig('skip_homologation', this)"> Skip Homolog</label>
             </div>
         </div>
 
         <div class="card" style="grid-column: span 2;">
-            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
-                <h3>📜 Logs Système (Live)</h3>
-                <button class="btn-tiny" onclick="clearLogs()" style="background:#d32f2f;">Effacer</button>
-            </div>
-            
-            <div id="log-container" class="log-terminal">
-                <div class="log-line"><span class="log-time">--:--:--</span> <span class="log-info">Interface Prête. En attente de logs...</span></div>
+            <h3>📝 Logs Système</h3>
+            <div id="logs-box" class="log-box">
+                <div class="log-line"><span class="log-time">--:--:--</span> <span class="log-info">Interface Prête...</span></div>
             </div>
         </div>
 
         <div class="card" style="grid-column: span 2;">
             <h3>⚡ Système</h3>
-            <div style="display:flex; gap:10px; margin-bottom:15px;">
+            <div style="display:flex; gap:10px; margin-bottom:15px; justify-content: center;">
                 <button id="btn-flash-motors" onclick="flashESP('motors')" class="btn-flash">Flash MOTEURS</button>
                 <button id="btn-flash-arms" onclick="flashESP('arms')" class="btn-flash">Flash BRAS</button>
             </div>
-            <a href="/media" class="btn-nav" style="background-color:#673AB7;">🎵 GÉRER SONS & LEDS</a>
-            <a href="/map" class="btn-nav">🗺️ VOIR CARTE</a>
+            <div style="display:flex; gap:10px; justify-content: center;">
+                <a href="/media" class="btn-nav" style="background-color:#673AB7; flex:1;">🎵 SONS & LEDS</a>
+                <a href="/map" class="btn-nav" style="flex:1;">🗺️ CARTE</a>
+            </div>
         </div>
 
         <div class="card" style="grid-column: span 2;">
@@ -108,12 +89,9 @@
                 <h3>📷 Retour Vidéo</h3>
                 <button class="btn-tiny" onclick="reloadCam()">Rafraîchir</button>
             </div>
-            
             <div class="camera-container">
-                <img id="cam-feed" src="/video_feed" alt="Caméra non disponible ou déconnectée" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
-                <div class="cam-error" style="display:none; color:#F44336; padding:20px;">
-                    ⚠️ Pas de signal vidéo
-                </div>
+                <img id="cam-feed" src="/video_feed" alt="Caméra non disponible" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
+                <div class="cam-error" style="display:none; color:#F44336; padding:20px;">Erreur connexion caméra</div>
             </div>
         </div>
     </div>

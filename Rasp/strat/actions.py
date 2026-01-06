@@ -4,8 +4,8 @@ import math
 import ihm.shared as shared
 
 try:
-    from interface_deplacement.bezier import Bezier 
-    from interface_deplacement.interface_deplacement import envoyer_trajectoire
+    import interface_deplacement.bezier as Bezier
+    import interface_deplacement.interface_deplacement as iface_depl
 except ImportError:
     print("⚠️ Attention : Modules de déplacement non trouvés (Mode Simulation pur)")
     Bezier = None
@@ -104,7 +104,7 @@ class RobotActions:
             )
             
             # Envoi via Série (Bloquant jusqu'à l'arrivée ou Timeout)
-            envoyer_trajectoire(points_bezier)
+            envoyer(points_bezier)
             
         else:
             # 5. MODE SIMULATION (Si pas de driver ou pas d'ESP)

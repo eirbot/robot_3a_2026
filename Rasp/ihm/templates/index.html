@@ -2,9 +2,13 @@
 <html>
 <head>
     <title>EIRBOT 2026</title>
-    <link rel="stylesheet" href="/static/style.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/common.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/index.css') }}">
+    
     <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
-    <script src="/static/script.js" defer></script>
+    
+    <script src="{{ url_for('static', filename='js/common.js') }}" defer></script>
+    <script src="{{ url_for('static', filename='js/index.js') }}" defer></script>
 </head>
 <body class="mode-BLEUE">
     <div class="header">
@@ -41,10 +45,11 @@
         <button id="btn-stop" class="btn-stop hidden" onclick="sendAction('stop')">STOP URGENCE</button>
         <button id="btn-reset" class="btn-reset hidden" onclick="sendAction('reset')">RESET MATCH</button>
         
-        <button class="btn-team" onclick="sendAction('team')">Équipe</button>
-        <a href="/debug" class="btn-debug">⚙️ Dashboard</a>
-        <button class="btn-sys" onclick="confirmReboot()">Reboot</button>
-        <button class="btn-sys" onclick="confirmShutdown()">Off</button>
+        <button class="btn-team" onclick="sendAction('team')">CHANGE TEAM</button>
+        <button onclick="sendAction('tirette')">SIMUL TIRETTE</button>
+        
+        <a href="/debug" class="btn-nav">🛠️ DEBUG</a>
+        <a href="/blockly" class="btn-nav" style="background:#673AB7;">🧩 STRAT STUDIO</a>
     </div>
 </body>
 </html>

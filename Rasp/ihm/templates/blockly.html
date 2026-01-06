@@ -3,7 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <title>Studio Stratégie - Robot 2026</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='blockly_style.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/common.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/blockly.css') }}">
     
     <script src="https://unpkg.com/blockly/blockly_compressed.js"></script>
     <script src="https://unpkg.com/blockly/blocks_compressed.js"></script>
@@ -26,14 +27,15 @@
         <input type="text" id="filename" placeholder="Nom de la strat" value="nouvelle_strat">
         <button id="saveBtn">💾 Sauvegarder</button>
         
-        <span id="status">Prêt</span>
+        <div style="width: 2px; height: 30px; background: #555; margin: 0 15px;"></div>
+        <a href="/" style="color: #aaa; text-decoration: none; font-size: 0.9em;">Retour Accueil</a>
+        <div id="status" style="margin-left: 20px; font-weight: bold; color: #4cd137;"></div>
     </div>
 
     <div id="main-container">
         <div id="blocklyArea">
             <div id="blocklyDiv"></div>
         </div>
-
         <div id="simuArea">
             <h4 style="margin-top: 0;">Simulation (3000x2000 mm)</h4>
             <canvas id="simCanvas" width="600" height="400"></canvas>
@@ -62,9 +64,10 @@
         </category>
     </xml>
 
-    <img id="imgTable" src="{{ url_for('static', filename='table_coupe_2026.png') }}" style="display:none">
-    <img id="imgRobot" src="{{ url_for('static', filename='robot.png') }}" style="display:none">
+    <img id="imgTable" src="{{ url_for('static', filename='img/table_coupe_2026.png') }}" style="display: none;">
+    <img id="imgRobot" src="{{ url_for('static', filename='img/robot.png') }}" style="display: none;">
 
-    <script src="{{ url_for('static', filename='blockly_script.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/common.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/blockly.js') }}"></script>
 </body>
 </html>

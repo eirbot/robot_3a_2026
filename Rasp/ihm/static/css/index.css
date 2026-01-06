@@ -1,0 +1,35 @@
+/* DASHBOARD */
+.dashboard { flex-grow: 1; display: flex; flex-direction: column; justify-content: center; align-items: center; padding: 10px;}
+.score-container { display: flex; align-items: center; justify-content: center; gap: 20px; }
+.score-box { font-size: 6em; font-weight: bold; color: #C3E88D; min-width: 200px;}
+
+.btn-arrow {
+    background: transparent; border: 2px solid #555; color: #aaa;
+    font-size: 2em; width: 60px; height: 60px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center; cursor: pointer;
+}
+.btn-arrow:active { background: #333; }
+
+.team-box { font-size: 2.5em; font-weight: bold; padding: 10px 30px; border-radius: 10px; margin-bottom: 20px; transition: 0.3s; }
+.mode-BLEUE .team-box { background: #2196F3; color: white; }
+.mode-JAUNE .team-box { background: #FBC02D; color: black; }
+
+.tirette-box { font-size: 1.5em; font-weight: bold; padding: 10px 20px; border-radius: 8px; border: 2px solid #555; background: #222; color: #777; transition: 0.3s; }
+.timer-box { font-size: 2em; margin-top: 20px; color: #FFCB6B; font-family: monospace; }
+
+/* STATUS BADGES */
+.status-armed { background: #2e7d32; color: white; border-color: #4CAF50; box-shadow: 0 0 15px #4CAF50; animation: blink 1s infinite; }
+.status-non-armed { background: #222; color: #777; border-color: #555; }
+@keyframes blink { 50% { opacity: 0.7; } }
+
+/* CONTROLS BAS */
+.controls { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; padding: 20px; background: #1c2128; border-top: 2px solid #333; }
+button { font-size: 1.2em; padding: 20px; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; color: white; transition: 0.2s; }
+button:active { transform: scale(0.98); }
+
+.btn-start { background: #2e8b57; grid-column: span 2; font-size: 1.5em; }
+.btn-stop { background: #d32f2f; grid-column: span 2; font-size: 1.5em; animation: flash-red 0.5s infinite; }
+.btn-reset { background: #ff9800; grid-column: span 2; color: black; }
+.btn-team { background: #555; }
+
+@keyframes flash-red { 0%, 100% { background: #d32f2f; } 50% { background: #ff5252; } }

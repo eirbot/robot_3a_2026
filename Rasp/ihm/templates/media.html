@@ -2,9 +2,13 @@
 <html>
 <head>
     <title>MÉDIA MANAGER</title>
-    <link rel="stylesheet" href="/static/style.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/common.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/media.css') }}">
+    
     <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
-    <script src="/static/script.js" defer></script>
+    
+    <script src="{{ url_for('static', filename='js/common.js') }}" defer></script>
+    <script src="{{ url_for('static', filename='js/media.js') }}" defer></script>
 </head>
 <body class="mode-BLEUE">
     <div class="header">
@@ -27,6 +31,7 @@
                 <tr>
                     <td style="color:#C3E88D">{{ f }}</td>
                     <td>
+                        <button onclick="playTrack('play', '{{f}}')" class="btn-tiny" style="background:#009688;">▶</button>
                         <button onclick="setTrack('intro', '{{f}}')" class="btn-tiny">Intro</button>
                         <button onclick="setTrack('match', '{{f}}')" class="btn-tiny">Match</button>
                         <button onclick="setTrack('end', '{{f}}')" class="btn-tiny">Fin</button>
@@ -59,7 +64,7 @@
                 <button class="btn-led" onclick="sendGradient()">APPLIQUER</button>
             </div>
             <br>
-            <button class="btn-stop" onclick="sendColor('#000000')" style="font-size:1em; padding:10px; width:100%">ÉTEINDRE</button>
+            <button onclick="sendAction('team')" class="btn-sys">TEST ANIM MATCH</button>
         </div>
     </div>
 </body>
