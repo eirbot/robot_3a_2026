@@ -3,37 +3,80 @@ import os
 import time
 import cv2
 import glob
+import traceback # Ajouté pour voir les détails des erreurs
 import serial.tools.list_ports
 from flask import render_template, request, jsonify, redirect, url_for, Response
 from werkzeug.utils import secure_filename
 from ihm.shared import app, state, cfg, audio, save_config, send_led_cmd, AUDIO_DIR
-from utils import ThreadedCamera
+
+# --- AJOUT TEMPORAIRE DEBUG ---
+print("\n" + "="*40)
+print("[DEBUG CONFIG CAMÉRA]")
+print(f"Contenu brut de cfg['camera'] : {cfg.get('camera')}")
+is_enabled = cfg.get('camera', {}).get('enabled', False)
+print(f"La caméra est-elle activée ? => {is_enabled}")
+print("="*40 + "\n")
+# ------------------------------
+
+# --- IMPORT CAMERA ---
+# On tente d'importer la classe LibCamera proprement au début
+LibCamera = None
+try:
+    # Assurez-vous que le fichier est bien dans utils/sensors/camera_libcamera.py
+    # et que le dossier utils/sensors/ contient un fichier __init__.py
+    from utils.sensors.camera_libcamera import LibCamera
+except ImportError as e:
+    print(f"\n[ATTENTION] Impossible d'importer la classe LibCamera : {e}")
+    print("Vérifiez que 'picamera2' est installé et que le fichier existe.\n")
 
 STRAT_DIR = os.path.join(os.getcwd(), 'strat', 'strategies')
 
-# --- CAMERA ---
+# --- INITIALISATION CAMERA ---
 cam_cfg = cfg.get("camera", {})
 camera = None
+
 if cam_cfg.get("enabled", False):
-    try:
-        # On initialise seulement si activé
-        camera = ThreadedCamera(src=cam_cfg.get("id",0), width=320, height=240, fps=15).start()
-    except: pass
+    if LibCamera is None:
+        print("[ERREUR] La caméra est activée dans la config, mais la librairie est introuvable.")
+    else:
+        try:
+            print(f"[IHM] Tentative de démarrage de la caméra...")
+            print(f"      Resolution: {cam_cfg.get('width', 320)}x{cam_cfg.get('height', 240)} @ {cam_cfg.get('fps', 15)}fps")
+            
+            # Instanciation et démarrage
+            camera = LibCamera(
+                resolution=(cam_cfg.get("width", 320), cam_cfg.get("height", 240)), 
+                framerate=cam_cfg.get("fps", 15)
+            ).start()
+            
+            print("[IHM] Caméra démarrée avec succès !")
+            
+        except Exception as e:
+            print(f"\n[ERREUR CRITIQUE CAMERA] Impossible de démarrer la caméra : {e}")
+            print("Détails de l'erreur :")
+            traceback.print_exc() # Affiche la ligne exacte du plantage
+            camera = None
 
 def generate_frames():
+    """Générateur de flux vidéo MJPEG"""
     while True:
-        # Sécurité : Si la caméra plante ou n'existe pas, on arrête le flux
+        # Sécurité : Si la caméra n'est pas initialisée, on arrête le générateur
         if not camera: 
             break 
             
         success, frame = camera.read()
+        
         if success and frame is not None:
             try:
+                # Compression JPEG pour l'envoi réseau
                 ret, buffer = cv2.imencode('.jpg', frame, [int(cv2.IMWRITE_JPEG_QUALITY), 50])
-                yield (b'--frame\r\n' b'Content-Type: image/jpeg\r\n\r\n' + buffer.tobytes() + b'\r\n')
-            except: pass
+                if ret:
+                    yield (b'--frame\r\n' b'Content-Type: image/jpeg\r\n\r\n' + buffer.tobytes() + b'\r\n')
+            except Exception:
+                pass
         
-        time.sleep(0.05)
+        # Petite pause pour ne pas saturer le CPU si on attend une image
+        time.sleep(0.02)
 
 # --- ROUTES ---
 @app.route('/')
@@ -55,7 +98,7 @@ def page_map(): return render_template('map.html')
 @app.route('/video_feed')
 def video_feed():
     if camera is None:
-        return "Camera not available", 404
+        return "Camera not available (Check logs)", 404
         
     return Response(generate_frames(), mimetype='multipart/x-mixed-replace; boundary=frame')
 
@@ -63,7 +106,6 @@ def video_feed():
 def blockly_interface():
     return render_template('blockly.html')
 
-# Ajoute cette route pour dire au navigateur "Pas d'icone, tout va bien"
 @app.route('/favicon.ico')
 def favicon():
     return "", 204
@@ -103,21 +145,18 @@ def save_strat():
     data = request.json
     filename = data.get('filename')
     code_python = data.get('code')
-    code_xml = data.get('xml')  # <--- Nouveau champ
+    code_xml = data.get('xml')
 
     if not filename or not code_python:
         return jsonify({'status': 'error', 'msg': 'Données manquantes'}), 400
 
-    # Nettoyage du nom
     safe_name = filename.replace('.py', '').replace('.xml', '')
     
     try:
-        # 1. Sauvegarde du Python (Pour le Robot)
         py_path = os.path.join(STRAT_DIR, safe_name + ".py")
         with open(py_path, 'w') as f:
             f.write(code_python)
             
-        # 2. Sauvegarde du XML (Pour Blockly)
         if code_xml:
             xml_path = os.path.join(STRAT_DIR, safe_name + ".xml")
             with open(xml_path, 'w') as f:
@@ -129,15 +168,13 @@ def save_strat():
 
 @app.route('/api/list_blockly_strats')
 def list_blockly_strats():
-    """Renvoie la liste des stratégies qui ont un fichier XML (donc modifiables)"""
     files = glob.glob(os.path.join(STRAT_DIR, "*.xml"))
     strats = [os.path.basename(f).replace('.xml', '') for f in files]
     return jsonify(strats)
 
 @app.route('/api/load_strat/<name>')
 def load_strat(name):
-    """Renvoie le contenu XML d'une strat"""
-    safe_name = name.replace('.xml', '') # Sécurité
+    safe_name = name.replace('.xml', '')
     xml_path = os.path.join(STRAT_DIR, safe_name + ".xml")
     
     if os.path.exists(xml_path):

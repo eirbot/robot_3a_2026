@@ -3,6 +3,14 @@ import time
 import math
 import ihm.shared as shared
 
+try:
+    from interface_deplacement.bezier import Bezier 
+    from interface_deplacement.interface_deplacement import envoyer_trajectoire
+except ImportError:
+    print("⚠️ Attention : Modules de déplacement non trouvés (Mode Simulation pur)")
+    Bezier = None
+    envoyer_trajectoire = None
+
 # --- CONSTANTES ---
 TABLE_WIDTH = 3000
 TIME_TO_RETURN = 90
@@ -38,77 +46,81 @@ class RobotActions:
         return x, y, theta
     
     def set_pos(self, x, y, theta):
-        """Définit la position de départ (Téléportation logique)"""
-        # On convertit les coordonnées Strat (Bleu) en Réel (Selon équipe)
+        """
+        Définit la position du robot (Triche / Recalage).
+        Met à jour l'IHM Web ET l'odométrie de l'ESP32.
+        """
+        # 1. Calcul de la position réelle (Symétrie équipe)
         real_x, real_y, real_theta = self._apply_sym(x, y, theta)
         
-        # On met à jour la position connue du robot
-        shared.robot_pos['x'] = real_x
-        shared.robot_pos['y'] = real_y
-        shared.robot_pos['theta'] = real_theta
-        
-        team_color = "JAUNE" if self.is_yellow else "BLEU"
-        print(f"[ACTION] 🏁 DEPART {team_color} défini à ({real_x}, {real_y}, {real_theta}°)")
+        # 2. Mise à jour Interface Web (Shared)
+        shared.robot_pos.update({'x': real_x, 'y': real_y, 'theta': real_theta})
+        print(f"[ACTION] SET_POS -> ({real_x}, {real_y}, {real_theta}°)")
+
+        # 3. Envoi à l'ESP32 (Reset Odométrie)
+        if envoyer:
+            # On envoie juste le signal, c'est l'interface qui lira 'shared' pour construire le message
+            envoyer("SET POSE")
+        else:
+            print("[SIMU] SET_POS virtuel (Pas de com)")
 
     # --- LE COEUR DU SUJET : GOTO BEZIER ---
     def goto(self, x, y, theta, force=500):
         """
-        Déplacement via Courbe de Bézier.
-        x, y, theta : Destination (Coordonnées BLEUES)
-        force : Puissance de la tangente (en mm). ~Distance P0-P1 et P3-P2.
+        Déplacement via Courbe de Bézier + Envoi ESP32
         """
         self._check_abort()
         
-        # 1. Où est le robot maintenant ? (P0)
-        # On récupère la position réelle (déjà symétrisée par l'odométrie)
+        # 1. Position actuelle (P0) et Angle départ
         p0_x = shared.robot_pos['x']
         p0_y = shared.robot_pos['y']
         theta_start = shared.robot_pos['theta']
 
-        # 2. Où veut-on aller ? (P3)
-        # On convertit la cible "Stratégie" (Bleu) en "Réel" (Selon équipe)
+        # 2. Cible (P3) avec Symétrie
         p3_x, p3_y, theta_end = self._apply_sym(x, y, theta)
 
-        print(f"[ACTION] Bezier -> Cible({p3_x:.0f}, {p3_y:.0f}, {theta_end:.0f}°) Force({force})")
+        print(f"[ACTION] Bezier -> ({p3_x:.0f}, {p3_y:.0f}, {theta_end:.0f}°) Force={force}")
 
-        # 3. Calculs Mathématiques des Points de Contrôle (P1 et P2)
-        # Conversion degrés -> radians
+        # 3. Calcul P1 et P2
         rad_start = math.radians(theta_start)
         rad_end = math.radians(theta_end)
 
-        # CALCUL DE P1 (Sortie du point de départ)
-        # P1 est projeté "devant" le robot actuel selon son angle
         p1_x = p0_x + force * math.cos(rad_start)
         p1_y = p0_y + force * math.sin(rad_start)
 
-        # CALCUL DE P2 (Entrée dans le point d'arrivée)
-        # P2 est projeté "derrière" la cible.
-        # Pourquoi (-) ? Parce que pour arriver avec l'angle theta_end, 
-        # la courbe doit venir de l'opposé du vecteur direction.
-        p2_x = p3_x - force * math.cos(rad_end)
+        p2_x = p3_x - force * math.cos(rad_end) # Attention au signe moins ici (vecteur opposé)
         p2_y = p3_y - force * math.sin(rad_end)
 
-        # --- DEBUG : Affiche les points pour vérifier ---
-        # Tu pourras passer ces points (p1_x, p1_y) et (p2_x, p2_y) au code de ton pote
-        # print(f"   Points de controle : P1({p1_x:.0f}, {p1_y:.0f}) | P2({p2_x:.0f}, {p2_y:.0f})")
+        # 4. GÉNÉRATION DES POINTS ET ENVOI
+        if Bezier and envoyer_trajectoire:
+            # Génération d'une liste de points (ex: 50 points)
+            # format : [(x,y), (x,y)...]
+            points_bezier = Bezier.bezier_cubique_discret(
+                50, 
+                (p0_x, p0_y), 
+                (p1_x, p1_y), 
+                (p2_x, p2_y), 
+                (p3_x, p3_y)
+            )
+            
+            # Envoi via Série (Bloquant jusqu'à l'arrivée ou Timeout)
+            envoyer_trajectoire(points_bezier)
+            
+        else:
+            # 5. MODE SIMULATION (Si pas de driver ou pas d'ESP)
+            print("[SIMU] Pas de connexion ESP, simulation du temps de trajet...")
+            dist = math.sqrt((p3_x - p0_x)**2 + (p3_y - p0_y)**2)
+            simulated_duration = dist / 300.0 
+            steps = int(simulated_duration * 10)
+            
+            for _ in range(max(1, steps)):
+                time.sleep(0.1)
+                self._check_abort()
 
-        # 4. ENVOI AU CONTROLE MOTEUR
-        # TODO: Remplacer ce print par l'appel réel à ton driver moteur
-        # Exemple : self.motor_driver.add_bezier(p1=(p1_x,p1_y), p2=(p2_x,p2_y), p3=(p3_x,p3_y))
-        
-        # 5. SIMULATION (Pour attendre que le robot ait fini virtuellement)
-        dist = math.sqrt((p3_x - p0_x)**2 + (p3_y - p0_y)**2)
-        simulated_duration = dist / 300.0 # Supposons 300mm/s
-        steps = int(simulated_duration * 10)
-        
-        for _ in range(max(1, steps)):
-            time.sleep(0.1)
-            self._check_abort()
-
-        # 6. Mise à jour de la position finale (Triche IHM)
-        shared.robot_pos['x'] = p3_x
-        shared.robot_pos['y'] = p3_y
-        shared.robot_pos['theta'] = theta_end
+            # Mise à jour finale triche
+            shared.robot_pos['x'] = p3_x
+            shared.robot_pos['y'] = p3_y
+            shared.robot_pos['theta'] = theta_end
 
     def stop(self):
         print("[ACTION] STOP")

@@ -6,8 +6,8 @@ import threading
 
 # Import de l'IHM
 from ihm import run_ihm
-import shared as shared
-from main_strat import strat_loop
+import ihm.shared as shared
+from strat.main_strat import strat_loop
 
 # Import des logiques
 from hardware_thread import hardware_loop
