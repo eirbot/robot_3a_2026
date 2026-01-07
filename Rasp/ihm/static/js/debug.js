@@ -1,5 +1,7 @@
 let currentChart = null;
 
+// Au chargement de la page debug, initialisation du graphique et chargement des stratégies Blockly
+
 document.addEventListener("DOMContentLoaded", () => {
     initDebugPage();
     fetchStrats(); // Charge la liste pour le mode Statique
@@ -36,7 +38,7 @@ function fetchStrats() {
         .catch(err => console.error("Erreur chargement strats:", err));
 }
 
-// Mise à jour Config via State
+// Mise à jour Config via l'événement state_update
 window.socket.on('state_update', (state) => {
     // Si on est sur la page Debug
     if (document.getElementById('chk-lidar')) {
@@ -71,27 +73,19 @@ window.socket.on('state_update', (state) => {
     }
 });
 
-// Envoi modifs stratégie
+// Envoi modifications de la stratégie
 async function updateStratConfig() {
     const mode = document.getElementById('strat-mode').value;
     const file = document.getElementById('strat-select').value;
-    
-    await fetch('/api/config_edit', { 
-        method: 'POST', 
-        headers: {'Content-Type': 'application/json'}, 
-        body: JSON.stringify({key: 'strat_mode', val: mode})
-    });
-
+    const payload = { strat_mode: mode };
     if (mode === 'STATIC' && file) {
-        await fetch('/api/config_edit', { 
-            method: 'POST', 
-            headers: {'Content-Type': 'application/json'}, 
-            body: JSON.stringify({key: 'static_strat', val: file})
-        });
+        payload.static_strat = file;
     }
+    // Envoie via WebSocket pour mise à jour et retour immédiat
+    socket.emit('update_config', payload);
 }
 
-// Logs
+// Reception des logs
 window.socket.on('new_log', (log) => {
     const box = document.getElementById('logs-box');
     if (box) {
@@ -106,7 +100,7 @@ window.socket.on('new_log', (log) => {
     }
 });
 
-// Sys Info & Chart
+// Infos système & mise à jour du graphique et des statuts périphériques
 window.socket.on('sys_info', (data) => {
     if (currentChart) {
         const now = new Date().toLocaleTimeString();
@@ -131,8 +125,9 @@ function updateDevStatus(id, isOk) {
     if(el) el.className = 'status-dot ' + (isOk ? 'status-ok' : 'status-err');
 }
 
-async function toggleConfig(key, checkbox) {
-    await fetch('/api/config_edit', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({key: key, val: checkbox.checked})});
+function toggleConfig(key, checkbox) {
+    // Mise à jour via WebSocket (au lieu de fetch)
+    socket.emit('update_config', { [key]: checkbox.checked });
 }
 
 function flashESP(target) {
