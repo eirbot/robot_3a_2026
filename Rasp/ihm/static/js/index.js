@@ -2,66 +2,74 @@
 
 // Lorsque le serveur envoie un état, on met à jour l'interface si la page possède un score
 window.socket.on('state_update', (state) => {
+    // Sécurité : si on est sur une autre page, on ne fait rien
     if (!document.getElementById('score')) return;
 
-    // Affichage de l’équipe
+    // --- 1. ÉQUIPE ---
     document.getElementById('team-display').innerText = 'ÉQUIPE ' + state.team;
 
-    // Score : on accepte score_current ou score selon ce qui existe
+    // --- 2. SCORE ---
+    // On accepte score_current ou score selon ce qui existe dans le state
     const scoreVal = state.score_current ?? state.score ?? 0;
     document.getElementById('score').innerText = scoreVal;
 
-    // Timer : on préfère timer_str, sinon on formate timer à 1 décimale
+    // --- 3. TIMER ---
+    // On préfère la version string formatée par le Python, sinon on le fait nous-même
     const timer = state.timer_str ?? (typeof state.timer !== 'undefined' ? Number(state.timer).toFixed(1) : '0.0');
     document.getElementById('timer').innerText = timer;
 
-    // Affichage de la stratégie (mode dynamique ou identifiant statique)
+    // --- 4. STRATÉGIE ---
+    // C'est le point important pour voir ton changement de config !
     const stratEl = document.getElementById('strat-display');
     if (stratEl) {
-        if (state.strat_mode === 'STATIC') {
-            stratEl.innerText = '#' + (state.strat_id ?? '?');
+        // On regarde directement dans config ou dans state
+        const config = state.config || {};
+        const mode = state.strat_mode ?? config.strat_mode ?? 'DYNAMIC';
+        
+        if (mode === 'STATIC') {
+            // Nettoyage du nom de fichier pour faire propre
+            let name = (state.strat_id ?? config.static_strat ?? '?');
+            name = name.replace('.xml','').replace('.py','');
+            stratEl.innerText = 'STATIC : ' + name;
+            stratEl.style.color = "#FF9800"; // Orange
         } else {
-            stratEl.innerText = 'Dynamique';
+            stratEl.innerText = 'DYNAMIQUE (Auto)';
+            stratEl.style.color = "#ccc"; // Gris
         }
     }
 
-    // Affichage de l’état de la machine à états
+    // --- 5. ÉTAT FSM ---
     const fsmEl = document.getElementById('fsm-display');
     if (fsmEl) {
         fsmEl.innerText = state.fsm_state ?? 'INIT';
     }
 
-    // Gestion de la tirette
+    // --- 6. TIRETTE ---
     const tirDiv = document.getElementById('tirette-status');
     if (tirDiv) {
         const tir = state.tirette ?? false;
-        if (typeof tir === 'string') {
-            if (tir === 'ARMED') {
-                tirDiv.innerText = 'TIRETTE: ARMÉE (PRÊT)';
-                tirDiv.className = 'tirette-box status-armed';
-            } else if (tir === 'TRIGGERED') {
-                tirDiv.innerText = 'TIRETTE: TIRÉE (GO)';
-                tirDiv.className = 'tirette-box status-triggered';
-            } else {
-                tirDiv.innerText = 'TIRETTE: NON ARMÉE';
-                tirDiv.className = 'tirette-box status-non-armed';
-            }
-        } else if (tir === true) {
+        // Gestion souple : supporte les strings ("ARMED") ou les booléens (True/False)
+        if (tir === 'ARMED' || tir === true) {
             tirDiv.innerText = 'TIRETTE: ARMÉE (PRÊT)';
             tirDiv.className = 'tirette-box status-armed';
+        } else if (tir === 'TRIGGERED') {
+            tirDiv.innerText = 'TIRETTE: TIRÉE (GO)';
+            tirDiv.className = 'tirette-box status-triggered';
         } else {
             tirDiv.innerText = 'TIRETTE: NON ARMÉE';
             tirDiv.className = 'tirette-box status-non-armed';
         }
     }
 
-    // Gestion des boutons Start/Stop/Reset selon l’état du match
+    // --- 7. BOUTONS MATCH ---
     const btnStart = document.getElementById('btn-start');
     const btnStop  = document.getElementById('btn-stop');
     const btnReset = document.getElementById('btn-reset');
+    
     if (btnStart && btnStop && btnReset) {
         const running = state.match_running ?? (state.fsm_state === 'MATCH');
         const finished = state.match_finished ?? (state.fsm_state === 'FINISHED');
+        
         if (finished) {
             btnStart.classList.add('hidden');
             btnStop.classList.add('hidden');
@@ -77,17 +85,22 @@ window.socket.on('state_update', (state) => {
         }
     }
 
-    // Visibilité des flèches de score manuel : visible uniquement si activé et en dehors du match
+    // --- 8. Score Manuel ---
+    // On cache les flèches pendant le match pour éviter les fausses manips
     const arrows = document.querySelectorAll('.btn-arrow');
     const manualEnabled = state.manual_score_enabled ?? true;
     const runningMatch = state.match_running ?? (state.fsm_state === 'MATCH');
-    const finishedMatch = state.match_finished ?? (state.fsm_state === 'FINISHED');
+    
     arrows.forEach(e => {
-        e.style.visibility = (manualEnabled && !runningMatch && !finishedMatch) ? 'visible' : 'hidden';
+        e.style.visibility = (manualEnabled && !runningMatch) ? 'visible' : 'hidden';
     });
 });
 
-// Fonction de modification de score : on utilise le WebSocket pour mettre à jour en temps réel
-function adjustScore(delta) {
-    socket.emit('update_score', { delta: delta });
+// Fonction indispensable pour les boutons de score
+function adjustScore(delta) { 
+    fetch('/api/score_edit', { 
+        method: 'POST', 
+        headers: {'Content-Type': 'application/json'}, 
+        body: JSON.stringify({delta: delta})
+    }); 
 }

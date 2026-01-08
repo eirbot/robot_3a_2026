@@ -54,7 +54,8 @@ window.socket.on('state_update', (state) => {
         setCheck('chk-lidar-simu', c.lidar_simu);
         setCheck('chk-skip-homolog', c.skip_homologation);
         setCheck('chk-ekf', c.ekf);
-        setCheck('chk-cam', c.camera);
+        let camStatus = (typeof c.camera === 'object') ? c.camera.enabled : c.camera;
+        setCheck('chk-cam', camStatus);
         setCheck('chk-avoid', c.avoidance);
         setCheck('chk-side', (state.team === 'JAUNE'));
 
@@ -74,15 +75,33 @@ window.socket.on('state_update', (state) => {
 });
 
 // Envoi modifications de la stratégie
+// Envoi modifs stratégie + Mise à jour VISUELLE immédiate
 async function updateStratConfig() {
     const mode = document.getElementById('strat-mode').value;
     const file = document.getElementById('strat-select').value;
-    const payload = { strat_mode: mode };
-    if (mode === 'STATIC' && file) {
-        payload.static_strat = file;
+    
+    // --- PARTIE AJOUTÉE : Gestion visuelle locale ---
+    // On force l'affichage sans attendre le retour du serveur/socket
+    const box = document.getElementById('static-strat-box');
+    if(box) {
+        box.style.display = (mode === 'STATIC') ? 'block' : 'none';
     }
-    // Envoie via WebSocket pour mise à jour et retour immédiat
-    socket.emit('update_config', payload);
+    // -----------------------------------------------
+    
+    // Envoi au serveur (Backend)
+    await fetch('/api/config_edit', { 
+        method: 'POST', 
+        headers: {'Content-Type': 'application/json'}, 
+        body: JSON.stringify({key: 'strat_mode', val: mode})
+    });
+
+    if (mode === 'STATIC' && file) {
+        await fetch('/api/config_edit', { 
+            method: 'POST', 
+            headers: {'Content-Type': 'application/json'}, 
+            body: JSON.stringify({key: 'static_strat', val: file})
+        });
+    }
 }
 
 // Reception des logs
@@ -125,9 +144,15 @@ function updateDevStatus(id, isOk) {
     if(el) el.className = 'status-dot ' + (isOk ? 'status-ok' : 'status-err');
 }
 
-function toggleConfig(key, checkbox) {
-    // Mise à jour via WebSocket (au lieu de fetch)
-    socket.emit('update_config', { [key]: checkbox.checked });
+async function toggleConfig(key, checkbox) {
+    // AJOUTE CETTE LIGNE
+    console.log("CLICK DETECTÉ SUR :", key, "VALEUR :", checkbox.checked);
+
+    await fetch('/api/config_edit', { 
+        method: 'POST', 
+        headers: {'Content-Type': 'application/json'}, 
+        body: JSON.stringify({key: key, val: checkbox.checked})
+    });
 }
 
 function flashESP(target) {

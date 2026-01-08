@@ -36,6 +36,7 @@ audio = AudioManager(cfg.get("audio", {}))
 
 # Etat Global Partagé
 state = {
+    "config": cfg,
     "team": cfg.get("team", "BLEUE"),
     "score_current": 0,
     "match_running": False,

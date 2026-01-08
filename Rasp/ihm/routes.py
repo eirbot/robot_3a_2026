@@ -44,12 +44,34 @@ if cam_cfg.get("enabled", False) and LibCamera:
     except: camera = None
 
 def generate_frames():
+    # Compteur de sécurité pour éviter le chargement infini
+    fail_count = 0
+    
     while True:
-        if not camera: break
-        success, frame = camera.read()
-        if success:
-            _, buffer = cv2.imencode('.jpg', frame)
-            yield (b'--frame\r\nContent-Type: image/jpeg\r\n\r\n' + buffer.tobytes() + b'\r\n')
+        # Si l'objet caméra n'existe plus/pas
+        if not camera: 
+            break
+            
+        try:
+            success, frame = camera.read()
+            
+            if success:
+                # Reset du compteur si on a une image
+                fail_count = 0
+                _, buffer = cv2.imencode('.jpg', frame)
+                yield (b'--frame\r\nContent-Type: image/jpeg\r\n\r\n' + buffer.tobytes() + b'\r\n')
+            else:
+                # Pas d'image récupérée
+                fail_count += 1
+                # Si on échoue 10 fois de suite (environ 0.5 seconde), on coupe le flux
+                if fail_count > 10:
+                    print("[CAM] Trop d'échecs de lecture, arrêt du flux.")
+                    break
+                    
+        except Exception as e:
+            print(f"[CAM] Erreur critique flux : {e}")
+            break
+            
         time.sleep(0.05)
 
 # --- ROUTES ---
@@ -71,7 +93,10 @@ def page_map(): return render_template('map.html')
 
 @app.route('/video_feed')
 def video_feed():
-    if not camera: return "No Cam", 404
+    # On vérifie si l'objet camera existe ET si le driver a réussi à démarrer (running)
+    if not camera or not getattr(camera, 'running', False):
+        return "Camera Inactive", 404
+        
     return Response(generate_frames(), mimetype='multipart/x-mixed-replace; boundary=frame')
 
 @app.route('/blockly')
@@ -109,8 +134,25 @@ def config_edit():
     
     if 'config' in state:
         conf = state['config']
-        conf[key] = val
-        state['config'] = conf # CRUCIAL : Réassigner pour déclencher l'update côté Manager
+        
+        # --- CORRECTION : Gestion des clés imbriquées (ex: "camera.enabled") ---
+        if '.' in key:
+            parent, child = key.split('.', 1)
+            if parent in conf and isinstance(conf[parent], dict):
+                conf[parent][child] = val
+        else:
+            conf[key] = val
+        # -----------------------------------------------------------------------
+
+        state['config'] = conf
+        save_config(conf)
+        
+        # Gestion des triggers spéciaux (Stratégie)
+        if key == 'static_strat':
+            state['strat_id'] = val
+        elif key == 'strat_mode' and val == 'STATIC':
+            if conf.get('static_strat'):
+                state['strat_id'] = conf['static_strat']
         
     return jsonify({'status': 'ok'})
 

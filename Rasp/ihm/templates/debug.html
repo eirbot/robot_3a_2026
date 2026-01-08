@@ -5,8 +5,8 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='css/common.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/debug.css') }}">
     
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="{{ url_for('static', filename='js/socket.io.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/chart.js') }}"></script>
     
     <script src="{{ url_for('static', filename='js/common.js') }}" defer></script>
     <script src="{{ url_for('static', filename='js/debug.js') }}" defer></script>
@@ -58,7 +58,7 @@
                 <label><input type="checkbox" id="chk-lidar-simu" onchange="toggleConfig('lidar_simu', this)"> Simu LiDAR</label>
                 
                 <label><input type="checkbox" id="chk-ekf" onchange="toggleConfig('ekf', this)"> EKF (Pos)</label>
-                <label><input type="checkbox" id="chk-cam" onchange="toggleConfig('camera', this)"> Caméra</label>
+                <label><input type="checkbox" id="chk-cam" onchange="toggleConfig('camera.enabled', this)"> Caméra</label>
                 
                 <label><input type="checkbox" id="chk-avoid" onchange="toggleConfig('avoidance', this)"> Évitement</label>
                 <label><input type="checkbox" id="chk-skip-homolog" onchange="toggleConfig('skip_homologation', this)"> Skip Homolog</label>
