@@ -1,71 +1,90 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>MÉDIA MANAGER</title>
+    <title>EIRBOT - MEDIA STUDIO</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/common.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/media.css') }}">
     
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
-    
+    <script src="{{ url_for('static', filename='js/socket.io.js') }}"></script>
     <script src="{{ url_for('static', filename='js/common.js') }}" defer></script>
     <script src="{{ url_for('static', filename='js/media.js') }}" defer></script>
 </head>
-<body class="mode-BLEUE">
+<body>
     <div class="header">
-        <a href="/debug" class="btn-back">← Retour</a>
-        <div style="font-weight:bold;">SON & LUMIÈRE</div>
+        <a href="/" class="btn-back">⬅ RETOUR</a>
+        <div style="font-weight:900; font-size:1.5em;">MEDIA STUDIO</div>
         <div class="sys-info" id="sys-info">...</div>
     </div>
 
-    <div class="debug-grid">
-        <div class="card">
-            <h3>🎵 Audio</h3>
-            <form action="/api/upload_sound" method="post" enctype="multipart/form-data" style="margin-bottom:20px; border:1px dashed #555; padding:10px;">
-                <input type="file" name="file" accept=".mp3" id="file-input">
-                <input type="submit" value="Envoyer" class="btn-sys" style="width:auto; display:inline-block; padding:5px 10px;">
-            </form>
-
-            <table style="width:100%; text-align:left; font-size:0.9em;">
-                <tr><th>Fichier</th><th>Action</th></tr>
-                {% for f in files %}
-                <tr>
-                    <td style="color:#C3E88D">{{ f }}</td>
-                    <td>
-                        <button onclick="playTrack('play', '{{f}}')" class="btn-tiny" style="background:#009688;">▶</button>
-                        <button onclick="setTrack('intro', '{{f}}')" class="btn-tiny">Intro</button>
-                        <button onclick="setTrack('match', '{{f}}')" class="btn-tiny">Match</button>
-                        <button onclick="setTrack('end', '{{f}}')" class="btn-tiny">Fin</button>
-                    </td>
-                </tr>
-                {% endfor %}
-            </table>
-            <hr>
-            <p><strong>Actuel :</strong><br>
-               Intro: {{ audio_cfg.get('tracks', {}).get('intro', '-') }}<br>
-               Match: {{ audio_cfg.get('tracks', {}).get('match', '-') }}<br>
-               Fin: {{ audio_cfg.get('tracks', {}).get('end', '-') }}
-            </p>
+    <div class="media-container">
+        
+        <div class="panel-left">
+            <div class="panel-header">
+                <h3>📂 Fichiers Audio</h3>
+                <small>Glisser-déposer pour uploader</small>
+            </div>
+            
+            <div id="file-list" class="file-list">
+                <div class="empty-msg">Chargement...</div>
+            </div>
         </div>
 
-        <div class="card">
-            <h3>💡 LEDs</h3>
-            <div style="margin-bottom: 20px;">
-                <label>Couleur :</label>
-                <input type="color" id="col-picker" value="#0000ff" style="width:100%; height:40px; border:none;">
-                <button class="btn-led" onclick="sendColor()">APPLIQUER</button>
-            </div>
-            <hr style="border-color:#444">
-            <div>
-                <label>Dégradé :</label>
-                <div style="display:flex; gap:10px;">
-                    <input type="color" id="grad-1" value="#ff0000" style="flex:1; height:40px;">
-                    <input type="color" id="grad-2" value="#0000ff" style="flex:1; height:40px;">
+        <div class="panel-right">
+            
+            <div class="player-box">
+                <h3>🎵 Lecteur</h3>
+                <div class="now-playing" id="now-playing-text">Aucune lecture</div>
+                
+                <audio id="audio-preview" controls style="width:100%; margin: 15px 0;"></audio>
+                
+                <div class="player-controls">
+                    <button class="btn-ctrl" onclick="playPrev()">⏮</button>
+                    <button class="btn-ctrl" onclick="playNext()">⏭</button>
                 </div>
-                <button class="btn-led" onclick="sendGradient()">APPLIQUER</button>
+                
+                <label style="display:block; margin-top:10px;">
+                    Volume Pré-écoute : 
+                    <input type="range" id="vol-slider" min="0" max="1" step="0.1" value="0.5">
+                </label>
+                
+                <button class="btn-robot-test" onclick="playOnRobot()" style="margin-top:15px;">📢 Tester sur le Robot</button>
             </div>
-            <br>
-            <button onclick="sendAction('team')" class="btn-sys">TEST ANIM MATCH</button>
+
+            <div class="config-box">
+                <h3>⚙️ Assignations Robot</h3>
+                <div class="assign-row">
+                    <span>🎬 INTRO :</span> <span id="assign-intro" class="assign-val">...</span>
+                </div>
+                <div class="assign-row">
+                    <span>🔁 MATCH :</span> <span id="assign-match_loop" class="assign-val">...</span>
+                </div>
+                <div class="assign-row">
+                    <span>🏁 FIN :</span> <span id="assign-outro" class="assign-val">...</span>
+                </div>
+            </div>
+
+            <div class="led-box">
+                <h3>💡 Lumières</h3>
+                <div class="led-controls">
+                    <button onclick="setLed('OFF')">OFF</button>
+                    <button onclick="setLed('RED')">ROUGE</button>
+                    <button onclick="setLed('GREEN')">VERT</button>
+                    <button onclick="setLed('BLUE')">BLEU</button>
+                    <button onclick="setLed('RAINBOW')">🌈 AUTO</button>
+                </div>
+            </div>
         </div>
     </div>
+
+    <div id="context-menu" class="context-menu">
+        <div class="ctx-title" id="ctx-filename">Fichier.mp3</div>
+        <hr>
+        <div class="ctx-item" onclick="assignTrack('intro')">🎬 Définir comme INTRO</div>
+        <div class="ctx-item" onclick="assignTrack('match_loop')">🔁 Définir comme MATCH LOOP</div>
+        <div class="ctx-item" onclick="assignTrack('outro')">🏁 Définir comme OUTRO</div>
+        <hr>
+        <div class="ctx-item delete" onclick="deleteTrack()">🗑️ Supprimer (TODO)</div>
+    </div>
+
 </body>
 </html>

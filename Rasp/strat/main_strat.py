@@ -78,7 +78,8 @@ def strat_loop():
                 if strat_name in AVAILABLE_STRATS:
                     mod = importlib.import_module(f"strat.strategies.{strat_name}")
                     # Mise à jour du score théorique
-                    shared.state["score_current"] = AVAILABLE_STRATS[strat_name].get("score", 0)
+                    # TODO : ajouter un toggle pour prendre les points de la strat ou pas
+                    # shared.state["score_current"] = AVAILABLE_STRATS[strat_name].get("score", 0)
                     mod.run(robot)
                 else:
                     print(f"[STRAT] Erreur : Stratégie '{strat_name}' inconnu !")

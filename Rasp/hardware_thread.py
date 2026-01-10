@@ -21,8 +21,7 @@ def hardware_loop():
     ekf = None
     if EKFLocalizer and shared.cfg.get("lidar_enabled", True):
         try:
-            # Port à vérifier (ttyUSB0 ou ttyACM0 souvent)
-            ekf = EKFLocalizer("/dev/ttyUSB0") 
+            ekf = EKFLocalizer("/dev/lidar") 
             ekf.start_scan()
             print("[HARDWARE] Lidar & EKF connectés.")
         except Exception as e:

@@ -25,11 +25,11 @@ extern TaskHandle_t vAscHandle;
 
 // pour ClassMotors
 
-#define MOTOR_LEFT_STEP_PIN   17
-#define MOTOR_LEFT_DIR_PIN    16
+#define MOTOR_LEFT_STEP_PIN   4
+#define MOTOR_LEFT_DIR_PIN    2
 
-#define MOTOR_RIGHT_STEP_PIN  18
-#define MOTOR_RIGHT_DIR_PIN   19
+#define MOTOR_RIGHT_STEP_PIN  17
+#define MOTOR_RIGHT_DIR_PIN   16
 
 // Structure d'une commande de vitesse
 typedef struct {

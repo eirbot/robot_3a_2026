@@ -10,10 +10,10 @@ class RPLidarC1M1:
     CMD_STOP = b"\xA5\x25"
     DESC_SCAN = bytes.fromhex("A5 5A 05 00 00 40 81")
 
-    def __init__(self, port="/dev/ttyUSB0", baud=460800, timeout=0.05):
+    def __init__(self, port="/dev/lidar", baud=460800, timeout=0.05):
         """
         Initialise la communication avec le LIDAR.
-        :param port: chemin du port série (ex: /dev/ttyUSB0)
+        :param port: chemin du port série (ex: /dev/lidar)
         :param baud: vitesse de communication
         :param timeout: délai max de lecture série (s)
         """

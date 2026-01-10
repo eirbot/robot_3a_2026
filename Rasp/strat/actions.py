@@ -3,13 +3,19 @@ import time
 import math
 import ihm.shared as shared
 
+# --- CORRECTION DES IMPORTS ---
 try:
+    # On essaie d'importer le module Bezier
     import interface_deplacement.bezier as Bezier
-    import interface_deplacement.interface_deplacement as iface_depl
-except ImportError:
-    print("⚠️ Attention : Modules de déplacement non trouvés (Mode Simulation pur)")
+    
+    # On essaie d'importer directement la fonction 'envoyer' depuis interface_deplacement.py
+    # (Assure-toi que la fonction s'appelle bien 'envoyer' dans ce fichier, sinon change le nom ici)
+    from interface_deplacement.interface_deplacement import envoyer
+
+except ImportError as e:
+    print(f"⚠️ Attention : Modules de déplacement non trouvés ({e}) -> Mode Simulation pur")
     Bezier = None
-    envoyer_trajectoire = None
+    envoyer = None  # On définit envoyer à None pour que les 'if envoyer:' fonctionnent
 
 # --- CONSTANTES ---
 TABLE_WIDTH = 3000
@@ -58,9 +64,9 @@ class RobotActions:
         print(f"[ACTION] SET_POS -> ({real_x}, {real_y}, {real_theta}°)")
 
         # 3. Envoi à l'ESP32 (Reset Odométrie)
+        # On utilise la variable 'envoyer' définie dans les imports
         if envoyer:
-            # On envoie juste le signal, c'est l'interface qui lira 'shared' pour construire le message
-            envoyer("SET POSE")
+            envoyer("SET POSE") # Adapter selon le format attendu par ton interface
         else:
             print("[SIMU] SET_POS virtuel (Pas de com)")
 
@@ -88,28 +94,32 @@ class RobotActions:
         p1_x = p0_x + force * math.cos(rad_start)
         p1_y = p0_y + force * math.sin(rad_start)
 
-        p2_x = p3_x - force * math.cos(rad_end) # Attention au signe moins ici (vecteur opposé)
+        p2_x = p3_x - force * math.cos(rad_end)
         p2_y = p3_y - force * math.sin(rad_end)
 
         # 4. GÉNÉRATION DES POINTS ET ENVOI
-        if Bezier and envoyer_trajectoire:
-            # Génération d'une liste de points (ex: 50 points)
-            # format : [(x,y), (x,y)...]
-            points_bezier = Bezier.bezier_cubique_discret(
-                50, 
-                (p0_x, p0_y), 
-                (p1_x, p1_y), 
-                (p2_x, p2_y), 
-                (p3_x, p3_y)
-            )
-            
-            # Envoi via Série (Bloquant jusqu'à l'arrivée ou Timeout)
-            envoyer(points_bezier)
+        # Correction ici : on utilise 'envoyer' uniformément
+        if Bezier and envoyer:
+            try:
+                # Génération d'une liste de points (ex: 50 points)
+                points_bezier = Bezier.bezier_cubique_discret(
+                    10, 
+                    (p0_x, p0_y), 
+                    (p1_x, p1_y), 
+                    (p2_x, p2_y), 
+                    (p3_x, p3_y)
+                )
+                
+                # Envoi via Série
+                envoyer(points_bezier)
+            except Exception as e:
+                print(f"[ERREUR] Échec envoi trajectoire : {e}")
             
         else:
             # 5. MODE SIMULATION (Si pas de driver ou pas d'ESP)
             print("[SIMU] Pas de connexion ESP, simulation du temps de trajet...")
             dist = math.sqrt((p3_x - p0_x)**2 + (p3_y - p0_y)**2)
+            # Vitesse arbitraire pour la simulation (300mm/s)
             simulated_duration = dist / 300.0 
             steps = int(simulated_duration * 10)
             
@@ -124,6 +134,10 @@ class RobotActions:
 
     def stop(self):
         print("[ACTION] STOP")
+        # Si on a la com, on envoie un arrêt
+        if envoyer:
+            # Adapter selon ton protocole (ex: envoyer([0,0]) ou string "STOP")
+            pass 
 
     def prendreKapla(self, hauteur=0):
         self._check_abort()

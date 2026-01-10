@@ -34,7 +34,7 @@ class EKFLocalizer(RPLidarC1M1):
 
     def __init__(
         self,
-        port: str = "/dev/ttyUSB0",
+        port: str = "/dev/lidar",
         baud: int = 460800,
         timeout: float = 0.05,
         balises: dict | None = None,
