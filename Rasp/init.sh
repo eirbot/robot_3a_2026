@@ -40,15 +40,8 @@ fi
 echo "[5/9] Configuration des permissions série..."
 sudo usermod -a -G dialout $USER_NAME
 
-echo "[6/9] Création des règles udev pour les ESP32..."
-sudo bash -c 'cat > /etc/udev/rules.d/99-esp32.rules <<EOF
-# Règles ESP32 : attribution de noms fixes
-SUBSYSTEM=="tty", ATTRS{idVendor}=="10c4", ATTRS{idProduct}=="ea60", SYMLINK+="esp32_motors"
-SUBSYSTEM=="tty", ATTRS{idVendor}=="10c4", ATTRS{idProduct}=="ea61", SYMLINK+="esp32_arms"
-EOF'
-
-sudo udevadm control --reload-rules
-sudo udevadm trigger
+echo "[6/9] Installation des dépendances pour l'affichage Web local (pywebview)"
+sudo apt-get update && sudo apt-get install -y python3-gi python3-gi-cairo gir1.2-gtk-3.0 gir1.2-webkit2-4.0
 
 echo "[7/9] Copie des service systemd..."
 if [ -f "$PROJECT_DIR/systemd/robot.service" ] && [ -f "$PROJECT_DIR/systemd/led_service.service" ]; then

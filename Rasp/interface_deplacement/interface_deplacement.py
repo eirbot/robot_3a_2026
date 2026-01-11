@@ -5,134 +5,132 @@ import ast
 import numpy as np
 import math
 from serial.serialutil import SerialException
-
-# On importe les données partagées
 import ihm.shared as shared
 
 # --- CONFIGURATION ---
 PORT = '/dev/esp32_motors'
 BAUDRATE = 115200
 
-# Variable globale (initialement vide)
-ser = None
+# Variable globale pour garder la connexion ouverte
+ser_client = None
 
 def init():
     """
-    Tente d'ouvrir la connexion série avec l'ESP32.
-    À appeler une seule fois au démarrage du robot.
-    Retourne True si succès, False sinon.
+    À appeler UNE SEULE FOIS au début du main_robot.py
+    Ouvre le port et attend le reboot de l'ESP.
     """
-    global ser
-    
-    # Si déjà ouvert, on ne fait rien
-    if ser is not None:
-        print("[COM] Port déjà ouvert.")
-        return True
+    global ser_client
+    if ser_client is not None:
+        return # Déjà connecté
 
     try:
-        print(f"[COM] Tentative de connexion sur {PORT}...")
-        ser = serial.Serial(port=PORT, baudrate=BAUDRATE, timeout=1)
+        print(f"[COM] Connexion à l'ESP32 sur {PORT}...")
+        # On ouvre le port sans DTR pour éviter certains resets, mais on gère le timing quand même
+        ser_client = serial.Serial(port=PORT, baudrate=BAUDRATE, timeout=1, dsrdtr=False)
         
-        # --- Séquence de démarrage propre ---
-        ser.dtr = False
-        time.sleep(0.1)
-        ser.dtr = True
-        time.sleep(1.0) # On laisse 1sec à l'ESP pour booter
+        # Séquence de stabilisation pour Raspberry Pi
+        ser_client.dtr = False
+        time.sleep(2.0) # On attend 2s UNE SEULE FOIS au démarrage
+        ser_client.reset_input_buffer()
         
-        # On vide les logs de démarrage
-        ser.reset_input_buffer()
-        print("[COM] Connexion ESP32 Moteurs : OK ✅")
+        print("[COM] Connexion établie et stabilisée ✅")
         return True
 
-    except SerialException as e:
-        print(f"[COM] ÉCHEC Connexion ESP32 : {e}")
-        print("[COM] Passage en mode SIMULATION (pas d'envoi physique).")
-        ser = None
+    except Exception as e:
+        print(f"[COM] ERREUR CRITIQUE connexion : {e}")
+        ser_client = None
         return False
 
 def envoyer(message):
-    """
-    Envoie une trajectoire ou une commande.
-    Compatible avec main_motor.cpp (attend 'trajectoryFinished').
-    """
-    global ser
+    global ser_client
     
-    # MODE SIMULATION : Si init() a échoué ou n'a pas été appelé
-    if ser is None:
-        print(f"[SIMU] Commande virtuelle : {str(message)[:50]}...")
-        # On simule le mouvement pour l'interface web (optionnel)
-        if isinstance(message, str) and message.startswith("SET POSE"):
-             pass # Déjà fait dans actions.py
-        elif not isinstance(message, str):
-             # Si c'est une traj, on pourrait simuler le déplacement du robot ici
-             # pour l'instant on fait juste semblant d'attendre
-             time.sleep(1)
-        return
+    # Auto-connexion de secours si on a oublié d'appeler init()
+    if ser_client is None:
+        if not init():
+            return # Echec total
 
-    if len(message) != 0:
-        try:
-            # --- CAS 1 : ENVOI TRAJECTOIRE (Liste de points) ---
-            if not isinstance(message, str):
-                # Conversion en numpy array pour être sûr
-                trajectoire_bezier_mm = np.array(message)
-                trajectoire_ints = np.rint(trajectoire_array).astype(int)
+    if len(message) == 0: return
+
+    try:
+        # --- CAS 1 : TRAJECTOIRE (LISTE) ---
+        if not isinstance(message, str):
+            trajectoire_bezier_mm = np.array(message)
+            nb_points = len(trajectoire_bezier_mm)
+
+            # 1. Envoi SET POSE (Position actuelle)
+            # Cela recalibre l'ESP pour qu'il parte bien de là où le Python pense qu'il est
+            y_mm = shared.robot_pos['y']
+            x_mm = shared.robot_pos['x']
+            theta_rad = shared.robot_pos['theta'] * (np.pi/180.0)
+            
+            cmd_pose = f"SET POSE {y_mm:.2f} {x_mm:.2f} {theta_rad:.4f}\n"
+            ser_client.write(cmd_pose.encode())
+            
+            # Pause minime (juste pour séparer les paquets, pas pour le reboot)
+            time.sleep(0.05) 
+
+            # 2. Envoi JSON
+            json_str = json.dumps(trajectoire_bezier_mm.tolist())
+            ser_client.write((json_str + '\n').encode())
+            
+            print(f"[COM] Trajectoire envoyée ({nb_points} pts).")
+            
+            # --- BOUCLE DE SUIVI (Bloquante mais réactive) ---
+            msg = ""
+            start_wait = time.time()
+            
+            # Phase A : Attente validation "BEZ OK"
+            while "BEZ OK" not in msg:
+                if time.time() - start_wait > 5:
+                    print("[COM] Timeout: Pas de BEZ OK (Liaison perdue ?)")
+                    return
                 
-                # Cible finale pour double vérification
-                cible_x = trajectoire_bezier_mm[-1][0]
-                cible_y = trajectoire_bezier_mm[-1][1]
-                
-                # Envoi du JSON
-                json_str = json.dumps(trajectoire_bezier_mm.tolist())
-                ser.write((json_str + '\n').encode())
-                print(f"[COM] Trajectoire envoyée ({len(trajectoire_bezier_mm)} pts).")
-                
-                # Boucle bloquante jusqu'à l'arrivée (Lecture réponse)
-                while True:
-                    line = ser.readline().decode(errors="ignore").strip()
-                    
-                    if line:
-                        # 1. Retour Position : "[x, y, theta]" (Mètres)
-                        if line.startswith('[') and line.endswith(']'):
+                try:
+                    line = ser_client.readline().decode(errors="ignore").strip()
+                    if line: msg = line
+                except: pass
+
+            print("[COM] Trajectoire validée.")
+
+            # Phase B : Attente Fin Mouvement
+            while True:
+                try:
+                    line = ser_client.readline().decode(errors="ignore").strip()
+                except: break
+
+                if line:
+                    # Condition de sortie 1 : "trajectoryFinished"
+                    if "trajectoryFinished" in line:
+                        break
+
+                    # Condition de sortie 2 : Index dépassé (Fix précédent)
+                    if "currentIdx" in line:
+                        parts = line.split(':')
+                        if len(parts) > 1:
                             try:
-                                pos = ast.literal_eval(line)
-                                x_mm = pos[0] * 1000
-                                y_mm = pos[1] * 1000
-                                theta_deg = pos[2] * 180 / np.pi
+                                current_idx = int(parts[-1].strip())
+                                if current_idx >= nb_points:
+                                    break # On est arrivé au bout
+                            except: pass
 
-                                shared.robot_pos['x'] = x_mm
-                                shared.robot_pos['y'] = y_mm
-                                shared.robot_pos['theta'] = theta_deg
-                                
-                                # Check distance d'arrivée (< 2cm)
-                                dist = math.sqrt((x_mm - cible_x)**2 + (y_mm - cible_y)**2)
-                                if dist < 20:
-                                    break # Arrivé
+                    # Mise à jour position temps réel
+                    if line.startswith('[') and line.endswith(']'):
+                        try:
+                            msg_list = ast.literal_eval(line)
+                            shared.robot_pos['x'] = msg_list[0] * 1000
+                            shared.robot_pos['y'] = msg_list[1] * 1000
+                            shared.robot_pos['theta'] = msg_list[2] * 180 / np.pi
+                        except: pass
 
-                            except Exception as e:
-                                print(f"[COM] Erreur parse pos: {e}")
+        # --- CAS 2 : COMMANDE TEXTE (ex: "SET POSE ...") ---
+        elif isinstance(message, str):
+            ser_client.write((message + '\n').encode())
+            print(f"[COM] Cmd: {message}")
 
-                        # 2. Signal de fin explicite
-                        elif line == "trajectoryFinished":
-                            print("[COM] Fin trajectoire reçue.")
-                            break
-                        
-                        # 3. Logs ESP
-                        else:
-                            print(f"[ESP] {line}")
-
-            # --- CAS 2 : COMMANDE TEXTE (SET POSE) ---
-            elif message.startswith("SET POSE"):
-                x_mm = shared.robot_pos['x']
-                y_mm = shared.robot_pos['y']
-                th_deg = shared.robot_pos['theta']
-                th_rad = th_deg * np.pi / 180.0
-
-                cmd = f"SET POSE {x_mm:.2f} {y_mm:.2f} {th_rad:.4f}\n"
-                ser.write(cmd.encode())
-                print(f"[COM] Reset Odom : {cmd.strip()}")
-
-        except SerialException as e:
-            print(f"[COM] Erreur Série critique : {e}")
-            ser = None # On coupe la connexion pour éviter d'insister
-        except KeyboardInterrupt:
-            print("[COM] Interruption.")
+    except Exception as e:
+        print(f"[COM] Erreur durant l'envoi : {e}")
+        # En cas d'erreur grave, on tente de fermer pour forcer une réouverture propre au prochain appel
+        try:
+            ser_client.close()
+        except: pass
+        ser_client = None

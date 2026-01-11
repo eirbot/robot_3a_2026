@@ -3,6 +3,7 @@ import sys
 import os
 import time
 import threading
+import webview
 
 # Import de l'IHM
 from ihm import run_ihm
@@ -30,8 +31,19 @@ if __name__ == "__main__":
         strat_thread = threading.Thread(target=strat_loop, daemon=True)
         strat_thread.start()
         
-        # 3. Thread IHM (Serveur Web - Bloquant)
-        run_ihm()
+        # 3. Thread IHM (Serveur Web)
+        ihm_thread = threading.Thread(target=run_ihm, daemon=True)
+        ihm_thread.start()
+        
+        # Petit délai pour laisser le temps à Flask/SocketIO de démarrer
+        time.sleep(2)
+
+        # 4. Interface Graphique (Bloquant le Main) 
+        # On lance la fenêtre qui affiche le site local
+        # fullscreen=True est recommandé pour l'écran 7" du robot
+        print("[MAIN] Lancement de l'affichage local...")
+        webview.create_window('Robot 2026', 'http://127.0.0.1:5000', fullscreen=True)
+        webview.start()
         
     except KeyboardInterrupt:
         print("\n[MAIN] Arrêt demandé.")

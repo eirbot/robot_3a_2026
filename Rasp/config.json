@@ -40,5 +40,16 @@
         "match": "match_loop.mp3",
         "end": "outro.mp3"
     }
+  },
+  "lidar": {
+    "port": "/dev/ttyUSB0",
+    "baudrate": 460800,
+    "angle_offset_deg": -90.0,
+    "beacons": {
+        "A": [50.0, -1594.0],
+        "B": [1950.0, -1594.0],
+        "C": [1000.0, 1594.0]
+    },
+    "table_dimensions": [3000, 2000]
   }
 }

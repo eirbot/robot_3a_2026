@@ -9,3 +9,4 @@ flask
 flask-socketio
 eventlet
 opencv-contrib-python
+pywebview

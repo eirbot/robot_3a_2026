@@ -103,7 +103,7 @@ class RobotActions:
             try:
                 # Génération d'une liste de points (ex: 50 points)
                 points_bezier = Bezier.bezier_cubique_discret(
-                    10, 
+                    50, 
                     (p0_x, p0_y), 
                     (p1_x, p1_y), 
                     (p2_x, p2_y), 

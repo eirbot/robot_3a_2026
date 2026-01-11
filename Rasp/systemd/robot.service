@@ -1,16 +1,27 @@
 [Unit]
 Description=Eirbot Central Units
-After=network.target sound.target
+# On attend que l'interface graphique et le réseau soient prêts
+After=network.target sound.target graphical.target systemd-user-sessions.service
 
 [Service]
 User=eirbot
+Group=eirbot
 WorkingDirectory=/home/eirbot/Documents/robot_3a_2026
-ExecStart=/home/eirbot/Documents/robot_3a_2026/.venv/bin/python /home/eirbot/Documents/robot_3a_2026/main_robot.py
+ExecStart=/bin/bash /home/eirbot/Documents/robot_3a_2026/exec.sh
+
+# Redémarrage automatique en cas de crash
 Restart=always
-RestartSec=2
+RestartSec=5
+
+# Logs
 StandardOutput=append:/var/log/ihm.log
 StandardError=append:/var/log/ihm.log
+
+# Variables d'environnement pour l'interface graphique
 Environment=PYTHONUNBUFFERED=1
+Environment=DISPLAY=:0
+# Assurez-vous que ce chemin est correct (parfois c'est dans /run/user/1000/gdm/Xauthority)
+Environment=XAUTHORITY=/home/eirbot/.Xauthority
 
 [Install]
-WantedBy=multi-user.target
+WantedBy=graphical.target
