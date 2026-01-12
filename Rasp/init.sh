@@ -41,7 +41,7 @@ echo "[5/9] Configuration des permissions série..."
 sudo usermod -a -G dialout $USER_NAME
 
 echo "[6/9] Installation des dépendances pour l'affichage Web local (pywebview)"
-sudo apt-get update && sudo apt-get install -y python3-gi python3-gi-cairo gir1.2-gtk-3.0 gir1.2-webkit2-4.0
+sudo apt-get update && sudo apt-get install -y python3-gi python3-gi-cairo gir1.2-gtk-3.0 gir1.2-webkit2-4.1
 
 echo "[7/9] Copie des service systemd..."
 if [ -f "$PROJECT_DIR/systemd/robot.service" ] && [ -f "$PROJECT_DIR/systemd/led_service.service" ]; then

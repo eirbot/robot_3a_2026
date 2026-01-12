@@ -19,9 +19,11 @@ StandardError=append:/var/log/ihm.log
 
 # Variables d'environnement pour l'interface graphique
 Environment=PYTHONUNBUFFERED=1
+Environment=NO_AT_BRIDGE=1
 Environment=DISPLAY=:0
 # Assurez-vous que ce chemin est correct (parfois c'est dans /run/user/1000/gdm/Xauthority)
 Environment=XAUTHORITY=/home/eirbot/.Xauthority
+Environment=XDG_RUNTIME_DIR=/run/user/1000
 
 [Install]
 WantedBy=graphical.target

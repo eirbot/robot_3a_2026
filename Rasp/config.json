@@ -42,7 +42,7 @@
     }
   },
   "lidar": {
-    "port": "/dev/ttyUSB0",
+    "port": "/dev/lidar",
     "baudrate": 460800,
     "angle_offset_deg": -90.0,
     "beacons": {
