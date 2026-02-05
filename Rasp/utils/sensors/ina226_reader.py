@@ -20,8 +20,16 @@ class INA226:
         return self._read_word(0x02) * 1.25e-3  # 1.25 mV/bit
 
     def read_current_once(self):
-        raw = self._read_word(0x04)
-        return raw * 0.001  # 1 mA/bit
+        # On lit le Shunt Voltage (0x01) au lieu du Current Register (0x04) 
+        # car ce dernier nécessite une calibration complexe.
+        # 1 LSB = 2.5 uV. R_shunt = 0.01 Ohm.
+        raw = self._read_word(0x01)
+        # Conversion du complément à 2 (16 bits)
+        if raw > 32767:
+            raw -= 65536
+            
+        shunt_voltage = raw * 2.5e-6 # en Volts
+        return shunt_voltage / self.r_shunt
 
     def _loop(self):
         while not self._stop.is_set():
@@ -31,7 +39,7 @@ class INA226:
                 self.history.append((time.time(), self.current))
             except Exception:
                 pass
-            time.sleep(0.5)
+            time.sleep(0.05)
 
     def stop(self):
         self._stop.set()

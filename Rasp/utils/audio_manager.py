@@ -75,6 +75,17 @@ class AudioManager:
             )
         except Exception as e:
             print(f"[AUDIO] Erreur mpg123 : {e}")
+            
+    def set_volume(self, volume_percent):
+        """Change le volume système immédiatement via amixer"""
+        self.volume_percent = int(volume_percent)
+        try:
+            # On règle le Master ou PCM (dépend de la carte son de la Rasp)
+            # Utilise 'PCM' ou 'Master' selon ce qui marche chez toi avec `alsamixer`
+            subprocess.run(["amixer", "sset", "Master", f"{self.volume_percent}%"], 
+                           stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        except Exception as e:
+            print(f"[AUDIO] Erreur volume : {e}")
 
     def stop(self):
         if self.current_process:

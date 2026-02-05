@@ -16,6 +16,8 @@ except ImportError:
     pass
 
 STRAT_DIR = os.path.join(os.getcwd(), 'strat', 'strategies')
+STRAT_DIR = os.path.join(os.getcwd(), 'strat', 'strategies')
+ANIM_FILE = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'config_led_animations.json')
 
 # --- INIT DEFAULTS CONFIG ---
 if 'config' in state:
@@ -102,6 +104,9 @@ def video_feed():
 @app.route('/blockly')
 def blockly_interface(): return render_template('blockly.html')
 
+@app.route('/led_studio')
+def led_studio_interface(): return render_template('led_studio.html')
+
 @app.route('/favicon.ico')
 def favicon(): return "", 204
 
@@ -127,6 +132,7 @@ def handle_action(act):
     if act == 'start':
         # On donne le signal de départ, le thread strat fera la transition vers "RUNNING"
         state['match_running'] = True
+        state['start_time'] = time.time()
         
     elif act == 'stop':
         # Arrêt d'urgence
@@ -143,6 +149,12 @@ def handle_action(act):
         
     elif act == 'team':
         state['team'] = 'JAUNE' if state['team'] == 'BLEUE' else 'BLEUE'
+        # Visual feedback on LEDs
+        # LED Service expects COLOR:R,G,B (0-255)
+        if state['team'] == 'JAUNE':
+             send_led_cmd("COLOR:255,160,0") # Jaune (R,G,B)
+        else:
+             send_led_cmd("COLOR:0,0,255") # Bleue (R,G,B)
         
     elif act == 'tirette':
         # Simule le retrait de la tirette (déclenche le start si le code strat surveille la tirette)
@@ -240,11 +252,100 @@ def play_test():
     audio.play(filename) 
     return jsonify({'status': 'ok'})
 
+@app.route('/api/stop_audio', methods=['POST'])
+def stop_audio_route():
+    # Coupe le processus mpg123
+    audio.stop()
+    return jsonify({'status': 'ok'})
+
+@app.route('/api/set_volume', methods=['POST'])
+def set_volume_route():
+    data = request.json
+    vol = data.get('volume', 50)
+    # Appelle la nouvelle méthode créée ci-dessus
+    audio.set_volume(vol)
+    return jsonify({'status': 'ok', 'vol': vol})
+
 @app.route('/api/set_audio_track', methods=['POST'])
 def set_track(): return jsonify({'status':'ok'}) 
+
+@app.route('/api/set_brightness', methods=['POST'])
+def set_brightness():
+    data = request.json
+    val = data.get('value', 0.1)
+    send_led_cmd(f"BRIGHTNESS:{val}")
+    return jsonify({'status': 'ok'})
 
 @app.route('/api/led_control', methods=['POST'])
 def led():
     d = request.json
     if d['mode'] == 'color': send_led_cmd(f"COLOR:{d['value']}")
+    elif d['mode'] == 'anim': send_led_cmd(f"ANIM:{d['value']}")
+    elif d['mode'] == 'pixel': send_led_cmd(f"PIXEL:{d['value']}")
     return jsonify({'status':'ok'})
+
+@app.route('/api/led_animations', methods=['GET', 'POST'])
+def handle_animations():
+    import json
+    if request.method == 'GET':
+        if not os.path.exists(ANIM_FILE): return jsonify({})
+        try:
+            with open(ANIM_FILE, 'r') as f: return jsonify(json.load(f))
+        except: return jsonify({})
+    else:
+        # Save
+        data = request.json
+        with open(ANIM_FILE, 'w') as f: json.dump(data, f, indent=4)
+        # Reload service
+        send_led_cmd("RELOAD")
+        return jsonify({'status':'ok'})
+
+@app.route('/api/play_animation', methods=['POST'])
+def api_play_anim():
+    data = request.json
+    name = data.get('name')
+    if name:
+        send_led_cmd(f"PLAY:{name}")
+    return jsonify({'status':'ok'})
+
+@app.route('/api/download_backup')
+def download_backup():
+    import zipfile
+    import io
+    from flask import send_file
+    
+    # Create in-memory zip
+    mem_zip = io.BytesIO()
+    
+    with zipfile.ZipFile(mem_zip, mode="w", compression=zipfile.ZIP_DEFLATED) as zf:
+        # 1. Add LED Config
+        if os.path.exists(ANIM_FILE):
+            zf.write(ANIM_FILE, arcname="config_led_animations.json")
+            
+        # 2. Add Strategies
+        if os.path.exists(STRAT_DIR):
+            for root, dirs, files in os.walk(STRAT_DIR):
+                for file in files:
+                    if file.endswith('.xml') or file.endswith('.py'):
+                        abs_path = os.path.join(root, file)
+                        # Relative path inside zip
+                        rel_path = os.path.join("strategies", file)
+                        zf.write(abs_path, arcname=rel_path)
+        
+        # 3. Add Music
+        if os.path.exists(AUDIO_DIR):
+            for root, dirs, files in os.walk(AUDIO_DIR):
+                for file in files:
+                    if file.endswith('.mp3'):
+                        abs_path = os.path.join(root, file)
+                        # Relative path inside zip
+                        rel_path = os.path.join("music", file)
+                        zf.write(abs_path, arcname=rel_path)
+    
+    mem_zip.seek(0)
+    return send_file(
+        mem_zip, 
+        mimetype='application/zip',
+        as_attachment=True,
+        download_name='robot_backup.zip'
+    )

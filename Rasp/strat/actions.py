@@ -160,3 +160,13 @@ class RobotActions:
         # Retour base avec une grosse force pour une belle courbe large
         self.goto(250, 1000, 180, force=800)
         time.sleep(1)
+
+    def play_animation(self, anim_name):
+        self._check_abort()
+        print(f"[ACTION] Playing Animation: {anim_name}")
+        shared.send_led_cmd(f"PLAY:{anim_name}")
+
+    def play_sound(self, sound_name):
+        self._check_abort()
+        print(f"[ACTION] Playing Sound: {sound_name}")
+        shared.audio.play(sound_name)

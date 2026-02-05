@@ -41,12 +41,11 @@ echo "[5/9] Configuration des permissions série..."
 sudo usermod -a -G dialout $USER_NAME
 
 echo "[6/9] Installation des dépendances pour l'affichage Web local (pywebview)"
-sudo apt-get update && sudo apt-get install -y python3-gi python3-gi-cairo gir1.2-gtk-3.0 gir1.2-webkit2-4.0
+sudo apt-get update && sudo apt-get install -y python3-gi python3-gi-cairo gir1.2-gtk-3.0 gir1.2-webkit2-4.1
 
 echo "[7/9] Copie des service systemd..."
-if [ -f "$PROJECT_DIR/systemd/robot.service" ] && [ -f "$PROJECT_DIR/systemd/led_service.service" ]; then
+if [ -f "$PROJECT_DIR/systemd/robot.service" ]; then
     sudo cp "$PROJECT_DIR/systemd/robot.service" /etc/systemd/system/robot.service
-    sudo cp "$PROJECT_DIR/systemd/led_service.service" /etc/systemd/system/led_service.service
 else
     echo "Aucun service trouvé dans le dossier systemd."
     exit 1
@@ -54,7 +53,6 @@ fi
     
 sudo systemctl daemon-reload
 sudo systemctl enable robot.service
-sudo systemctl enable led_service.service
 
 echo "[8/9] Activation du son sur jack..."
 sudo raspi-config nonint do_audio 1
@@ -64,9 +62,9 @@ sudo amixer sset 'Headphone' 100% 2>/dev/null || sudo amixer sset 'PCM' 100% 2>/
 
 echo "[9/9] Démarrage des service systemd..."
 # sudo systemctl start ihm.service
-sudo systemctl start led_service.service
+# sudo systemctl start led_service.service
 
 echo "Installation terminée !"
-echo "→ Service : robot.service led_service.service"
+echo "→ Service : robot.service"
 echo "→ Dossier Projet : $PROJECT_DIR"
 echo "→ Environnement virtuel : $VENV_DIR"

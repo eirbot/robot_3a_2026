@@ -1,14 +1,16 @@
 <!DOCTYPE html>
 <html>
+
 <head>
     <title>EIRBOT - MEDIA STUDIO</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/common.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/media.css') }}">
-    
+
     <script src="{{ url_for('static', filename='js/socket.io.js') }}"></script>
     <script src="{{ url_for('static', filename='js/common.js') }}" defer></script>
     <script src="{{ url_for('static', filename='js/media.js') }}" defer></script>
 </head>
+
 <body>
     <div class="header">
         <a href="/" class="btn-back">⬅ RETOUR</a>
@@ -16,61 +18,106 @@
         <div class="sys-info" id="sys-info">...</div>
     </div>
 
-    <div class="media-container">
-        
+    <div class="tabs-container">
+        <button class="tab-btn active" onclick="switchTab('audio')">🎵 AUDIO STUDIO</button>
+        <button class="tab-btn" onclick="switchTab('leds')">💡 LED STUDIO</button>
+    </div>
+
+    <div class="media-container" id="tab-audio">
         <div class="panel-left">
             <div class="panel-header">
                 <h3>📂 Fichiers Audio</h3>
                 <small>Glisser-déposer pour uploader</small>
             </div>
-            
             <div id="file-list" class="file-list">
                 <div class="empty-msg">Chargement...</div>
             </div>
         </div>
 
         <div class="panel-right">
-            
             <div class="player-box">
                 <h3>🎵 Lecteur</h3>
                 <div class="now-playing" id="now-playing-text">Aucune lecture</div>
-                
                 <audio id="audio-preview" controls style="width:100%; margin: 15px 0;"></audio>
-                
                 <div class="player-controls">
                     <button class="btn-ctrl" onclick="playPrev()">⏮</button>
                     <button class="btn-ctrl" onclick="playNext()">⏭</button>
                 </div>
-                
-                <label style="display:block; margin-top:10px;">
-                    Volume Pré-écoute : 
-                    <input type="range" id="vol-slider" min="0" max="1" step="0.1" value="0.5">
-                </label>
-                
-                <button class="btn-robot-test" onclick="playOnRobot()" style="margin-top:15px;">📢 Tester sur le Robot</button>
+                <button class="btn-robot-test" onclick="playOnRobot()" style="margin-top:15px;">📢 Tester sur le
+                    Robot</button>
+                <button class="btn-robot-test" onclick="stopAudio()"
+                    style="margin-top:5px; background-color: #d32f2f;">⏹ STOP ROBOT</button>
+
+                <div style="margin-top: 15px; border-top: 1px solid #444; padding-top: 10px;">
+                    <label style="display:block; font-weight:bold; color: #2196F3;">
+                        Volume Robot : <span id="volValue">50</span>%
+                    </label>
+                    <input type="range" min="0" max="100" value="50" step="1" oninput="changeVolume(this.value)"
+                        style="width: 100%;">
+                </div>
             </div>
 
             <div class="config-box">
                 <h3>⚙️ Assignations Robot</h3>
-                <div class="assign-row">
-                    <span>🎬 INTRO :</span> <span id="assign-intro" class="assign-val">...</span>
+                <div class="assign-row"><span>🎬 INTRO :</span> <span id="assign-intro" class="assign-val">...</span>
                 </div>
-                <div class="assign-row">
-                    <span>🔁 MATCH :</span> <span id="assign-match_loop" class="assign-val">...</span>
-                </div>
-                <div class="assign-row">
-                    <span>🏁 FIN :</span> <span id="assign-outro" class="assign-val">...</span>
+                <div class="assign-row"><span>🔁 MATCH :</span> <span id="assign-match_loop"
+                        class="assign-val">...</span></div>
+                <div class="assign-row"><span>🏁 FIN :</span> <span id="assign-outro" class="assign-val">...</span>
                 </div>
             </div>
+        </div>
+    </div>
 
+    <!-- NOUVEL ONGLET LEDS -->
+    <div class="media-container" id="tab-leds" style="display:none;">
+        <div class="panel-left" style="flex:2; border:none; background:transparent;">
+            <div class="led-strip-container">
+                <h3>VUE BANDEAU (60 LEDs) - <a href="/led_studio" style="color:#2196F3;">Ouvrir Studio Avancé ➚</a></h3>
+                <div class="led-toolbar">
+                    <button onclick="clearPixels()">🧹 Tout Éteindre</button>
+                    <button onclick="fillPixels()">🎨 Remplir Tout</button>
+                </div>
+                <div id="led-visualizer" class="led-visualizer">
+                    <!-- Généré par JS -->
+                </div>
+            </div>
+        </div>
+
+        <div class="panel-right">
             <div class="led-box">
-                <h3>💡 Lumières</h3>
-                <div class="led-controls">
-                    <button onclick="setLed('OFF')">OFF</button>
-                    <button onclick="setLed('RED')">ROUGE</button>
-                    <button onclick="setLed('GREEN')">VERT</button>
-                    <button onclick="setLed('BLUE')">BLEU</button>
-                    <button onclick="setLed('RAINBOW')">🌈 AUTO</button>
+                <h3>🎨 Palette & Contrôles</h3>
+
+                <div class="led-controls-grid">
+                    <div class="led-section">
+                        <label>Couleur Active (Cliquer pour peindre)</label>
+                        <div class="color-picker-wrapper">
+                            <input type="color" id="led-color-picker" value="#ff0000"
+                                oninput="setLedColor(this.value, false)">
+                        </div>
+                    </div>
+
+                    <div class="led-section">
+                        <label>Presets Rapides</label>
+                        <div class="preset-row">
+                            <button style="background:#F44336;" onclick="setLedColor('#FF0000')"></button>
+                            <button style="background:#4CAF50;" onclick="setLedColor('#00FF00')"></button>
+                            <button style="background:#2196F3;" onclick="setLedColor('#0000FF')"></button>
+                            <button style="background:#FFEB3B;" onclick="setLedColor('#FFFF00')"></button>
+                            <button style="background:#E91E63;" onclick="setLedColor('#FF00FF')"></button>
+                            <button style="background:#00BCD4;" onclick="setLedColor('#00FFFF')"></button>
+                            <button style="background:#ffffff;" onclick="setLedColor('#FFFFFF')"></button>
+                        </div>
+                    </div>
+
+                    <div class="led-section">
+                        <label>Animations Globales</label>
+                        <div class="anim-row">
+                            <button class="btn-anim" onclick="setLedAnim('RAINBOW')">🌈 Rainbow</button>
+                            <button class="btn-anim" onclick="setLedAnim('FLASH')">⚡ Flash</button>
+                            <button class="btn-anim" onclick="setLedAnim('BREATHE')">🌬️ Breathe</button>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -87,4 +134,5 @@
     </div>
 
 </body>
+
 </html>

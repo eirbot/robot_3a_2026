@@ -6,8 +6,8 @@ import os
 try:
     # Note le point devant 'sensors' : cela signifie "dans le dossier courant (utils)"
     from .sensors.ina226_reader import INA226
-    # On tente d'initialiser (adresse I2C par défaut 0x40 ou 0x41 selon ton hardware)
-    voltage_sensor = INA226(bus_num=1) 
+    # On tente d'initialiser (adresse I2C par défaut 0x40)
+    voltage_sensor = INA226() 
     SENSOR_AVAILABLE = True
 except Exception as e:
     print(f"[SYS] Capteur INA226 non détecté ({e}). Mode Simulation.")
@@ -35,11 +35,19 @@ def get_battery_voltage():
     """Retourne la tension réelle ou une valeur simulée"""
     if SENSOR_AVAILABLE and voltage_sensor:
         try:
-            # Adapte cette ligne selon les méthodes de ton fichier ina226_reader.py
-            # Souvent c'est .voltage() ou .get_bus_voltage_v()
-            return f"{voltage_sensor.voltage():.2f}V"
+            # lecture de l'attribut .voltage (mis à jour par le thread INA226)
+            return f"{voltage_sensor.voltage:.2f}V"
         except:
             return "Err V"
     else:
-        # Simulation pour le développement
         return "12.4V (Simu)"
+
+def get_battery_current():
+    """Retourne le courant réel ou une valeur simulée"""
+    if SENSOR_AVAILABLE and voltage_sensor:
+        try:
+            return f"{voltage_sensor.current:.2f}"
+        except:
+            return "0.00"
+    else:
+        return "0.50" # Simu

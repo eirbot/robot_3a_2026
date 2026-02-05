@@ -15,7 +15,16 @@ function initDebugPage() {
     currentChart = new Chart(ctx, {
         type: 'line',
         data: { labels: [], datasets: [{ label: 'Courant (A)', data: [], borderColor: '#FFCB6B', borderWidth: 2, tension: 0.3 }] },
-        options: { responsive: true, maintainAspectRatio: false, scales: { x: { display: false }, y: { beginAtZero: true, grid: { color: '#333' } } } }
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            animation: false,
+            interaction: { mode: 'index', intersect: false },
+            scales: {
+                x: { display: true, ticks: { maxTicksLimit: 10 } },
+                y: { beginAtZero: true, grid: { color: '#333' } }
+            }
+        }
     });
 }
 
@@ -25,7 +34,7 @@ function fetchStrats() {
         .then(r => r.json())
         .then(data => {
             const sel = document.getElementById('strat-select');
-            if(sel) {
+            if (sel) {
                 sel.innerHTML = '<option value="" disabled selected>Choisir un fichier...</option>';
                 data.forEach(s => {
                     let opt = document.createElement('option');
@@ -43,11 +52,11 @@ window.socket.on('state_update', (state) => {
     // Si on est sur la page Debug
     if (document.getElementById('chk-lidar')) {
         const c = state.config || {}; // Protection si config vide
-        
+
         // Helper pour cocher sans erreur si l'élément manque
-        const setCheck = (id, val) => { 
-            const el = document.getElementById(id); 
-            if(el) el.checked = val; 
+        const setCheck = (id, val) => {
+            const el = document.getElementById(id);
+            if (el) el.checked = val;
         };
 
         setCheck('chk-lidar', c.lidar);
@@ -62,11 +71,11 @@ window.socket.on('state_update', (state) => {
         // Gestion Mode Stratégie
         const stratMode = c.strat_mode || "DYNAMIC";
         const modeSel = document.getElementById('strat-mode');
-        if(modeSel) modeSel.value = stratMode;
-        
+        if (modeSel) modeSel.value = stratMode;
+
         const box = document.getElementById('static-strat-box');
-        if(box) box.style.display = (stratMode === 'STATIC') ? 'block' : 'none';
-        
+        if (box) box.style.display = (stratMode === 'STATIC') ? 'block' : 'none';
+
         const stratSel = document.getElementById('strat-select');
         if (stratSel && c.static_strat) {
             stratSel.value = c.static_strat;
@@ -79,27 +88,27 @@ window.socket.on('state_update', (state) => {
 async function updateStratConfig() {
     const mode = document.getElementById('strat-mode').value;
     const file = document.getElementById('strat-select').value;
-    
+
     // --- PARTIE AJOUTÉE : Gestion visuelle locale ---
     // On force l'affichage sans attendre le retour du serveur/socket
     const box = document.getElementById('static-strat-box');
-    if(box) {
+    if (box) {
         box.style.display = (mode === 'STATIC') ? 'block' : 'none';
     }
     // -----------------------------------------------
-    
+
     // Envoi au serveur (Backend)
-    await fetch('/api/config_edit', { 
-        method: 'POST', 
-        headers: {'Content-Type': 'application/json'}, 
-        body: JSON.stringify({key: 'strat_mode', val: mode})
+    await fetch('/api/config_edit', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ key: 'strat_mode', val: mode })
     });
 
     if (mode === 'STATIC' && file) {
-        await fetch('/api/config_edit', { 
-            method: 'POST', 
-            headers: {'Content-Type': 'application/json'}, 
-            body: JSON.stringify({key: 'static_strat', val: file})
+        await fetch('/api/config_edit', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ key: 'static_strat', val: file })
         });
     }
 }
@@ -124,8 +133,9 @@ window.socket.on('sys_info', (data) => {
     if (currentChart) {
         const now = new Date().toLocaleTimeString();
         currentChart.data.labels.push(now);
-        currentChart.data.datasets[0].data.push(data.current);
-        if (currentChart.data.labels.length > 20) {
+        currentChart.data.datasets[0].data.push(parseFloat(data.current));
+        // 10 minutes d'historique à 10Hz = 600 x 10 = 6000 points
+        if (currentChart.data.labels.length > 6000) {
             currentChart.data.labels.shift();
             currentChart.data.datasets[0].data.shift();
         }
@@ -141,27 +151,42 @@ window.socket.on('sys_info', (data) => {
 
 function updateDevStatus(id, isOk) {
     const el = document.getElementById(id);
-    if(el) el.className = 'status-dot ' + (isOk ? 'status-ok' : 'status-err');
+    if (el) el.className = 'status-dot ' + (isOk ? 'status-ok' : 'status-err');
 }
 
 async function toggleConfig(key, checkbox) {
     // AJOUTE CETTE LIGNE
     console.log("CLICK DETECTÉ SUR :", key, "VALEUR :", checkbox.checked);
 
-    await fetch('/api/config_edit', { 
-        method: 'POST', 
-        headers: {'Content-Type': 'application/json'}, 
-        body: JSON.stringify({key: key, val: checkbox.checked})
+    await fetch('/api/config_edit', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ key: key, val: checkbox.checked })
     });
 }
 
 function flashESP(target) {
-    if(confirm("Flasher l'ESP " + target + " ?")) {
-        fetch('/api/flash_esp/' + target, {method:'POST'}).then(r=>r.json()).then(d=>alert(d.msg));
+    if (confirm("Flasher l'ESP " + target + " ?")) {
+        fetch('/api/flash_esp/' + target, { method: 'POST' }).then(r => r.json()).then(d => alert(d.msg));
     }
 }
 
 function reloadCam() {
     const img = document.getElementById('cam-feed');
-    if(img) img.src = "/video_feed?" + new Date().getTime();
+    if (img) img.src = "/video_feed?" + new Date().getTime();
+}
+
+
+function updateBrightness(val) {
+    // Le slider est de 0 à 100
+    // On veut que 100% = 0.5 (Max)
+    const factor = 0.5;
+    const computed = (parseFloat(val) / 100.0) * factor;
+
+    console.log("Brightness set to:", val, "% ->", computed);
+    fetch('/api/set_brightness', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ value: computed })
+    });
 }
