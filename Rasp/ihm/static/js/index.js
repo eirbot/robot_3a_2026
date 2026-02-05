@@ -19,22 +19,30 @@ window.socket.on('state_update', (state) => {
     document.getElementById('timer').innerText = timer;
 
     // --- 4. STRATÉGIE ---
-    // C'est le point important pour voir ton changement de config !
     const stratEl = document.getElementById('strat-display');
-    if (stratEl) {
-        // On regarde directement dans config ou dans state
+    const stratSel = document.getElementById('strat-select');
+
+    if (stratEl && stratSel) {
         const config = state.config || {};
         const mode = state.strat_mode ?? config.strat_mode ?? 'DYNAMIC';
-        
+
         if (mode === 'STATIC') {
-            // Nettoyage du nom de fichier pour faire propre
-            let name = (state.strat_id ?? config.static_strat ?? '?');
-            name = name.replace('.xml','').replace('.py','');
-            stratEl.innerText = 'STATIC : ' + name;
-            stratEl.style.color = "#FF9800"; // Orange
+            // Mode interactif : on affiche le sélecteur
+            stratEl.style.display = 'none';
+            stratSel.style.display = 'inline-block';
+            stratSel.style.color = "#FF9800";
+
+            // On sélectionne la bonne valeur si elle existe
+            const current = state.strat_id ?? config.static_strat;
+            if (current) stratSel.value = current;
+
         } else {
+            // Mode auto : on affiche juste le texte
+            stratEl.style.display = 'inline-block';
+            stratSel.style.display = 'none';
+
             stratEl.innerText = 'DYNAMIQUE (Auto)';
-            stratEl.style.color = "#ccc"; // Gris
+            stratEl.style.color = "#ccc";
         }
     }
 
@@ -63,13 +71,13 @@ window.socket.on('state_update', (state) => {
 
     // --- 7. BOUTONS MATCH ---
     const btnStart = document.getElementById('btn-start');
-    const btnStop  = document.getElementById('btn-stop');
+    const btnStop = document.getElementById('btn-stop');
     const btnReset = document.getElementById('btn-reset');
-    
+
     if (btnStart && btnStop && btnReset) {
         const running = state.match_running ?? (state.fsm_state === 'MATCH');
         const finished = state.match_finished ?? (state.fsm_state === 'FINISHED');
-        
+
         if (finished) {
             btnStart.classList.add('hidden');
             btnStop.classList.add('hidden');
@@ -90,17 +98,46 @@ window.socket.on('state_update', (state) => {
     const arrows = document.querySelectorAll('.btn-arrow');
     const manualEnabled = state.manual_score_enabled ?? true;
     const runningMatch = state.match_running ?? (state.fsm_state === 'MATCH');
-    
+
     arrows.forEach(e => {
         e.style.visibility = (manualEnabled && !runningMatch) ? 'visible' : 'hidden';
     });
 });
 
 // Fonction indispensable pour les boutons de score
-function adjustScore(delta) { 
-    fetch('/api/score_edit', { 
-        method: 'POST', 
-        headers: {'Content-Type': 'application/json'}, 
-        body: JSON.stringify({delta: delta})
-    }); 
+function adjustScore(delta) {
+    fetch('/api/score_edit', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ delta: delta })
+    });
+}
+
+// Initialisation : Chargement des stratégies (Global)
+document.addEventListener("DOMContentLoaded", () => {
+    fetch('/api/list_blockly_strats')
+        .then(r => r.json())
+        .then(data => {
+            const sel = document.getElementById('strat-select');
+            if (sel) {
+                sel.innerHTML = '<option value="" disabled selected>Choisir...</option>';
+                data.forEach(s => {
+                    let opt = document.createElement('option');
+                    opt.value = s;
+                    opt.innerText = s;
+                    sel.appendChild(opt);
+                });
+            }
+        })
+        .catch(e => console.error("Erreur chargement strats", e));
+});
+
+// Changement de stratégie via le sélecteur (Global)
+async function updateStrat(val) {
+    if (!val) return;
+    await fetch('/api/config_edit', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ key: 'static_strat', val: val })
+    });
 }

@@ -5,7 +5,7 @@ import os
 import numpy as np
 # On assure d'importer robot_pos
 from ihm.shared import socketio, state, audio, send_led_cmd, robot_pos 
-from utils import get_ip, get_battery_voltage, get_cpu_temp
+from utils import get_ip, get_battery_voltage, get_cpu_temp, get_battery_current
 
 def background_loop():
     print("[IHM] Background loop démarrée.")
@@ -34,7 +34,7 @@ def background_loop():
             'cpu': f"{psutil.cpu_percent()}%", 
             'temp': get_cpu_temp(),
             'volt': get_battery_voltage(), 
-            'current': "0.50",
+            'current': get_battery_current(),
             'ip': get_ip(), 
             'devs': devs
         })

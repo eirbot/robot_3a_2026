@@ -15,13 +15,13 @@ window.socket.on('state_update', (state) => {
 
 window.socket.on('sys_info', (data) => {
     const d = document.getElementById('sys-info');
-    if(d) d.innerHTML = `IP: ${data.ip} | Bat: ${data.volt}<br>CPU: ${data.cpu}`;
+    if (d) d.innerHTML = `IP: ${data.ip} | Bat: ${data.volt}<br>CPU: ${data.cpu}`;
 });
 
 // --- FONCTIONS PARTAGÉES ---
 function sendAction(act) {
     // Petit feedback visuel console
     console.log("Envoi action :", act);
-    // Utilise le WebSocket pour exécuter l’action et déclencher l’envoi de l’état à jour
-    socket.emit('action', { cmd: act });
+    // Use fetch API instead of socket.emit because the server exposes a REST endpoint
+    fetch('/api/action/' + act, { method: 'POST' });
 }

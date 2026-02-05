@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="fr">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LED Studio - Robot 2026</title>
+    <link rel="stylesheet" href="/static/css/common.css">
+    <link rel="stylesheet" href="/static/css/led_studio.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
+</head>
+
+<body>
+    <div class="studio-container">
+        <!-- HEADER -->
+        <header>
+            <h1>LED Studio 🎨</h1>
+            <div class="actions">
+                <select id="animSelect">
+                    <option value="">-- Nouvelle Animation --</option>
+                </select>
+                <button id="btnNew" class="btn">⭐ Nouveau</button>
+                <button id="btnSave" class="btn success">💾 Sauvegarder</button>
+                <button id="btnDelete" class="btn danger">🗑️ Supprimer</button>
+                <div class="separator"></div>
+                <button id="btnHome" class="btn" onclick="window.location.href='/'">🏠 Accueil</button>
+            </div>
+        </header>
+
+        <!-- MAIN CONTENT -->
+        <main>
+            <!-- LEFT: SEQUENCER -->
+            <div class="panel sequencer">
+                <h2>Séquenceur</h2>
+                <div class="step-list" id="stepList">
+                    <!-- Steps will be generated here -->
+                </div>
+                <button id="btnAddStep" class="btn full-width">+ Ajouter Étape</button>
+
+                <div class="playback-controls">
+                    <label class="loop-control">
+                        <input type="checkbox" id="chkLoop"> Boucle (Loop)
+                    </label>
+                    <div class="row">
+                        <button id="btnPlay" class="btn primary">▶ Jouer</button>
+                        <button id="btnStop" class="btn warning">⏹ Stop</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- CENTER: MATRIX & TOOLS -->
+            <div class="panel matrix-area">
+                <div class="toolbar">
+                    <div class="color-picker-group">
+                        <label>Couleur:</label>
+                        <input type="color" id="colorPicker" value="#ff0000">
+                    </div>
+                    <div class="tool-group">
+                        <button class="tool-btn active" data-tool="pen" title="Crayon">✏️</button>
+                        <button class="tool-btn" data-tool="fill" title="Remplir tout">🪣</button>
+                        <button class="tool-btn" data-tool="eraser" title="Gomme">🧽</button>
+                    </div>
+                    <div class="step-settings">
+                        <label>Durée (s): <input type="number" id="stepDuration" value="1.0" step="0.1"
+                                style="width: 50px;"></label>
+                        <label>Transition:
+                            <select id="stepTransition">
+                                <option value="NONE">Aucune (Instant)</option>
+                                <option value="FADE">Fondu (Fade)</option>
+                            </select>
+                        </label>
+                    </div>
+                </div>
+
+                <div class="matrix-wrapper">
+                    <!-- The LED Grid -->
+                    <div id="ledMatrix" class="led-matrix"></div>
+                </div>
+
+                <div class="matrix-info">
+                    <span>288 LEDs (18x16) - Clic & Glisse pour peindre</span>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- SAVE MODAL -->
+    <div id="saveModal" class="modal">
+        <div class="modal-content">
+            <h3>Sauvegarder l'animation</h3>
+            <input type="text" id="animNameInput" placeholder="Nom de l'animation (ex: victory_dance)">
+            <div class="modal-actions">
+                <button id="btnConfirmSave" class="btn success">Valider</button>
+                <button id="btnCancelSave" class="btn">Annuler</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="/static/js/led_studio.js"></script>
+</body>
+
+</html>

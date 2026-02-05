@@ -1,5 +1,8 @@
 #!/bin/bash
 
+# Petit délai pour s'assurer que le serveur X est bien chaud (optionnel mais recommandé sur les robots)
+sleep 1
+
 # 1. Définir sur quel écran on veut afficher (l'écran HDMI du robot est toujours :0)
 export DISPLAY=:0
 
