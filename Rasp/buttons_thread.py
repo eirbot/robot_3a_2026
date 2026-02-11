@@ -95,7 +95,10 @@ class ButtonsThread:
              shared.state['tirette_msg'] = "WAITING"
              shared.send_led_cmd("COLOR:0,0,255")
         else:
-             print("[BUTTONS] Tirette PRÉSENTE au démarrage -> En attente.")
+             print("[BUTTONS] Tirette PRÉSENTE au démarrage -> Veuillez retirer !")
+             shared.state['tirette'] = "WAIT"
+             shared.state['tirette_msg'] = "REMOVE_TO_RESET"
+             shared.send_led_cmd("ANIM:BLINK:255,100,0,350")
 
         while self.running:
             # Check Inputs (Active Low Buttons)
@@ -178,8 +181,8 @@ class ButtonsThread:
                              if shared.state.get('tirette_msg') != "REMOVE_TO_RESET":
                                  print("[BUTTONS] ⚠️ Veuillez RETIRER la tirette pour réinitialiser !")
                                  shared.state['tirette_msg'] = "REMOVE_TO_RESET"
-                                 # Optional: LED Orange warning
-                                 shared.send_led_cmd("COLOR:255,100,0")
+                                 # Optional: LED Orange Blink warning (0.35s)
+                                 shared.send_led_cmd("ANIM:BLINK:255,100,0,350")
                         else:
                              # Tirette is Removed. Ready to ARM.
                              print("[BUTTONS] ⏳ En attente d'insertion tirette (ARMEMENT)...")
@@ -201,6 +204,7 @@ class ButtonsThread:
                              print("[BUTTONS] 🚀 TIRETTE RETIRÉE -> MATCH START !")
                              shared.state['tirette'] = "TRIGGERED"
                              shared.state['match_running'] = True
+                             shared.state['start_time'] = time.time()
                              shared.send_led_cmd("PLAY:match_start")
                              shared.socketio.emit('state_update', shared.state)
                              

@@ -114,23 +114,36 @@ function adjustScore(delta) {
 }
 
 // Initialisation : Chargement des stratégies (Global)
-document.addEventListener("DOMContentLoaded", () => {
+// Initial Load
+loadStrats();
+
+// Auto-Refresh Strategy List every 5 seconds (Sync Robot/PC)
+setInterval(loadStrats, 5000);
+
+function loadStrats() {
     fetch('/api/list_blockly_strats')
         .then(r => r.json())
         .then(data => {
             const sel = document.getElementById('strat-select');
             if (sel) {
-                sel.innerHTML = '<option value="" disabled selected>Choisir...</option>';
+                // Save current selection to restore it if it still exists
+                const currentVal = sel.value;
+
+                sel.innerHTML = '<option value="" disabled>Choisir...</option>';
                 data.forEach(s => {
                     let opt = document.createElement('option');
                     opt.value = s;
                     opt.innerText = s;
+                    if (s === currentVal) opt.selected = true;
                     sel.appendChild(opt);
                 });
+
+                // If nothing selected, restore initial "Choisir..."
+                if (!sel.value) sel.querySelector('option[disabled]').selected = true;
             }
         })
         .catch(e => console.error("Erreur chargement strats", e));
-});
+}
 
 // Changement de stratégie via le sélecteur (Global)
 async function updateStrat(val) {
