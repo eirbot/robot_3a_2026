@@ -49,16 +49,26 @@ if __name__ == "__main__":
         from buttons_thread import run_buttons_loop
         btn_thread = threading.Thread(target=run_buttons_loop, daemon=True)
         btn_thread.start()
+
+        # 3.6 Thread TIMER (Décompte + Sync IHM)
+        from timer_thread import start_timer_thread
+        start_timer_thread()
         
         # Petit délai pour laisser le temps à Flask/SocketIO de démarrer
         time.sleep(2)
 
         # --- UPDATE LED INITIALE (Couleur Equipe) ---
-        print(f"[MAIN] Application de la couleur d'équipe : {shared.state['team']}")
-        if shared.state['team'] == 'JAUNE':
-             shared.send_led_cmd("COLOR:255,160,0") # Jaune
+        # Ne pas écraser si on a une alerte tirette en cours
+        if shared.state.get('tirette_msg') != "REMOVE_TO_RESET":
+            print(f"[MAIN] Application de la couleur d'équipe : {shared.state['team']}")
+            if shared.state['team'] == 'JAUNE':
+                 shared.send_led_cmd("COLOR:255,160,0") # Jaune
+            else:
+                 shared.send_led_cmd("COLOR:0,0,255") # Bleue
         else:
-             shared.send_led_cmd("COLOR:0,0,255") # Bleue
+             print("[MAIN] Alerte Tirette active, on ne force pas la couleur d'équipe.")
+             # On renvoie la commande car le service LED n'était peut-être pas prêt lors du thread boutons
+             shared.send_led_cmd("ANIM:BLINK:255,100,0,350")
 
         # 4. Interface Graphique (Bloquant le Main) 
         # On lance la fenêtre qui affiche le site local

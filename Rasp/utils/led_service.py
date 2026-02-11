@@ -68,12 +68,33 @@ class LedServer:
             self.current_anim_thread.join(timeout=0.2)
         self.stop_anim_flag = False
 
+    def start_anim_thread(self, target, args=()):
+        self.stop_current_anim()
+        self.stop_anim_flag = False
+        self.current_anim_thread = threading.Thread(target=target, args=args)
+        self.current_anim_thread.start()
+
     def clear(self):
         self.stop_current_anim()
         if not self.running: return
         self.pixels = [(0, 0, 0)] * LED_COUNT
         self.strip.fill((0, 0, 0))
         self.strip.show()
+
+    def _set_pixels(self, r, g, b):
+        """Internal use only: update LEDs without stopping threads"""
+        self.pixels = [(r, g, b)] * LED_COUNT
+        self.strip.fill((r, g, b))
+        self.strip.fill((r, g, b))
+        self.strip.show()
+
+    def _sleep_check(self, duration):
+        """Sleep with frequent flag checks. Returns True if stopped."""
+        end = time.time() + duration
+        while time.time() < end:
+            if self.stop_anim_flag: return True
+            time.sleep(0.05)
+        return False
 
     def set_all(self, r, g, b):
         self.stop_current_anim()
@@ -125,10 +146,27 @@ class LedServer:
                  parts = cmd.split(":")
                  if len(parts) >= 3:
                      vals = parts[2].split(",")
-                     self.anim_breathe((int(vals[0]), int(vals[1]), int(vals[2])))
+                     color = (int(vals[0]), int(vals[1]), int(vals[2]))
                  else:
-                     self.anim_breathe() # Default Cyan
-             except: self.anim_breathe()
+                     color = (0, 128, 128) # Default Cyan
+                 self.start_anim_thread(self.anim_breathe, args=(color,))
+             except: 
+                 self.start_anim_thread(self.anim_breathe)
+
+        elif cmd.startswith("ANIM:BLINK"):
+             # Ex: ANIM:BLINK:255,100,0,300 (Color + Delay ms)
+             try:
+                 parts = cmd.split(":") 
+                 # parts -> ['ANIM', 'BLINK', '255,100,0,300']
+                 if len(parts) >= 3:
+                     val_str = parts[2]
+                     args_list = val_str.split(",")
+                     if len(args_list) >= 4:
+                         color = (int(args_list[0]), int(args_list[1]), int(args_list[2]))
+                         delay = int(args_list[3]) / 1000.0
+                         self.start_anim_thread(self.anim_blink, args=(color, delay))
+             except Exception as e: 
+                 print(f"[LED] Blink Error: {e}")
 
         elif cmd.startswith("ANIM:"):
             # Ex: ANIM:RAINBOW
@@ -268,19 +306,30 @@ class LedServer:
         """Simulation respiration (Couleur par argument, defaut Cyan)"""
         import math
         r_max, g_max, b_max = color
-        for i in range(0, 360, 5): # Cycle complet
-            if self.stop_anim_flag: return
+        while not self.stop_anim_flag:
+            for i in range(0, 360, 5): # Cycle complet
+                if self.stop_anim_flag: return
+                
+                # Sinus entre 0.1 et 1.0
+                factor = (math.sin(math.radians(i)) + 1) / 2 # 0..1
+                factor = 0.1 + 0.9 * factor # 0.1 .. 1.0 (ne s'éteint pas complètement)
+                
+                r = int(r_max * factor)
+                g = int(g_max * factor)
+                b = int(b_max * factor)
+                
+                self._set_pixels(r, g, b) 
+                time.sleep(0.02)
+
+    def anim_blink(self, color, delay):
+        """Clignotement (Loop)"""
+        r, g, b = color
+        while not self.stop_anim_flag:
+            self._set_pixels(r, g, b)
+            if self._sleep_check(delay): return
             
-            # Sinus entre 0.1 et 1.0
-            factor = (math.sin(math.radians(i)) + 1) / 2 # 0..1
-            factor = 0.1 + 0.9 * factor # 0.1 .. 1.0 (ne s'éteint pas complètement)
-            
-            r = int(r_max * factor)
-            g = int(g_max * factor)
-            b = int(b_max * factor)
-            
-            self.set_all(r, g, b) 
-            time.sleep(0.02)
+            self._set_pixels(0, 0, 0)
+            if self._sleep_check(delay): return
 
     def hsv_to_rgb(self, h, s, v):
         """Utils: Conversion HSV [0..1] vers RGB [0..255]"""

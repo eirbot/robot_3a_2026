@@ -107,6 +107,24 @@ def blockly_interface(): return render_template('blockly.html')
 @app.route('/led_studio')
 def led_studio_interface(): return render_template('led_studio.html')
 
+@app.route('/replay')
+def replay():
+    return render_template('replay.html')
+
+# --- API LOGS ---
+@app.route('/api/logs/list')
+def list_logs():
+    log_dir = "logs/telemetry"
+    if not os.path.exists(log_dir):
+        return jsonify([])
+    files = sorted([f for f in os.listdir(log_dir) if f.endswith('.csv')], reverse=True)
+    return jsonify(files)
+
+@app.route('/api/logs/<path:filename>')
+def get_log(filename):
+    # The path is relative to the project root
+    return send_from_directory(os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "logs", "telemetry"), filename, as_attachment=False)
+
 @app.route('/favicon.ico')
 def favicon(): return "", 204
 

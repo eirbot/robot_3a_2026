@@ -194,3 +194,167 @@ function updateAssignDisplay(key, val) {
         el.title = val; // Tooltip indispensable pour les noms longs
     }
 }
+
+// --- MISSING FUNCTIONS RESTORED ---
+
+function loadFiles() {
+    fetch('/api/list_audio_files')
+        .then(response => response.json())
+        .then(files => {
+            audioList = files;
+            renderFileList();
+        })
+        .catch(err => {
+            fileListDiv.innerHTML = '<div class="empty-msg error">Erreur chargement liste</div>';
+            console.error(err);
+        });
+}
+
+function renderFileList() {
+    fileListDiv.innerHTML = '';
+    if (audioList.length === 0) {
+        fileListDiv.innerHTML = '<div class="empty-msg">Aucun fichier audio.</div>';
+        return;
+    }
+
+    audioList.forEach(file => {
+        const item = document.createElement('div');
+        item.className = 'file-item';
+        // Nom du fichier
+        const nameSpan = document.createElement('span');
+        nameSpan.innerText = file;
+
+        // Actions
+        const playBtn = document.createElement('button');
+        playBtn.innerText = '▶';
+        playBtn.onclick = (e) => { e.stopPropagation(); playPreview(file); };
+
+        item.appendChild(nameSpan);
+        item.appendChild(playBtn);
+
+        // Selection / Context Menu
+        item.onclick = () => selectFile(file, item);
+        item.oncontextmenu = (e) => {
+            e.preventDefault();
+            contextFile = file;
+            showContextMenu(e.pageX, e.pageY);
+        };
+
+        fileListDiv.appendChild(item);
+    });
+}
+
+function selectFile(file, div) {
+    currentFile = file;
+    document.querySelectorAll('.file-item').forEach(d => d.classList.remove('selected'));
+    div.classList.add('selected');
+}
+
+function playPreview(filename) {
+    currentFile = filename;
+    const url = '/audio_files/' + filename;
+    audioPlayer.src = url;
+    audioPlayer.play();
+    document.getElementById('now-playing-text').innerText = filename;
+}
+
+function playOnRobot() {
+    if (!currentFile) return alert("Sélectionnez un fichier d'abord");
+    fetch('/api/play_test', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ filename: currentFile })
+    });
+}
+
+function stopAudio() {
+    fetch('/api/stop_audio', { method: 'POST' });
+    audioPlayer.pause();
+    audioPlayer.currentTime = 0;
+}
+
+function changeVolume(val) {
+    document.getElementById('volValue').innerText = val;
+    fetch('/api/set_volume', { // Note: Route changed in backend
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ volume: parseInt(val) })
+    });
+}
+
+// --- DRAG & DROP ---
+function setupDragAndDrop() {
+    const list = document.getElementById('file-list');
+
+    ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+        list.addEventListener(eventName, preventDefaults, false);
+    });
+
+    list.addEventListener('drop', handleDrop, false);
+}
+
+function preventDefaults(e) {
+    e.preventDefault();
+    e.stopPropagation();
+}
+
+function handleDrop(e) {
+    const dt = e.dataTransfer;
+    const files = dt.files;
+    handleFiles(files);
+}
+
+function handleFiles(files) {
+    ([...files]).forEach(uploadFile);
+}
+
+function uploadFile(file) {
+    if (!file.name.toLowerCase().endsWith('.mp3')) {
+        console.warn("Fichier ignoré (pas .mp3) :", file.name, file.type);
+        return;
+    }
+
+    const formData = new FormData();
+    formData.append('file', file);
+
+    fetch('/api/upload_sound', {
+        method: 'POST',
+        body: formData
+    })
+        .then(r => r.json())
+        .then(data => {
+            if (data.status === 'ok') loadFiles();
+            else alert('Erreur upload');
+        })
+        .catch(() => alert('Erreur upload'));
+}
+
+// --- CONTEXT MENU ---
+function showContextMenu(x, y) {
+    document.getElementById('ctx-filename').innerText = contextFile;
+    contextMenu.style.top = y + 'px';
+    contextMenu.style.left = x + 'px';
+    contextMenu.style.display = 'block';
+}
+
+function assignTrack(role) {
+    if (!contextFile) return;
+
+    // Send config update
+    // Update config.audio.tracks.[role]
+    const key = `audio.tracks.${role}`;
+    fetch('/api/config_edit', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ key: key, val: contextFile })
+    }).then(r => r.json()).then(d => {
+        if (d.status === 'ok') {
+            contextMenu.style.display = 'none';
+        }
+    });
+}
+
+function deleteTrack() {
+    alert("Suppression non implémentée pour sécurité.");
+    contextMenu.style.display = 'none';
+}
