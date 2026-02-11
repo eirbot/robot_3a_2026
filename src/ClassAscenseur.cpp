@@ -4,8 +4,8 @@ ClassAscenseur::ClassAscenseur() {
     homingHandle = NULL; // <-- initialisation
 }
 
-void ClassAscenseur::Init(int stepPin, int dirPin, int pinCapteur, float mmPerRev)
-{   
+void ClassAscenseur::Init(int stepPin, int dirPin, int pinCapteur, float mmPerRev){
+
     mmParRev = mmPerRev;
     capteurPin = pinCapteur;
     moteur = AccelStepper(AccelStepper::DRIVER, stepPin, dirPin);
@@ -16,7 +16,7 @@ void ClassAscenseur::Init(int stepPin, int dirPin, int pinCapteur, float mmPerRe
     moteur.setMaxSpeed((MAX_SPEED_MM_S / mmParRev) * STEP_PER_REV);
     moteur.setAcceleration((ACCEL_MM_S2 / mmParRev) * STEP_PER_REV);
 
-    homingHandle = NULL; // <-- initialisation
+    homingHandle = NULL; // initialisation
 
     // équilibrage des tâches entre les 2 cœurs
     xTaskCreatePinnedToCore(vAscenseur, "vAscenseur", 10000, this, 1, &vAscenseurHandle, 1);
@@ -24,8 +24,9 @@ void ClassAscenseur::Init(int stepPin, int dirPin, int pinCapteur, float mmPerRe
     Serial.println("[INIT] ClassAscenseur initialisé");
 }
 
-// Nouvelle task de homing
-void ClassAscenseur::vHomingTask(void* pvParams) {
+// homing task
+void ClassAscenseur::vHomingTask(void* pvParams){
+
     ClassAscenseur* self = static_cast<ClassAscenseur*>(pvParams);
     if (!self) {
         vTaskDelete(NULL);
@@ -36,30 +37,30 @@ void ClassAscenseur::vHomingTask(void* pvParams) {
     self->Homing();
     self->homed = true;
 
-    // marque le handle comme NULL avant de tuer la tâche pour que StartHoming
-    // puisse relancer ultérieurement si besoin
-    self->homingHandle = NULL;
+    self->homingHandle = NULL; // handle NULL avant de tuer la tâche pour que StartHoming puisse relancer si besoin
 
     vTaskDelete(NULL);
 }
 
-void ClassAscenseur::StartHoming() {
-    // ne rien faire si déjà homé
-    if (homed) return;
 
-    // si une task de homing est déjà en cours, on ne relance pas
-    if (homingHandle != NULL) return;
+void ClassAscenseur::StartHoming(){
+
+    if (homed) return; // ne rien faire si déjà homé
+    
+    if (homingHandle != NULL) return; // si une task de homing est déjà en cours, on ne relance pas
 
     // créer la task (ajuste stack/prio/core si nécessaire)
     BaseType_t res = xTaskCreatePinnedToCore(vHomingTask, "AscHoming", 6000, this, 2, &homingHandle, 1);
 
     if (res != pdPASS) {
-        // échec de création : remettre homingHandle à NULL
-        homingHandle = NULL;
+        homingHandle = NULL; // échec de création : remettre homingHandle à NULL
     }
 }
 
-void ClassAscenseur::vAscenseur(void* pvParams) {
+
+// main task
+void ClassAscenseur::vAscenseur(void* pvParams){
+
     ClassAscenseur* self = static_cast<ClassAscenseur*>(pvParams);
     float target_mm = 0.0f;
 
@@ -81,12 +82,13 @@ void ClassAscenseur::vAscenseur(void* pvParams) {
             self->currentHeight = target_mm;
         }
 
-        vTaskDelay(pdMS_TO_TICKS(100)); // ✅ respiration même sans commande
+        vTaskDelay(pdMS_TO_TICKS(100));
     }
 }
 
-// === Routine de homing ===
-void ClassAscenseur::Homing() {
+// homing routine
+void ClassAscenseur::Homing(){
+
     Serial.println("[INFO] Démarrage homing...");
 
     moteur.setMaxSpeed((HOMING_SPEED_MM_S / mmParRev) * STEP_PER_REV);
@@ -111,6 +113,7 @@ void ClassAscenseur::Homing() {
     moteur.stop();
     vTaskDelay(pdMS_TO_TICKS(100));
 
+    //---------------DEMANDER A GUILLAUME-----------------//
     // Petit recul pour libérer le capteur
     moteur.move((HOMING_BACKOFF_MM / mmParRev) * STEP_PER_REV);
     while (moteur.distanceToGo() != 0) {
