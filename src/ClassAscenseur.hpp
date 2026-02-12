@@ -8,11 +8,12 @@
 #include "freertos/task.h"
 #include "freertos/queue.h"
 
+
 class ClassAscenseur {
 public:
     ClassAscenseur();
 
-    void Init(int stepPin, int dirPin, int pinCapteur, float mmParRev);
+    void Init(int stepPin, int dirPin, int pinCapteur, float mmParRev, bool InvertRotation = 0);
     void MoveToHeight(float target_mm);
     void SetZero();
     float GetCurrentHeight();
@@ -27,6 +28,9 @@ private:
     QueueHandle_t xQueue;
     TaskHandle_t vAscenseurHandle;
     TaskHandle_t homingHandle = NULL; // <-- ajouté
+
+    int _sens_de_rotation; // 1 ou -1 selon le sens de rotation du moteur pour que les commandes soient cohérentes avec la réalité
+
     int capteurPin;
     float mmParRev;
     float currentHeight = 0;

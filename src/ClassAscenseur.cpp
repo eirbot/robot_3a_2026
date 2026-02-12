@@ -4,17 +4,19 @@ ClassAscenseur::ClassAscenseur() {
     homingHandle = NULL; // <-- initialisation
 }
 
-void ClassAscenseur::Init(int stepPin, int dirPin, int pinCapteur, float mmPerRev){
+void ClassAscenseur::Init(int stepPin, int dirPin, int pinCapteur, float mmPerRev, bool InvertRotation) { 
 
     mmParRev = mmPerRev;
     capteurPin = pinCapteur;
     moteur = AccelStepper(AccelStepper::DRIVER, stepPin, dirPin);
 
     xQueue = xQueueCreate(10, sizeof(float));
-    pinMode(capteurPin, INPUT_PULLUP);
+    pinMode(capteurPin, INPUT);
 
     moteur.setMaxSpeed((MAX_SPEED_MM_S / mmParRev) * STEP_PER_REV);
     moteur.setAcceleration((ACCEL_MM_S2 / mmParRev) * STEP_PER_REV);
+    moteur.setPinsInverted(InvertRotation == 1 ? true : false, false, false); // inversion du step si sensRotation = -1);
+
 
     homingHandle = NULL; // initialisation
 
@@ -95,7 +97,7 @@ void ClassAscenseur::Homing(){
     moteur.setAcceleration((ACCEL_MM_S2 / mmParRev) * STEP_PER_REV);
 
     // Si déjà sur le capteur → remonte un peu avant de descendre
-    if (digitalRead(capteurPin) == LOW) {
+    if (digitalRead(capteurPin) == HIGH) {
         Serial.println("[INFO] Capteur déjà actif, on remonte un peu...");
         moteur.move((HOMING_BACKOFF_MM * 2 / mmParRev) * STEP_PER_REV);
         while (moteur.distanceToGo() != 0) {
@@ -106,22 +108,22 @@ void ClassAscenseur::Homing(){
 
     // Descente lente jusqu’à détection du capteur
     moteur.moveTo(-100000);
-    while (digitalRead(capteurPin) == HIGH) {
+    while (digitalRead(capteurPin) == LOW) { // capteur en logique directe (low = pas d'obstacle detecté)
         moteur.run();
     }
-
+    
     moteur.stop();
     vTaskDelay(pdMS_TO_TICKS(100));
-
+    
+    // Position zéro
+    SetZero();
+    
     //---------------DEMANDER A GUILLAUME-----------------//
     // Petit recul pour libérer le capteur
     moteur.move((HOMING_BACKOFF_MM / mmParRev) * STEP_PER_REV);
     while (moteur.distanceToGo() != 0) {
         moteur.run();
     }
-
-    // Position zéro
-    SetZero();
 
     moteur.setMaxSpeed((MAX_SPEED_MM_S / mmParRev) * STEP_PER_REV);
     Serial.println("[OK] Homing terminé !");

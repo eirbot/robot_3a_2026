@@ -9,7 +9,7 @@
 
 // Define constants 
 
-#define STEP_PER_REV 6400//3200
+#define STEP_PER_REV 1600//6400//3200
 #define MAX_SPEED_MM_S 200.0f//50.0f
 #define ACCEL_MM_S2   400.0f//200.0f
 #define HOMING_SPEED_MM_S 10.0f
