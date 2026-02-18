@@ -4,7 +4,8 @@
 // Include necessary libraries
 
 #include <Arduino.h>
-#include "AccelStepper.h"
+#include "TMC2100.h"
+// #include "AccelStepper.h"
 
 
 // Define constants 
@@ -19,7 +20,7 @@
 
 // extern declarations
 
-extern AccelStepper asc;
+extern TMC2100 asc;
 extern TaskHandle_t vAscHandle;
 
 
@@ -37,7 +38,27 @@ typedef struct {
     float vitesseDroite;  // m/s
 } TaskParams;
 
+// pour ascenseur (stepper & sensor)
+#define MM_PER_REV 8.0
 
+#define ASC_1_STP 15
+#define ASC_1_DIR 2
+#define ASC_1_SNS 13
+#define ASC_1_INV false
 
+#define ASC_2_STP 4
+#define ASC_2_DIR 16
+#define ASC_2_SNS 12
+#define ASC_2_INV false
+
+#define ASC_3_STP 17
+#define ASC_3_DIR 5
+#define ASC_3_SNS 14
+#define ASC_3_INV false
+
+#define ASC_4_STP 18
+#define ASC_4_DIR 19
+#define ASC_4_SNS 27
+#define ASC_4_INV false
 
 #endif
