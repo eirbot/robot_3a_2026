@@ -16,9 +16,9 @@
 #define STEPS_PER_REV 1600   // 200 = 1.8° stepper (full step)
 #define MM_PER_REV 8.0f      // depends on your lead screw pitch and microstepping
 
-TMC2100 stepper_1(STEPS_PER_REV, STEP_PIN_1, DIR_PIN_1);
-TMC2100 stepper_2(STEPS_PER_REV, STEP_PIN_2, DIR_PIN_2);
-TMC2100 stepper_4(STEPS_PER_REV, STEP_PIN_4, DIR_PIN_4);
+TMC2100 stepper_1(STEPS_PER_REV, DIR_PIN_1 , STEP_PIN_1);
+TMC2100 stepper_2(STEPS_PER_REV, DIR_PIN_2 , STEP_PIN_2);
+TMC2100 stepper_4(STEPS_PER_REV, DIR_PIN_4 , STEP_PIN_4);
 
 void setup() {
     Serial.begin(115200);
@@ -28,18 +28,18 @@ void setup() {
 
     stepper_1.setRPM(2000);     // steps/sec
     stepper_1.setSpeedProfile(stepper_1.LINEAR_SPEED,
-        (ACCEL_MM_S2 / MM_PER_REV) * STEP_PER_REV, 
-        (ACCEL_MM_S2 / MM_PER_REV) * STEP_PER_REV
+        8000, 
+        8000
     );
     stepper_2.setRPM(2000);     // steps/sec
     stepper_2.setSpeedProfile(stepper_2.LINEAR_SPEED,
-        (ACCEL_MM_S2 / MM_PER_REV) * STEP_PER_REV, 
-        (ACCEL_MM_S2 / MM_PER_REV) * STEP_PER_REV
+        8000, 
+        8000
     );
     stepper_4.setRPM(2000);     // steps/sec
     stepper_4.setSpeedProfile(stepper_4.LINEAR_SPEED,
-        (ACCEL_MM_S2 / MM_PER_REV) * STEP_PER_REV, 
-        (ACCEL_MM_S2 / MM_PER_REV) * STEP_PER_REV
+        8000, 
+        8000
     );
 }
 

@@ -18,8 +18,10 @@ void setup() {
     Serial.println("---ASCENSEUR READY----");
     ascenseur.StandardOp(10, 4096, 2);
 
-    delay(1000);
-    ascenseur.moveToHeight(100);
+    delay(3000);
+    ascenseur.moveToHeight(25);
+    delay(10000);
+    ascenseur.moveToHeight(50);
 }
 
 void loop(){}

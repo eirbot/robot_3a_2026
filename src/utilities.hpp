@@ -39,6 +39,9 @@ typedef struct {
 } TaskParams;
 
 // pour ascenseur (stepper & sensor)
+#define RPM_ASC 200
+#define RPM_HOMING 120
+#define ACCEL_ASC 800
 #define MM_PER_REV 8.0
 
 #define ASC_1_STP 15
