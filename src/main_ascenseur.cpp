@@ -1,43 +1,141 @@
 #include "ClassAscenseur.hpp"
+#include <stdio.h>
+#include <string.h>
 
-// PIN CONFIG 
-// Change according to your wiring
-#define STEP_PIN 16
-#define DIR_PIN  17
-#define CAPTEUR_PIN  5
+// Elevator objects
+ClassAscenseur ASC1(ASC_1_STP, ASC_1_DIR, ASC_1_INV);
+ClassAscenseur ASC2(ASC_2_STP, ASC_2_DIR, ASC_2_INV);
+ClassAscenseur ASC3(ASC_3_STP, ASC_3_DIR, ASC_3_INV);
+ClassAscenseur ASC4(ASC_4_STP, ASC_4_DIR, ASC_4_INV);
 
-// mm per motor revolution (lead screw pitch, pulley, etc.)
-#define MM_PER_REV   8.0
-#define STEP_PER_REV 1600// 200 = 1.8° stepper (full step) // Homing config #define HOMING_SPEED_MM_S 20 #define HOMING_BACKOFF_MM 5 #define ACCEL_MM_S2 50 // Max speed config #define MAX_SPEED_MM_S 100
-ClassAscenseur ascenseur;
+#define MAX_FIELD_LEN   16
+#define RX_QUEUE_LENGTH 16  // Number of queued messages
 
+// FreeRTOS queue handle
+static QueueHandle_t rxQueue;
+
+// -------- Message structure -------- //
+typedef struct {
+    char address[MAX_FIELD_LEN]; // "ASCn"
+    char command[MAX_FIELD_LEN]; // "MOVE", "HOME"
+    char arg[MAX_FIELD_LEN];     // value in mm for MOVE, ignored for HOME
+} Message_t;
+
+// Device table
+struct DeviceEntry {
+    const char* name;
+    ClassAscenseur* instance;
+};
+DeviceEntry devices[] = {
+    { "ASC1", &ASC1 },
+    { "ASC2", &ASC2 },
+    { "ASC3", &ASC3 },
+    { "ASC4", &ASC4 },
+};
+#define DEVICE_COUNT (sizeof(devices)/sizeof(devices[0]))
+
+typedef void (ClassAscenseur::*CmdMethod)(float);
+struct CommandEntry {
+    const char* name;
+    CmdMethod method;
+};
+CommandEntry commands[] = {
+
+    { "MOVE", &ClassAscenseur::MoveToHeight },
+    { "HOME", &ClassAscenseur::StartHoming },
+};
+#define COMMAND_COUNT (sizeof(commands)/sizeof(commands[0]))
+
+// -------- Dispatch function --------
+void DispatchMessage(const Message_t* msg) {
+    ClassAscenseur* target = nullptr;
+    CmdMethod method = nullptr;
+    // Find device
+    for (int i = 0; i < DEVICE_COUNT; i++) {
+        if (strcmp(msg->address, devices[i].name) == 0) {
+            target = devices[i].instance;
+            break;
+        }
+    }
+    if (!target) return;
+
+    // Find command
+    for (int i = 0; i < COMMAND_COUNT; i++) {
+        if (strcmp(msg->command, commands[i].name) == 0) {
+            method = commands[i].method;
+            break;
+        }
+    }
+    if (!method) return;
+
+    // Find value
+    float value = atof(msg->arg);
+    Serial.println("Dispatching: " + String(msg->address) + " " + String(msg->command) + " " + String(value));
+    (target->*method)(value);
+}
+
+// -------- FreeRTOS Tasks --------
+
+// Serial reading task: reads lines and sends to queue
+void SerialTask(void* pvParameters) {
+    char line[64];
+    while (1) {
+        if (Serial.available()) {
+            size_t len = Serial.readBytesUntil('\n', line, sizeof(line));
+            line[len] = '\0';
+
+            Message_t msg;
+            memset(&msg, 0, sizeof(msg));
+            if (sscanf(line, "%15s %15s %15s", msg.address, msg.command, msg.arg) >= 2) {
+                xQueueSend(rxQueue, &msg, portMAX_DELAY);
+            }
+        }
+        vTaskDelay(pdMS_TO_TICKS(10));
+    }
+}
+
+// Command dispatch task: reads messages from queue and executes them
+void DispatchTask(void* pvParameters) {
+    Message_t msg;
+    while (1) {
+        if (xQueueReceive(rxQueue, &msg, portMAX_DELAY) == pdTRUE) {
+            DispatchMessage(&msg);
+        }
+    }
+}
+
+// -------- Setup function --------
 void setup() {
     Serial.begin(115200);
     delay(1000);
+    // Initialize elevators
+    Serial.println("---INITIALISATION DES ASCENSEURS----");
+    delay(1000);
+    ASC1.Init(ASC_1_SNS, MM_PER_REV);
+    ASC2.Init(ASC_2_SNS, MM_PER_REV);
+    ASC3.Init(ASC_3_SNS, MM_PER_REV);
+    ASC4.Init(ASC_4_SNS, MM_PER_REV);
 
-    Serial.println("TEST ASCENSEUR");
+    delay(1000);
+    Serial.println("---HOMING DES ASCENSEURS----");
+    ASC1.StartHoming();
+    ASC2.StartHoming();
+    ASC3.StartHoming();
+    ASC4.StartHoming();
+    Serial.println("---HOMING SUCCESSFULL ASCENSEUR READY ----");
 
-    // Init elevator
-    ascenseur.Init(STEP_PIN, DIR_PIN, CAPTEUR_PIN, MM_PER_REV, 1);
+    delay(2000); // Wait for homing to complete
+    // Create FreeRTOS queue
+    rxQueue = xQueueCreate(RX_QUEUE_LENGTH, sizeof(Message_t));
 
-    delay(3000);
-
-    // on s'attend à "[WARN] Ascenseur non calibré !"
-    vTaskDelay(pdMS_TO_TICKS(2000));
-
-    // test 2 : homing
-    Serial.println("Homing");
-    ascenseur.StartHoming();
-    delay(2000);
-    Serial.println("----------------");
-
+    // Create tasks
+    xTaskCreate(SerialTask, "SerialTask", 2048, NULL, 1, NULL);
+    xTaskCreate(DispatchTask, "DispatchTask", 2048, NULL, 1, NULL);
+    Serial.println("---SYSTEM READY----");
+    // Start the scheduler (Arduino/ESP32 automatically calls vTaskStartScheduler)
 }
-int k = 0;
+
+// Empty loop because FreeRTOS handles tasks
 void loop() {
-    if(k == 0){
-    // test 1 : verifie que la commande est rejetée si homing n'as pas été réalisé
-    Serial.println("Test 1 : Commande");
-    ascenseur.MoveToHeight(25.0f);
-    k++; }
+    // Nothing needed here
 }
-
