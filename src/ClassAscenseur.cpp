@@ -6,6 +6,8 @@ ClassAscenseur::ClassAscenseur(uint8_t stepPin, uint8_t dirPin, bool invertRotat
       homingHandle(NULL)
 {}
 
+static const uint32_t STEP_DELAY_US = 800;
+
 void ClassAscenseur::Init(uint8_t pinCapteur, float mmPerRev) { 
     mmParRev = mmPerRev;
     capteurPin = pinCapteur;
@@ -69,7 +71,6 @@ void ClassAscenseur::Homing(){
 
     // Descente lente jusqu’à détection du capteur
     moteur.startMove(-100000);
-    Serial.println(moteur.getStepsRemaining());
     while (digitalRead(capteurPin) == LOW) {
         moteur.nextAction();
         taskYIELD();   // allow RTOS scheduling without killing step timing
@@ -124,8 +125,9 @@ void ClassAscenseur::StandardOp(uint8_t queueLength, uint16_t stackSize, UBaseTy
 
 // queueing command function
 bool ClassAscenseur::moveToHeight(float target_mm) {
+    long target_steps = lround((target_mm / mmParRev) * STEP_PER_REV); // convert mm to steps
     if (xQueue == NULL) return false; // no queue case
-    if (xQueueSend(xQueue, &target_mm, portMAX_DELAY) == pdPASS) { // standard case
+    if (xQueueSend(xQueue, &target_steps, portMAX_DELAY) == pdPASS) { // standard case
         Serial.println("[INFO] Recieved command");
         return true;
     } else { // queue full case
@@ -137,22 +139,15 @@ bool ClassAscenseur::moveToHeight(float target_mm) {
 // main task
 void ClassAscenseur::vAscenseur(void* pvParams) {
     ClassAscenseur* self = static_cast<ClassAscenseur*>(pvParams);
-    float target_mm = 0.0f;
-    while (true) {
-        if (self->xQueue && xQueueReceive(self->xQueue, &target_mm, portMAX_DELAY) == pdPASS) {
-            if (!self->homed) {
-                Serial.println("[WARN] Ascenseur non calibré !");
-                continue;
-            }
-            Serial.println("[to be deleted] target_mm " + String(target_mm)); 
-            long targetSteps = (target_mm / self->mmParRev) * STEP_PER_REV;
-            Serial.println("[to be deleted] target_stps " + String(targetSteps)); 
-            self->moteur.startMove(targetSteps * self->_dir_sig);
-            while (self->moteur.getStepsRemaining() != 0) {
-                self->moteur.nextAction();
-                vTaskDelay(1);
-            }
-            self->currentHeight = target_mm;
+    int32_t command;
+
+    while (true)
+    {
+        if (xQueueReceive(self->xQueue, &command, portMAX_DELAY) == pdTRUE)
+        {
+            if (command == 0) continue;
+            self->moteur.enable();
+            self->moteur.move(command);
         }
     }
 }
