@@ -19,9 +19,9 @@ void setup() {
     ascenseur.StandardOp(10, 4096, 2);
 
     delay(3000);
-    ascenseur.moveToHeight(12.5);
+    ascenseur.MoveToHeight(12.5);
     delay(3000);
-    ascenseur.moveToHeight(-25.0);
+    ascenseur.MoveToHeight(-25.0);
 }
 
 void loop(){}

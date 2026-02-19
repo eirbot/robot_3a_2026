@@ -11,13 +11,13 @@
 
 class ClassAscenseur {
 public:
-    ClassAscenseur(uint8_t stepPin, uint8_t dirPin, bool invertRotation = false);
+    ClassAscenseur(uint8_t stepPin, uint8_t dirPin, String name, bool invertRotation = false);
 
     void Init(uint8_t pinCapteur, float mmParRev);
-    bool moveToHeight(float target_mm);
+    bool MoveToHeight(float target_mm);
     void SetZero();
     float GetCurrentHeight();
-    void StartHoming(float value = 0); // float added to match CmdMethod
+    bool StartHoming(float value = 0); // float added to match CmdMethod
     void StandardOp(uint8_t queueLength, uint16_t stackSize, UBaseType_t priority);
     bool IsBusy();  // indique si le moteur est encore en mouvement
     bool IsHomed();  // indique si l'ascenseur est calibré
@@ -40,6 +40,8 @@ private:
 
     void Homing();                   // interne
     static void vHomingTask(void* pvParams);
+
+    String _name;
 };
 
 #endif

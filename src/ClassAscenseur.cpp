@@ -1,9 +1,10 @@
 #include "ClassAscenseur.hpp"
 
-ClassAscenseur::ClassAscenseur(uint8_t stepPin, uint8_t dirPin, bool invertRotation)
+ClassAscenseur::ClassAscenseur(uint8_t stepPin, uint8_t dirPin, String name, bool invertRotation)
     : moteur(STEP_PER_REV, dirPin, stepPin),  // initialize properly
       _dir_sig(invertRotation ? -1 : 1),
-      homingHandle(NULL)
+      homingHandle(NULL),
+      _name(name)
 {}
 
 static const uint32_t STEP_DELAY_US = 800;
@@ -17,14 +18,15 @@ void ClassAscenseur::Init(uint8_t pinCapteur, float mmPerRev) {
     Serial.println("[INIT] ClassAscenseur initialisé");
 }
 // function to be called by main fir init
-void ClassAscenseur::StartHoming(float value){
-    if (homed) return; // ne rien faire si déjà homé
-    if (homingHandle != NULL) return; // si une task de homing est déjà en cours, on ne relance pas
+bool ClassAscenseur::StartHoming(float value){
+    if (homed) return true; // ne rien faire si déjà homé
+    if (homingHandle != NULL) return false; // si une task de homing est déjà en cours, on ne relance pas
     // créer la task (ajuste stack/prio/core si nécessaire)
     BaseType_t res = xTaskCreatePinnedToCore(vHomingTask, "AscHoming", 6000, this, 2, &homingHandle, 1);
     if (res != pdPASS) {
         homingHandle = NULL; // échec de création : remettre homingHandle à NULL
     }
+    return res == pdPASS;
 }
 
 // homing task
@@ -95,7 +97,6 @@ void ClassAscenseur::Homing(){
 
     moteur.setRPM(RPM_ASC);
     Serial.println("[OK] Homing terminé !");
-
 }
 
 // creates queue & main task 
@@ -108,13 +109,14 @@ void ClassAscenseur::StandardOp(uint8_t queueLength, uint16_t stackSize, UBaseTy
         return;
     }
     // Create the FreeRTOS task
-    BaseType_t res = xTaskCreate(
+    BaseType_t res = xTaskCreatePinnedToCore(
         vAscenseur,          // Task function
         "vAscenseur",     // Name
         stackSize,           // Stack size
         this,                // Parameter passed to task
         priority,            // Priority
-        &vAscenseurHandle    // Task handle
+        &vAscenseurHandle,    // Task handle
+        1
     );
     if (res != pdPASS) {
         Serial.println("[ERROR] Failed to create Ascenseur task");
@@ -124,11 +126,14 @@ void ClassAscenseur::StandardOp(uint8_t queueLength, uint16_t stackSize, UBaseTy
 }
 
 // queueing command function
-bool ClassAscenseur::moveToHeight(float target_mm) {
+bool ClassAscenseur::MoveToHeight(float target_mm) {
     long target_steps = lround((target_mm / mmParRev) * STEP_PER_REV); // convert mm to steps
-    if (xQueue == NULL) return false; // no queue case
+    if (xQueue == NULL){ // no queue case
+        Serial.println("[WARN] NO QUEUE");
+        return false;
+    }
+    Serial.println("[DEBUG] Recieved command sending to queue " + String(_name));
     if (xQueueSend(xQueue, &target_steps, portMAX_DELAY) == pdPASS) { // standard case
-        Serial.println("[INFO] Recieved command");
         return true;
     } else { // queue full case
         Serial.println("[WARN] Queue full, move command dropped");
@@ -145,9 +150,11 @@ void ClassAscenseur::vAscenseur(void* pvParams) {
     {
         if (xQueueReceive(self->xQueue, &command, portMAX_DELAY) == pdTRUE)
         {
+            Serial.println("[DEBUG] Motor " + self->_name + " recieved task");
             if (command == 0) continue;
             self->moteur.enable();
             self->moteur.move(command);
+            Serial.println("[DEBUG] Motor " + self->_name + " finished");
         }
     }
 }
