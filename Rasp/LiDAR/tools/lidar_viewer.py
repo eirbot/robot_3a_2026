@@ -28,15 +28,24 @@ except ImportError:
     sys.exit(1)
 
 
-def run_lidar_viewer(port="/dev/ttyUSB0", baud=460800, rmax=4000, fps=20, step=500):
+def run_lidar_viewer(port="/dev/lidar", baud=460800, rmax=4000, fps=20, step=500):
     """
     Lance la visualisation temps réel du LIDAR avec PyGame.
+    Nécessite un DISPLAY (X11 forwarding via ssh -X).
     """
-    
+
+    # --- Vérification DISPLAY ---
+    if not os.environ.get("DISPLAY") and not os.environ.get("WAYLAND_DISPLAY"):
+        print("[ERREUR] Pas de DISPLAY disponible.")
+        print("  → Connectez-vous avec : ssh -X eirbot")
+        print("  → Ou utilisez le viewer terminal : python term_viewer.py")
+        return
+
     # --- Initialisation LIDAR ---
     try:
         lidar = RPLidarC1M1(port=port, baud=baud)
         lidar.start_scan()
+        time.sleep(1)  # Attendre que le moteur atteigne sa vitesse
         lidar.clean_input()
     except Exception as e:
         print(f"[ERREUR] Impossible d'ouvrir le LIDAR sur {port} : {e}")
@@ -57,7 +66,13 @@ def run_lidar_viewer(port="/dev/ttyUSB0", baud=460800, rmax=4000, fps=20, step=5
     GRID_COLOR = (50, 50, 50)
     
     pygame.init()
-    screen = pygame.display.set_mode((SIZE, SIZE))
+    try:
+        screen = pygame.display.set_mode((SIZE, SIZE))
+    except pygame.error as e:
+        print(f"[ERREUR] Impossible de créer la fenêtre : {e}")
+        print("  → Connectez-vous avec : ssh -X eirbot")
+        lidar.close()
+        return
     pygame.display.set_caption("LIDAR Viewer - Eurobot 2026")
     clock = pygame.time.Clock()
     font = pygame.font.SysFont("Consolas", 14)
@@ -198,6 +213,6 @@ if __name__ == "__main__":
     if len(sys.argv) > 1:
         port_arg = sys.argv[1]
     else:
-        port_arg = "/dev/ttyUSB0"
+        port_arg = "/dev/lidar"
         
     run_lidar_viewer(port=port_arg)

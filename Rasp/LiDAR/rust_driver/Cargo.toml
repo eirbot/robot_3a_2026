@@ -1,0 +1,14 @@
+[package]
+name = "robot_lidar"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+name = "robot_lidar"
+crate-type = ["cdylib"]
+
+[dependencies]
+pyo3 = { version = "0.21.0", features = ["extension-module"] }
+serialport = "4.2.0"
+log = "0.4"
+env_logger = "0.10"

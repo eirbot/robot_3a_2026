@@ -9,4 +9,5 @@
 *.pyd
 __pycache__/
 .venv/
-
+target/
+Cargo.lock
