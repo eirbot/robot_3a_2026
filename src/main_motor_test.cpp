@@ -11,10 +11,6 @@
 #define STEP_PIN_4 18
 #define DIR_PIN_4 19
 
-// ===== MOTOR CONFIG =====
-// Change according to your motor & microstepping
-#define STEPS_PER_REV 1600   // 200 = 1.8° stepper (full step)
-#define MM_PER_REV 8.0f      // depends on your lead screw pitch and microstepping
 
 TMC2100 stepper_1(STEPS_PER_REV, DIR_PIN_1 , STEP_PIN_1);
 TMC2100 stepper_2(STEPS_PER_REV, DIR_PIN_2 , STEP_PIN_2);
@@ -41,34 +37,10 @@ void setup() {
         8000, 
         8000
     );
+    Serial.println("1 turn CW");
+    stepper_4.rotate(2*360);
 }
 
 void loop() {
 
-    // ---- 2 turns clockwise ----
-    Serial.println("2 turns CW for each motor");
-    stepper_1.move(2*STEPS_PER_REV);
-    stepper_2.move(2*STEPS_PER_REV);
-    stepper_4.move(2*STEPS_PER_REV);
-    while (stepper_1.getStepsRemaining() != 0 || stepper_2.getStepsRemaining() != 0 || stepper_4.getStepsRemaining() != 0) {
-        stepper_1.nextAction();
-        stepper_2.nextAction();
-        stepper_4.nextAction();
-    }
-
-
-    delay(1000);
-
-    // ---- 2 turns counter-clockwise ----
-    Serial.println("2 turns CCW for each motor");
-    stepper_1.move(-2*STEPS_PER_REV);
-    stepper_2.move(-2*STEPS_PER_REV);
-    stepper_4.move(-2*STEPS_PER_REV);
-    while (stepper_1.getStepsRemaining() != 0 || stepper_2.getStepsRemaining() != 0 || stepper_4.getStepsRemaining() != 0) {
-        stepper_1.nextAction();
-        stepper_2.nextAction();
-        stepper_4.nextAction();
-    }
-
-    delay(1000);
 }

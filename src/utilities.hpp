@@ -4,13 +4,12 @@
 // Include necessary libraries
 
 #include <Arduino.h>
-#include "TMC2100.h"
-// #include "AccelStepper.h"
+#include "TMC2100.h" // RTOS FRIENDLY A PRIVILGIER
 
 
 // Define constants 
 
-#define STEP_PER_REV 1600//6400//3200
+#define STEPS_PER_REV 3200 // pour asceseur ATTENTION CELA PREND EN COMPTE LES MICROSTEPS
 #define MAX_SPEED_MM_S 200.0f//50.0f
 #define ACCEL_MM_S2   400.0f//200.0f
 #define HOMING_SPEED_MM_S 10.0f
@@ -42,7 +41,7 @@ typedef struct {
 #define RPM_ASC 200
 #define RPM_HOMING 120
 #define ACCEL_ASC 800
-#define MM_PER_REV 8.0
+#define MM_PER_REV 79.0 // MESURE OK NE PAS TOUCHER
 
 #define ASC_1_STP 15
 #define ASC_1_DIR 2

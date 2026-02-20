@@ -1,13 +1,11 @@
 #include "ClassAscenseur.hpp"
 
 ClassAscenseur::ClassAscenseur(uint8_t stepPin, uint8_t dirPin, String name, bool invertRotation)
-    : moteur(STEP_PER_REV, dirPin, stepPin),  // initialize properly
-      _dir_sig(invertRotation ? -1 : 1),
+    : moteur(STEPS_PER_REV, dirPin, stepPin),  // INIT MOTEUR
+      _dir_sig(invertRotation ? -1 : 1), // INVERSION DU SENS DE ROTATION
       homingHandle(NULL),
-      _name(name)
+      _name(name) //POUR DEBUG UNIQUEMENT
 {}
-
-static const uint32_t STEP_DELAY_US = 800;
 
 void ClassAscenseur::Init(uint8_t pinCapteur, float mmPerRev) { 
     mmParRev = mmPerRev;
@@ -17,9 +15,13 @@ void ClassAscenseur::Init(uint8_t pinCapteur, float mmPerRev) {
     moteur.setSpeedProfile(moteur.LINEAR_SPEED,ACCEL_ASC, ACCEL_ASC);
     Serial.println("[INIT] ClassAscenseur initialisé");
 }
-// function to be called by main fir init
+
+// function to be called by main fOr init
 bool ClassAscenseur::StartHoming(float value){
-    if (homed) return true; // ne rien faire si déjà homé
+    if (homed){
+        Serial.println("[INFO] ALREADY HOMED");
+        return true; // ne rien faire si déjà homé
+    }
     if (homingHandle != NULL) return false; // si une task de homing est déjà en cours, on ne relance pas
     // créer la task (ajuste stack/prio/core si nécessaire)
     BaseType_t res = xTaskCreatePinnedToCore(vHomingTask, "AscHoming", 6000, this, 2, &homingHandle, 1);
@@ -38,7 +40,7 @@ void ClassAscenseur::vHomingTask(void* pvParams){
         return;
     }
 
-    // appelle la routine bloquante de homing déjà présente
+    // ROUTINE BLOQUANTE (POUR LE THREAD))
     self->Homing();
     self->homed = true;
 
@@ -63,7 +65,7 @@ void ClassAscenseur::Homing(){
         // Si déjà sur le capteur → remonte un peu avant de descendre
     if (digitalRead(capteurPin) == HIGH) {
         Serial.println("[INFO] Capteur déjà actif, on remonte un peu...");
-        moteur.startMove((HOMING_BACKOFF_MM * 2 / mmParRev) * STEP_PER_REV);
+        moteur.startMove((HOMING_BACKOFF_MM * 2 / mmParRev) * STEPS_PER_REV);
         while (moteur.getStepsRemaining() != 0) {
             moteur.nextAction();
             vTaskDelay(1);
@@ -88,7 +90,7 @@ void ClassAscenseur::Homing(){
     
     //---------------DEMANDER A GUILLAUME-----------------//
     // Petit recul pour libérer le capteur
-    moteur.startMove((HOMING_BACKOFF_MM / mmParRev) * STEP_PER_REV);
+    moteur.startMove((HOMING_BACKOFF_MM / mmParRev) * STEPS_PER_REV);
     while (moteur.getStepsRemaining() != 0) {
         moteur.nextAction();
         vTaskDelay(1);
@@ -127,7 +129,7 @@ void ClassAscenseur::StandardOp(uint8_t queueLength, uint16_t stackSize, UBaseTy
 
 // queueing command function
 bool ClassAscenseur::MoveToHeight(float target_mm) {
-    long target_steps = lround((target_mm / mmParRev) * STEP_PER_REV); // convert mm to steps
+    long target_steps = lround((target_mm / mmParRev) * STEPS_PER_REV); // convert mm to steps
     if (xQueue == NULL){ // no queue case
         Serial.println("[WARN] NO QUEUE");
         return false;

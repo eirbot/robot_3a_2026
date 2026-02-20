@@ -17,13 +17,13 @@ extern ClassAscenseur ASC4;
 class ClassCommandManager{
 
     public:
-        ClassCommandManager();
-        void StartCommandTask();
+        ClassCommandManager(); // CONSTRUCTOR
+        void StartCommandTask(); // CREATE TASK
 
     private:
-        void SendCommand(const std::string &input);
-        static void CommandTask(void *param);
-        void ProcessUARTData(const char *data);
+        void SendCommand(const std::string &input); // LINK TO ASCENSEUR METHODS
+        static void CommandTask(void *param); // FREE RTOS TASK
+        void ProcessUARTData(const char *data); 
         bool uart_read_line(char *buffer, size_t maxLen);
         static constexpr size_t UART_BUFFER_SIZE = 128;
         size_t uartIndex = 0;
