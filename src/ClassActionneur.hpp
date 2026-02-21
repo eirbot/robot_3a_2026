@@ -1,65 +1,44 @@
 #ifndef CLASS_ACTIONNEUR_HPP
 #define CLASS_ACTIONNEUR_HPP
 
-#include <Arduino.h>
-#include <ESP32Servo.h>
-#include "freertos/FreeRTOS.h"
-#include "freertos/queue.h"
-#include "freertos/task.h"
+
 #include "ClassAscenseur.hpp"
+#include "ClassServo.hpp"
+#include "ClassVerin.hpp"
 
-#define VERIN_SPEED_MAX_PWM 255
-#define VERIN_SPEED_MAX_MM_S 50.0f
+class Actionneur{
+    public:
+        Actionneur( uint8_t asc_stp,
+                        uint8_t asc_dir,
+                        String asc_name,
+                        bool asc_inv,
+                        mcpwm_unit_t unit_1,
+                        mcpwm_io_signals_t signal_1,
+                        mcpwm_timer_t timer_1,
+                        mcpwm_generator_t opr_1,
+                        uint8_t pin_1,
+                        mcpwm_unit_t unit_2,
+                        mcpwm_io_signals_t signal_2,
+                        mcpwm_timer_t timer_2,
+                        mcpwm_generator_t opr_2,
+                        uint8_t pin_2,
+                        mcpwm_unit_t unit_verin,
+                        mcpwm_io_signals_t signal_verin,
+                        mcpwm_timer_t timer_verin,
+                        mcpwm_generator_t opr_verin,
+                        uint8_t pin_1_verin,
+                        uint8_t pin_2_verin,
+                        uint8_t pin_pwm_verin
+                );  
 
-#define SERVO_FREQ_HZ   50
-#define SERVO_MIN_US    500
-#define SERVO_MAX_US    2400
+        void sequence();
 
-// Commandes traitées par la task d'actionneur
-enum class ActionneurCmdType : uint8_t {
-    CMD_HOMING,
-    CMD_MOVE_ASC,   // valeur: position mm
-    CMD_SERVO_POS,  // valeur: angle ou position
-    CMD_VERIN_EXT   // valeur: 0/1 pour rétracté/etendu
-};
+    private:
+        ClassAscenseur ascenseur;
+        Verin pince;
+        Servo flip_kapla;
+        Servo orient_actionneur;
 
-struct ActionneurCommand {
-    ActionneurCmdType type;
-    float value;   // usage dépend du type
-    uint8_t channel; // si plusieurs servos/verins
-};
-
-class ClassActionneur {
-public:
-    ClassActionneur();
-    ~ClassActionneur();
-    void Init(int stepPin, int dirPin, int pinCapteur,
-              int servoRotatePin, int servoOrientPin,
-              int verinDirPin, int verinPWMPin);
-    void StartTask();
-    void StopTask();
-    bool PostCommand(const ActionneurCommand& cmd);
-    void StartHomingNonBlocking();
-
-    // Etats actionneur
-    bool IsReady();
-    bool IsHomed();
-    bool IsIdle();
-    float GetHeight();
-    bool IsElevatorBusy();
-
-private:
-    QueueHandle_t cmdQueue = NULL;
-    TaskHandle_t taskHandle = NULL;
-    static void vActionneurTask(void* pvParams);
-    // === Sous-systèmes ===
-    
-    ClassAscenseur ascenseur;
-    Servo servoRotate;
-    Servo servoOrient;
-
-    int verinDirPin;
-    int verinPWMPin;
 };
 
 #endif
