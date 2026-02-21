@@ -1,146 +1,178 @@
 #include "ClassAscenseur.hpp"
 
-ClassAscenseur::ClassAscenseur() {
-    homingHandle = NULL; // <-- initialisation
-}
+ClassAscenseur::ClassAscenseur(uint8_t stepPin, uint8_t dirPin, String name, bool invertRotation)
+    : moteur(STEPS_PER_REV, dirPin, stepPin),  // INIT MOTEUR
+      _dir_sig(invertRotation ? -1 : 1), // INVERSION DU SENS DE ROTATION
+      homingHandle(NULL),
+      _name(name) //POUR DEBUG UNIQUEMENT
+{}
 
-void ClassAscenseur::Init(int stepPin, int dirPin, int pinCapteur, float mmPerRev)
-{   
+void ClassAscenseur::Init(uint8_t pinCapteur, float mmPerRev) { 
     mmParRev = mmPerRev;
     capteurPin = pinCapteur;
-    moteur = AccelStepper(AccelStepper::DRIVER, stepPin, dirPin);
-
-    xQueue = xQueueCreate(10, sizeof(float));
-    pinMode(capteurPin, INPUT_PULLUP);
-
-    moteur.setMaxSpeed((MAX_SPEED_MM_S / mmParRev) * STEP_PER_REV);
-    moteur.setAcceleration((ACCEL_MM_S2 / mmParRev) * STEP_PER_REV);
-
-    homingHandle = NULL; // <-- initialisation
-
-    // équilibrage des tâches entre les 2 cœurs
-    xTaskCreatePinnedToCore(vAscenseur, "vAscenseur", 10000, this, 1, &vAscenseurHandle, 1);
-
+    pinMode(capteurPin, INPUT);
+    moteur.setRPM(RPM_ASC);
+    moteur.setSpeedProfile(moteur.LINEAR_SPEED,ACCEL_ASC, ACCEL_ASC);
     Serial.println("[INIT] ClassAscenseur initialisé");
 }
 
-// Nouvelle task de homing
-void ClassAscenseur::vHomingTask(void* pvParams) {
+// function to be called by main fOr init
+bool ClassAscenseur::StartHoming(float value){
+    if (homed){
+        Serial.println("[INFO] ALREADY HOMED");
+        return true; // ne rien faire si déjà homé
+    }
+    if (homingHandle != NULL) return false; // si une task de homing est déjà en cours, on ne relance pas
+    // créer la task (ajuste stack/prio/core si nécessaire)
+    BaseType_t res = xTaskCreatePinnedToCore(vHomingTask, "AscHoming", 6000, this, 2, &homingHandle, 1);
+    if (res != pdPASS) {
+        homingHandle = NULL; // échec de création : remettre homingHandle à NULL
+    }
+    return res == pdPASS;
+}
+
+// homing task
+void ClassAscenseur::vHomingTask(void* pvParams){
+
     ClassAscenseur* self = static_cast<ClassAscenseur*>(pvParams);
     if (!self) {
         vTaskDelete(NULL);
         return;
     }
 
-    // appelle la routine bloquante de homing déjà présente
+    // ROUTINE BLOQUANTE (POUR LE THREAD))
     self->Homing();
     self->homed = true;
 
-    // marque le handle comme NULL avant de tuer la tâche pour que StartHoming
-    // puisse relancer ultérieurement si besoin
-    self->homingHandle = NULL;
+    self->homingHandle = NULL; // handle NULL avant de tuer la tâche pour que StartHoming puisse relancer si besoin
 
     vTaskDelete(NULL);
 }
 
-void ClassAscenseur::StartHoming() {
-    // ne rien faire si déjà homé
-    if (homed) return;
+// homing routine function
+void ClassAscenseur::Homing(){
+    moteur.begin(RPM_HOMING);
+    moteur.enable();
 
-    // si une task de homing est déjà en cours, on ne relance pas
-    if (homingHandle != NULL) return;
-
-    // créer la task (ajuste stack/prio/core si nécessaire)
-    BaseType_t res = xTaskCreatePinnedToCore(vHomingTask, "AscHoming", 6000, this, 2, &homingHandle, 1);
-
-    if (res != pdPASS) {
-        // échec de création : remettre homingHandle à NULL
-        homingHandle = NULL;
-    }
-}
-
-void ClassAscenseur::vAscenseur(void* pvParams) {
-    ClassAscenseur* self = static_cast<ClassAscenseur*>(pvParams);
-    float target_mm = 0.0f;
-
-    while (true) {
-        // Attente d'une commande
-        if (xQueueReceive(self->xQueue, &target_mm, pdMS_TO_TICKS(10)) == pdPASS) {
-            if (!self->homed) {
-                Serial.println("[WARN] Ascenseur non calibré !");
-                continue;
-            }
-
-            long targetSteps = (target_mm / self->mmParRev) * STEP_PER_REV;
-            self->moteur.moveTo(targetSteps);
-
-            while (self->moteur.distanceToGo() != 0) {
-                self->moteur.run();
-            }
-
-            self->currentHeight = target_mm;
-        }
-
-        vTaskDelay(pdMS_TO_TICKS(100)); // ✅ respiration même sans commande
-    }
-}
-
-// === Routine de homing ===
-void ClassAscenseur::Homing() {
     Serial.println("[INFO] Démarrage homing...");
 
-    moteur.setMaxSpeed((HOMING_SPEED_MM_S / mmParRev) * STEP_PER_REV);
-    moteur.setAcceleration((ACCEL_MM_S2 / mmParRev) * STEP_PER_REV);
-
-    // Si déjà sur le capteur → remonte un peu avant de descendre
-    if (digitalRead(capteurPin) == LOW) {
+    moteur.setRPM(RPM_HOMING);
+    moteur.setSpeedProfile(moteur.LINEAR_SPEED,
+        ACCEL_ASC, 
+        ACCEL_ASC
+        );
+  
+        // Si déjà sur le capteur → remonte un peu avant de descendre
+    if (digitalRead(capteurPin) == HIGH) {
         Serial.println("[INFO] Capteur déjà actif, on remonte un peu...");
-        moteur.move((HOMING_BACKOFF_MM * 2 / mmParRev) * STEP_PER_REV);
-        while (moteur.distanceToGo() != 0) {
-            moteur.run();
+        moteur.startMove((HOMING_BACKOFF_MM * 2 / mmParRev) * STEPS_PER_REV);
+        while (moteur.getStepsRemaining() != 0) {
+            moteur.nextAction();
+            vTaskDelay(1);
         }
         vTaskDelay(pdMS_TO_TICKS(100));
     }
 
     // Descente lente jusqu’à détection du capteur
-    moteur.moveTo(-100000);
-    while (digitalRead(capteurPin) == HIGH) {
-        moteur.run();
+    moteur.startMove(-100000);
+    while (digitalRead(capteurPin) == LOW) {
+        moteur.nextAction();
+        taskYIELD();   // allow RTOS scheduling without killing step timing
     }
 
+
+    
     moteur.stop();
     vTaskDelay(pdMS_TO_TICKS(100));
-
+    
+    // Position                                                                                                                                                                                                                                                                                                                                                                                                                                          n zéro
+    SetZero();
+    
+    //---------------DEMANDER A GUILLAUME-----------------//
     // Petit recul pour libérer le capteur
-    moteur.move((HOMING_BACKOFF_MM / mmParRev) * STEP_PER_REV);
-    while (moteur.distanceToGo() != 0) {
-        moteur.run();
+    moteur.startMove((HOMING_BACKOFF_MM / mmParRev) * STEPS_PER_REV);
+    while (moteur.getStepsRemaining() != 0) {
+        moteur.nextAction();
+        vTaskDelay(1);
     }
 
-    // Position zéro
-    SetZero();
 
-    moteur.setMaxSpeed((MAX_SPEED_MM_S / mmParRev) * STEP_PER_REV);
+    moteur.setRPM(RPM_ASC);
     Serial.println("[OK] Homing terminé !");
 }
 
+// creates queue & main task 
+void ClassAscenseur::StandardOp(uint8_t queueLength, uint16_t stackSize, UBaseType_t priority)
+{
+    // Create queue for target heights
+    xQueue = xQueueCreate(queueLength, sizeof(float));
+    if (xQueue == NULL) {
+        Serial.println("[ERROR] Failed to create Ascenseur queue");
+        return;
+    }
+    // Create the FreeRTOS task
+    BaseType_t res = xTaskCreatePinnedToCore(
+        vAscenseur,          // Task function
+        "vAscenseur",     // Name
+        stackSize,           // Stack size
+        this,                // Parameter passed to task
+        priority,            // Priority
+        &vAscenseurHandle,    // Task handle
+        1
+    );
+    if (res != pdPASS) {
+        Serial.println("[ERROR] Failed to create Ascenseur task");
+    } else {
+        Serial.println("[OK] Ascenseur task started");
+    }
+}
+
+// queueing command function
+bool ClassAscenseur::MoveToHeight(float target_mm) {
+    long target_steps = lround((target_mm / mmParRev) * STEPS_PER_REV); // convert mm to steps
+    if (xQueue == NULL){ // no queue case
+        Serial.println("[WARN] NO QUEUE");
+        return false;
+    }
+    Serial.println("[DEBUG] Recieved command sending to queue " + String(_name));
+    if (xQueueSend(xQueue, &target_steps, portMAX_DELAY) == pdPASS) { // standard case
+        return true;
+    } else { // queue full case
+        Serial.println("[WARN] Queue full, move command dropped");
+        return false;
+    }
+}
+
+// main task
+void ClassAscenseur::vAscenseur(void* pvParams) {
+    ClassAscenseur* self = static_cast<ClassAscenseur*>(pvParams);
+    int32_t command;
+
+    while (true)
+    {
+        if (xQueueReceive(self->xQueue, &command, portMAX_DELAY) == pdTRUE)
+        {
+            Serial.println("[DEBUG] Motor " + self->_name + " recieved task");
+            if (command == 0) continue;
+            self->moteur.enable();
+            self->moteur.move(command);
+            Serial.println("[DEBUG] Motor " + self->_name + " finished");
+        }
+    }
+}
+
 void ClassAscenseur::SetZero() {
-    moteur.setCurrentPosition(0);
+    _currentSteps = 0;
     currentHeight = 0;
     homed = true;
 }
 
 float ClassAscenseur::GetCurrentHeight() {
-    long steps = moteur.currentPosition();
-    return (steps / (float)STEP_PER_REV) * mmParRev;
-}
-
-void ClassAscenseur::MoveToHeight(float target_mm) {
-    xQueueSend(xQueue, &target_mm, portMAX_DELAY);
+    return currentHeight;
 }
 
 bool ClassAscenseur::IsBusy() {
-    return (moteur.distanceToGo() != 0);
+    return (moteur.getStepsRemaining() != 0);
 }
 
 bool ClassAscenseur::IsHomed() {
