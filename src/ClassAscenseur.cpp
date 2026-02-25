@@ -129,6 +129,16 @@ void ClassAscenseur::StandardOp(uint8_t queueLength, uint16_t stackSize, UBaseTy
 
 // queueing command function
 bool ClassAscenseur::MoveToHeight(float target_mm) {
+
+    if (target_mm <= 0)
+    {
+        target_mm = 0;
+    }
+    else if (target_mm > maxHeight)
+    {
+        target_mm = maxHeight;
+    }
+
     long target_steps = lround((target_mm / mmParRev) * STEPS_PER_REV); // convert mm to steps
     if (xQueue == NULL){ // no queue case
         Serial.println("[WARN] NO QUEUE");
@@ -157,6 +167,7 @@ void ClassAscenseur::vAscenseur(void* pvParams) {
             self->moteur.enable();
             self->moteur.move(command);
             Serial.println("[DEBUG] Motor " + self->_name + " finished");
+            self->currentHeight = (command / (float)STEPS_PER_REV) * self->mmParRev; // update current height estimation
         }
     }
 }

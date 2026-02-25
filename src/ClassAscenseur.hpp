@@ -38,6 +38,7 @@ private:
     long _currentSteps = 0;
 
     float mmParRev;
+    float maxHeight = 100; //mm
     float currentHeight = 0;
     bool homed = false;
 
