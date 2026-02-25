@@ -14,6 +14,7 @@ class Verin{
             uint8_t pin_2,
             uint8_t pin_pwm);
         
+        void init();
         void extend();
         void retract();
         

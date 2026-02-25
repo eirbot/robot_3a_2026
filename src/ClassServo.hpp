@@ -7,6 +7,7 @@
 class Servo{
     public:
         Servo(mcpwm_unit_t unit, mcpwm_io_signals_t signal, mcpwm_timer_t timer, mcpwm_generator_t opr, uint8_t pin);
+        void init();
         void setAngle(float angle);
 
     private:

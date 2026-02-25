@@ -7,7 +7,6 @@ Servo::Servo(mcpwm_unit_t unit, mcpwm_io_signals_t signal, mcpwm_timer_t timer, 
     this->timer_num = timer;
     this->signal = signal;
     this -> opr = opr;
-    
     mcpwm_gpio_init(unit, signal, pin);
     mcpwm_config_t pwm_config;
     pwm_config.frequency = 50;        // 50 Hz
@@ -17,6 +16,10 @@ Servo::Servo(mcpwm_unit_t unit, mcpwm_io_signals_t signal, mcpwm_timer_t timer, 
     pwm_config.duty_mode = MCPWM_DUTY_MODE_0;
 
     mcpwm_init(unit, timer, &pwm_config);
+}
+
+void Servo::init(){
+    setAngle(0);
 }
 
 void Servo::setAngle(float angle) {
