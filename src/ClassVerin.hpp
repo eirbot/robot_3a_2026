@@ -6,10 +6,10 @@
 
 class Verin{
     public:
-        Verin(mcpwm_unit_t unit,
-            mcpwm_io_signals_t signal,
-            mcpwm_timer_t timer,
-            mcpwm_generator_t opr,
+        Verin(//mcpwm_unit_t unit,
+            //mcpwm_io_signals_t signal,
+            //mcpwm_timer_t timer,
+            //mcpwm_generator_t opr,
             uint8_t pin_1,
             uint8_t pin_2,
             uint8_t pin_pwm);
@@ -25,10 +25,10 @@ class Verin{
         uint8_t pin_2;
         uint8_t pin_pwm;
 
-        mcpwm_unit_t mcpwm_num;
-        mcpwm_timer_t timer_num;
-        mcpwm_io_signals_t signal;
-        mcpwm_generator_t opr;
+        // mcpwm_unit_t mcpwm_num;
+        // mcpwm_timer_t timer_num;
+        // mcpwm_io_signals_t signal;
+        // mcpwm_generator_t opr;
 };
 
 

@@ -1,6 +1,6 @@
 #include "ClassVerin.hpp"
 
-Verin verin1(MCPWM_UNIT_0, MCPWM0A, MCPWM_TIMER_0, MCPWM_OPR_A, 14, 12, 13);
+Verin verin1(14, 12, 13);
 
 void setup(){
     Serial.begin(115200);
