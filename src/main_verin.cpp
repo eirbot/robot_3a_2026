@@ -1,6 +1,6 @@
 #include "ClassVerin.hpp"
 
-Verin verin1(14, 12, 13);
+Verin verin1(5, 18, 19);
 
 void setup(){
     Serial.begin(115200);
@@ -12,6 +12,6 @@ void setup(){
 void loop(){
     verin1.extend();
     delay(4000);
-    // verin1.retract();
-    // delay(4000);
+    verin1.retract();
+    delay(4000);
 }

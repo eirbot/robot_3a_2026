@@ -37,6 +37,11 @@ typedef struct {
     float vitesseDroite;  // m/s
 } TaskParams;
 
+// pour servo 
+
+#define MIN_ANGLE 0
+#define MAX_ANGLE 135
+
 // pour ascenseur (stepper & sensor)
 #define RPM_ASC 200
 #define RPM_HOMING 120

@@ -24,8 +24,8 @@ void Servo::init(){
 
 void Servo::setAngle(float angle) {
     // Clamp
-    if (angle < 0) angle = 0;
-    if (angle > 180) angle = 180;
+    if (angle < MIN_ANGLE) angle = MIN_ANGLE;
+    if (angle > MAX_ANGLE) angle = MAX_ANGLE;
 
     // Convert angle to pulse width (µs)
     float pulse_width = 500 + (angle / 180.0f) * 2000; // 500–2500 µs

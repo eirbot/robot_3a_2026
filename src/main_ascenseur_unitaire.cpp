@@ -13,7 +13,7 @@ void setup() {
     ascenseur.Init(ASC_4_SNS, MM_PER_REV);
     delay(1000);
     Serial.println("---HOMING DE L'ASCENSEUR----");
-    ascenseur.StartHoming();
+    // ascenseur.StartHoming();
     delay(1000);
     Serial.println("---ASCENSEUR READY----");
     ascenseur.StandardOp(10, 4096, 2);
