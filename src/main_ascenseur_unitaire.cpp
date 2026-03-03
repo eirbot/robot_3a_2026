@@ -10,7 +10,7 @@ void setup() {
     delay(1000);
     ClassAscenseur ascenseur(ASC_4_STP, ASC_4_DIR, "ASC_4", ASC_4_INV);
     Serial.println("---INITIALISATION DE L'ASCENSEUR----");
-    ascenseur.Init(ASC_4_SNS, MM_PER_REV);
+    ascenseur.init(ASC_4_SNS, MM_PER_REV);
     delay(1000);
     Serial.println("---HOMING DE L'ASCENSEUR----");
     // ascenseur.StartHoming();
