@@ -11,9 +11,9 @@
 
 class ClassAscenseur {
 public:
-    ClassAscenseur(uint8_t stepPin, uint8_t dirPin, String name, bool invertRotation = false);
+    ClassAscenseur(uint8_t stepPin, uint8_t dirPin, uint8_t snsPin , String name, bool invertRotation = false);
     
-    void Init(uint8_t pinCapteur);
+    void init();
     bool MoveToHeightShortcut(float target_mm);
     void Homing();
     void SetZero();
@@ -22,11 +22,12 @@ public:
     bool IsHomed();  // indique si l'ascenseur est calibré
     
     private:
-    uint8_t capteurPin;
+    uint8_t _snsPin;
     TMC2100 moteur;
 
     String _name; //UTILISER POUR LES LOGS DE DEBUG UNIQUEMENT
     
+
     int _dir_sig; // 1 ou -1 selon le sens de rotation du moteur pour que les commandes soient cohérentes avec la réalité
     long _currentSteps = 0;
     

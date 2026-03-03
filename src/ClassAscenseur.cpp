@@ -1,14 +1,14 @@
 #include "ClassAscenseur.hpp"
 
-ClassAscenseur::ClassAscenseur(uint8_t stepPin, uint8_t dirPin, String name, bool invertRotation)
+ClassAscenseur::ClassAscenseur(uint8_t stepPin, uint8_t dirPin, uint8_t snsPin , String name, bool invertRotation)
     : moteur(STEPS_PER_REV, dirPin, stepPin),  // INIT MOTEUR
       _dir_sig(invertRotation ? -1 : 1), // INVERSION DU SENS DE ROTATION
-      _name(name) //POUR DEBUG UNIQUEMENT
+      _name(name), //POUR DEBUG UNIQUEMENT
+      _snsPin(snsPin)
 {}
 
-void ClassAscenseur::Init(uint8_t pinCapteur) { 
-    capteurPin = pinCapteur;
-    pinMode(capteurPin, INPUT);
+void ClassAscenseur::init() { 
+    pinMode(_snsPin, INPUT);
     moteur.setRPM(RPM_ASC);
     moteur.setSpeedProfile(moteur.LINEAR_SPEED,ACCEL_ASC, ACCEL_ASC);
     Homing();
@@ -29,7 +29,7 @@ void ClassAscenseur::Homing(){
         );
   
         // Si déjà sur le capteur → remonte un peu avant de descendre
-    if (digitalRead(capteurPin) == HIGH) {
+    if (digitalRead(_snsPin) == HIGH) {
         Serial.println("[INFO] Capteur déjà actif, on remonte un peu...");
         moteur.startMove(_dir_sig*(HOMING_BACKOFF_MM * 2 / MM_PER_REV) * STEPS_PER_REV);
         while (moteur.getStepsRemaining() != 0) {
@@ -41,7 +41,7 @@ void ClassAscenseur::Homing(){
 
     // Descente lente jusqu’à détection du capteur
     moteur.startMove(_dir_sig*-100000);
-    while (digitalRead(capteurPin) == LOW) {
+    while (digitalRead(_snsPin) == LOW) {
         moteur.nextAction();
         taskYIELD();   // allow RTOS scheduling without killing step timing
     }
