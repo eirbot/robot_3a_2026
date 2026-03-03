@@ -1,12 +1,16 @@
 #include "ClassActionneur.hpp"
 
 Actionneur::Actionneur(
-        // Servo1
+
+        // Sensor
+        uint8_t snsPin,
+
+        // servoFlip
         mcpwm_unit_t unit1, mcpwm_io_signals_t signal1,
         mcpwm_timer_t timer1, mcpwm_generator_t opr1,
         uint8_t pin_pwm1,
 
-        // Servo2
+        // servoOrient
         mcpwm_unit_t unit2, mcpwm_io_signals_t signal2,
         mcpwm_timer_t timer2, mcpwm_generator_t opr2,
         uint8_t pin_pwm2,
@@ -17,24 +21,25 @@ Actionneur::Actionneur(
         // Ascenseur
         uint8_t stepPin, uint8_t dirPin, String name, bool invertRotation
 ):
-servo1(unit1, signal1, timer1, opr1, pin_pwm1),
-servo2(unit2, signal2, timer2, opr2, pin_pwm2),
+servoFlip(unit1, signal1, timer1, opr1, pin_pwm1),
+servoOrient(unit2, signal2, timer2, opr2, pin_pwm2),
 verin(pin_verin1,pin_verin2,pin_verin3),
-ascenseur(stepPin, dirPin, name, invertRotation)
+ascenseur(stepPin, dirPin, snsPin, name, invertRotation)
 {}
 
 enum ActionneurCommand {
     CMD_FLIP,
-    CMD_UNFLIP
+    CMD_nFLIP,
+    CMD_DOWN
 };
 
 void Actionneur::init(uint8_t pin_sns, uint8_t queueLength, uint16_t stackSize, UBaseType_t priority){
     commandQueue = xQueueCreate(queueLength, sizeof(ActionneurCommand));
 
     verin.init();
-    servo1.init();
-    servo2.init();
-    ascenseur.Init(pin_sns);
+    servoFlip.init();
+    servoOrient.init();
+    ascenseur.init();
     //ascenseur.StandardOp(queueLength, stackSize, priority);
     xTaskCreate(
         taskFunction,        // function
@@ -46,15 +51,18 @@ void Actionneur::init(uint8_t pin_sns, uint8_t queueLength, uint16_t stackSize, 
     );
 }
 
-bool Actionneur::receive_command(char * cmd) {
+bool Actionneur::queue_command(const char* cmd) {
     ActionneurCommand command;
 
     if (strcmp(cmd, "flip") == 0) {
         command = CMD_FLIP;
     } 
-    else if (strcmp(cmd, "unflip") == 0) {
-        command = CMD_UNFLIP;
-    } 
+    else if (strcmp(cmd, "nflp") == 0) {
+        command = CMD_nFLIP;
+    }
+    else if (strcmp(cmd, "down") == 0) {
+        command = CMD_DOWN;
+    }
     else {
         return 1; // unknown command
     }
@@ -76,11 +84,13 @@ void Actionneur::taskFunction(void* pvParameters) {
             // Serial.println("[DEBUG] recieved");
             switch (cmd) {
                 case CMD_FLIP:
-                    self->runSequence();
+                    self->runSequenceFlip();
                     break;
-
-                case CMD_UNFLIP:
-                    self->runSequence();
+                case CMD_nFLIP:
+                    self->runSequenceNoFlip();
+                    break;
+                case CMD_DOWN:
+                    self->release();
                     break;
             }
         }
@@ -95,42 +105,43 @@ void Actionneur::runSequenceDEBUG(){
 }
 
 /*--------------------------------------------TO  BE OPTIMIZED---------------------------------------------------*/
-void Actionneur::runSequence() {
-    // Serial.println("[SEQUENCE] init");
-    verin.retract();
-    servo1.setAngle(0);
-    servo2.setAngle(0);
-    ascenseur.MoveToHeightShortcut(100);
-    vTaskDelay(pdMS_TO_TICKS(4000));
-    // Serial.println("[SEQUENCE] 1 verin extend ");
+
+bool Actionneur::runSequenceFlip(){
     verin.extend();
-
-    // Serial.println("[SEQUENCE] 2 asc descend");
     ascenseur.MoveToHeightShortcut(0);
-    vTaskDelay(pdMS_TO_TICKS(4000));
-
-    // Serial.println("[SEQUENCE] 3 verin retract");
+    vTaskDelay(pdMS_TO_TICKS(1000));
     verin.retract();
-    vTaskDelay(pdMS_TO_TICKS(4000));
-
-    // Serial.println("[SEQUENCE] 4 asc monte");
+    vTaskDelay(pdMS_TO_TICKS(1000));
     ascenseur.MoveToHeightShortcut(50);
-    vTaskDelay(pdMS_TO_TICKS(1000));
+    servoOrient.setAngle(_orientAngle);
+    vTaskDelay(pdMS_TO_TICKS(500));
+    servoFlip.setAngle(180);
 
-    // Serial.println("[SEQUENCE] 5 servo turn");
-    servo1.setAngle(180);
-    servo2.setAngle(180);
-    vTaskDelay(pdMS_TO_TICKS(1000));
-
-    // Serial.println("[SEQUENCE] 6 asc descend");
+    return 0;
+}
+bool Actionneur::runSequenceNoFlip(){
+    verin.extend();
     ascenseur.MoveToHeightShortcut(0);
     vTaskDelay(pdMS_TO_TICKS(1000));
+    verin.retract();
+    vTaskDelay(pdMS_TO_TICKS(1000));
+    ascenseur.MoveToHeightShortcut(50);
+    vTaskDelay(pdMS_TO_TICKS(500));
 
-    // Serial.println("[SEQUENCE] 7 verin extend");
+    return 0;
+    
+}
+bool Actionneur::release(){
+    ascenseur.MoveToHeightShortcut(0);
+    vTaskDelay(pdMS_TO_TICKS(1000));
     verin.extend();
     vTaskDelay(pdMS_TO_TICKS(1000));
-
-    // Serial.println("[SEQUENCE] 8 asc monte reset");
     ascenseur.MoveToHeightShortcut(100);
-    vTaskDelay(pdMS_TO_TICKS(4000));
+    // reset actionneur
+    verin.retract();
+    servoFlip.setAngle(0);
+    servoOrient.setAngle(0);
+    ascenseur.MoveToHeightShortcut(100);
+
+    return 0;
 }
