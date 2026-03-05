@@ -28,6 +28,8 @@
 
 
 Actionneur actionneur(
+    PIN_ASC_SNS,
+
     UNIT_PWM_1, SIGNAL_PWM_1, TIMER_PWM_1, OPR_PWM_1,
     PIN_PW_1,
     
@@ -42,12 +44,12 @@ void setup() {
     Serial.begin(115200);
     delay(1000);
     Serial.println("init");
-    actionneur.init(PIN_ASC_SNS,3,4096, 1);
+    actionneur.init(3,4096, 1);
     Serial.println("done");
 }
 
 void loop() {
     Serial.println("commanding");
-    actionneur.receive_command("flip");
+    actionneur.queue_command("flip");
     delay(20000);
 }

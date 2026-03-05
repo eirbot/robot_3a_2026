@@ -36,7 +36,7 @@ class Actionneur {
 
         void runSequenceDEBUG();
         
-        void init(uint8_t pin_sns, uint8_t queueLength, uint16_t stackSize, UBaseType_t priority);
+        void init(uint8_t queueLength, uint16_t stackSize, UBaseType_t priority);
         
         bool queue_command(const char* command);
         

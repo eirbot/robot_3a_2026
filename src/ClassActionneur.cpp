@@ -33,7 +33,7 @@ enum ActionneurCommand {
     CMD_DOWN
 };
 
-void Actionneur::init(uint8_t pin_sns, uint8_t queueLength, uint16_t stackSize, UBaseType_t priority){
+void Actionneur::init(uint8_t queueLength, uint16_t stackSize, UBaseType_t priority){
     commandQueue = xQueueCreate(queueLength, sizeof(ActionneurCommand));
 
     verin.init();
