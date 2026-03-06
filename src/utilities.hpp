@@ -3,7 +3,7 @@
 
 // Include necessary libraries
 
-#include <Arduino.h>
+// #include <Arduino.h>
 #include "TMC2100.h" // RTOS FRIENDLY A PRIVILGIER
 
 
