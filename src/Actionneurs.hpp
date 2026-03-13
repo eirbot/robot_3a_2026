@@ -75,11 +75,13 @@ struct Actionneur {
   void closePiston() {
     pcf.write(v1, HIGH);
     pcf.write(v2, LOW);
+    delay(500);
   }
 
   void openPiston() {
     pcf.write(v1, LOW);
     pcf.write(v2, HIGH);
+    delay(500);
   }
 
   void goUp(int steps) {
