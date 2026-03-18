@@ -1,5 +1,4 @@
 import numpy as np
-import matplotlib.pyplot as plt
 
 # === Fonction de Bézier cubique ===
 def bezier_cubique(t, P0, P1, P2, P3):

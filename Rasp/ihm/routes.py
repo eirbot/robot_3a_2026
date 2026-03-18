@@ -221,9 +221,13 @@ def config_edit():
         # Gestion des triggers spéciaux (Stratégie)
         if key == 'static_strat':
             state['strat_id'] = val
-        elif key == 'strat_mode' and val == 'STATIC':
-            if conf.get('static_strat'):
+        elif key == 'strat_mode':
+            state['strat_mode'] = val
+            if val == 'STATIC' and conf.get('static_strat'):
                 state['strat_id'] = conf['static_strat']
+                
+        # --- FIX: Notify all clients of the config change ---
+        socketio.emit('state_update', state)
         
     return jsonify({'status': 'ok'})
 

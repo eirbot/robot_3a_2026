@@ -560,16 +560,8 @@ document.addEventListener("DOMContentLoaded", function () {
     var simuBtn = document.getElementById('simuBtn'); if (simuBtn) simuBtn.addEventListener('click', runSimulation);
     var previewBtn = document.getElementById('previewBtn'); if (previewBtn) previewBtn.addEventListener('click', generatePreview);
 
-    function refreshStratList() {
-        fetch('/api/list_blockly_strats')
-            .then(r => r.json())
-            .then(d => {
-                var s = document.getElementById('stratSelect');
-                s.innerHTML = '<option value="" disabled selected>Choisir...</option>';
-                d.forEach(n => { var o = document.createElement('option'); o.value = n; o.innerText = n; s.appendChild(o) });
-            });
-    }
-    refreshStratList();
+    // Chargement initial des stratégies
+    loadBlocklyStrats('stratSelect');
 
     document.getElementById('loadBtn').addEventListener('click', function () {
         var n = document.getElementById('stratSelect').value;
@@ -603,7 +595,7 @@ document.addEventListener("DOMContentLoaded", function () {
             .then(r => r.json())
             .then(d => {
                 if (d.status === 'success') {
-                    refreshStratList();
+                    loadBlocklyStrats('stratSelect');
                     document.getElementById('status').innerText = "✅ Sauvegardé";
                 }
             });

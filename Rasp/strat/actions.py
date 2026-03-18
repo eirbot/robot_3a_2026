@@ -64,11 +64,18 @@ class RobotActions:
         print(f"[ACTION] SET_POS -> ({real_x}, {real_y}, {real_theta}°)")
 
         # 3. Envoi à l'ESP32 (Reset Odométrie)
-        # On utilise la variable 'envoyer' définie dans les imports
         if envoyer:
-            envoyer("SET POSE") # Adapter selon le format attendu par ton interface
+            cmd = f"SET POSE {real_y:.2f} {real_x:.2f} {math.radians(real_theta):.4f}"
+            envoyer(cmd)
+            
+            # Wait a brief moment to ensure the ESP has processed the pose reset
+            try:
+                import interface_deplacement.interface_deplacement as idp
+                idp.wait_idle(timeout=0.5)
+            except: pass
         else:
             print("[SIMU] SET_POS virtuel (Pas de com)")
+
 
     # --- LE COEUR DU SUJET : GOTO BEZIER ---
     def goto(self, x, y, theta, force=500):
@@ -98,8 +105,13 @@ class RobotActions:
         p2_y = p3_y - force * math.sin(rad_end)
 
         # 4. GÉNÉRATION DES POINTS ET ENVOI
-        # Correction ici : on utilise 'envoyer' uniformément
-        if Bezier and envoyer:
+        try:
+            from interface_deplacement.interface_deplacement import is_ready, wait_idle
+            simulating = not is_ready()
+        except:
+            simulating = True
+
+        if Bezier and envoyer and not simulating:
             try:
                 # Génération d'une liste de points (ex: 50 points)
                 points_bezier = Bezier.bezier_cubique_discret(
@@ -110,8 +122,11 @@ class RobotActions:
                     (p3_x, p3_y)
                 )
                 
-                # Envoi via Série
+                # Envoi via Série (non-bloquant)
                 envoyer(points_bezier)
+                
+                # On attend que l'ESP finisse son mouvement
+                wait_idle(timeout=15.0) 
             except Exception as e:
                 print(f"[ERREUR] Échec envoi trajectoire : {e}")
             
@@ -136,8 +151,8 @@ class RobotActions:
         print("[ACTION] STOP")
         # Si on a la com, on envoie un arrêt
         if envoyer:
-            # Adapter selon ton protocole (ex: envoyer([0,0]) ou string "STOP")
-            pass 
+            envoyer("STOP")
+
 
     def prendreKapla(self, hauteur=0):
         self._check_abort()

@@ -115,39 +115,24 @@ function adjustScore(delta) {
 
 // Initialisation : Chargement des stratégies (Global)
 // Initial Load
-loadStrats();
+loadBlocklyStrats('strat-select');
 
 // Auto-Refresh Strategy List every 5 seconds (Sync Robot/PC)
-setInterval(loadStrats, 5000);
-
-function loadStrats() {
-    fetch('/api/list_blockly_strats')
-        .then(r => r.json())
-        .then(data => {
-            const sel = document.getElementById('strat-select');
-            if (sel) {
-                // Save current selection to restore it if it still exists
-                const currentVal = sel.value;
-
-                sel.innerHTML = '<option value="" disabled>Choisir...</option>';
-                data.forEach(s => {
-                    let opt = document.createElement('option');
-                    opt.value = s;
-                    opt.innerText = s;
-                    if (s === currentVal) opt.selected = true;
-                    sel.appendChild(opt);
-                });
-
-                // If nothing selected, restore initial "Choisir..."
-                if (!sel.value) sel.querySelector('option[disabled]').selected = true;
-            }
-        })
-        .catch(e => console.error("Erreur chargement strats", e));
-}
+setInterval(() => loadBlocklyStrats('strat-select'), 5000);
 
 // Changement de stratégie via le sélecteur (Global)
-async function updateStrat(val) {
+async function updateStrat(event_or_val) {
+    let val = event_or_val;
+    // Handle both direct call (string) and event handler (Event)
+    if (event_or_val && event_or_val.target) {
+        val = event_or_val.target.value;
+    } else if (!val) {
+        const sel = document.getElementById('strat-select');
+        val = sel ? sel.value : null;
+    }
+
     if (!val) return;
+
     await fetch('/api/config_edit', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

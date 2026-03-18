@@ -12,7 +12,7 @@ import ihm.shared as shared
 from strat.main_strat import strat_loop
 
 # Import des communications avec les moteurs
-# from interface_deplacement.interface_deplacement import init as init_motors
+from interface_deplacement.interface_deplacement import init as init_motors
 
 # Import des logiques
 from hardware_thread import hardware_loop
@@ -21,7 +21,7 @@ from hardware_thread import hardware_loop
 if __name__ == "__main__":
     print("--- ROBOT 2026 : Démarrage ---")
     
-    # init_motors()
+    init_motors()
     
     led_process = None
     try:

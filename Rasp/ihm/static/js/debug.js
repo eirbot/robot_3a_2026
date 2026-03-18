@@ -4,7 +4,7 @@ let currentChart = null;
 
 document.addEventListener("DOMContentLoaded", () => {
     initDebugPage();
-    fetchStrats(); // Charge la liste pour le mode Statique
+    loadBlocklyStrats('strat-select'); // Charge la liste pour le mode Statique
 });
 
 function initDebugPage() {
@@ -26,25 +26,6 @@ function initDebugPage() {
             }
         }
     });
-}
-
-// Récupère la liste des stratégies
-function fetchStrats() {
-    fetch('/api/list_blockly_strats')
-        .then(r => r.json())
-        .then(data => {
-            const sel = document.getElementById('strat-select');
-            if (sel) {
-                sel.innerHTML = '<option value="" disabled selected>Choisir un fichier...</option>';
-                data.forEach(s => {
-                    let opt = document.createElement('option');
-                    opt.value = s;
-                    opt.innerText = s;
-                    sel.appendChild(opt);
-                });
-            }
-        })
-        .catch(err => console.error("Erreur chargement strats:", err));
 }
 
 // Mise à jour Config via l'événement state_update

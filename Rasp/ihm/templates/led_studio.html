@@ -12,20 +12,24 @@
 
 <body>
     <div class="studio-container">
-        <!-- HEADER -->
-        <header>
-            <h1>LED Studio 🎨</h1>
-            <div class="actions">
-                <select id="animSelect">
-                    <option value="">-- Nouvelle Animation --</option>
-                </select>
-                <button id="btnNew" class="btn">⭐ Nouveau</button>
-                <button id="btnSave" class="btn success">💾 Sauvegarder</button>
-                <button id="btnDelete" class="btn danger">🗑️ Supprimer</button>
-                <div class="separator"></div>
-                <button id="btnHome" class="btn" onclick="window.location.href='/'">🏠 Accueil</button>
-            </div>
-        </header>
+        <!-- HEADER STANDARD -->
+        <div class="header">
+            <a href="/" class="btn-back">⬅ RETOUR</a>
+            <div style="font-weight:bold;">LED STUDIO 🎨</div>
+            <div class="sys-info" id="sys-info">...</div>
+        </div>
+
+        <!-- BARRE D'OUTILS LED STUDIO -->
+        <div
+            style="background:#1c232b; padding:10px; display:flex; gap:10px; align-items:center; border-bottom:1px solid #333;">
+            <select id="animSelect" class="strat-select" style="display:inline-block; margin:0;">
+                <option value="">-- Nouvelle Animation --</option>
+            </select>
+            <button id="btnNew" class="btn-sys">⭐ Nouveau</button>
+            <div style="flex-grow: 1;"></div>
+            <button id="btnSave" class="btn-sys" style="background:#4CAF50;">💾 Sauvegarder</button>
+            <button id="btnDelete" class="btn-sys" style="background:#F44336;">🗑️ Supprimer</button>
+        </div>
 
         <!-- MAIN CONTENT -->
         <main>

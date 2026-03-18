@@ -15,24 +15,28 @@
 
 <body>
 
-    <div id="controls">
-        <h3 style="margin-right: 20px;">🤖 Strat Studio</h3>
+    <div class="header">
+        <a href="/" class="btn-back">⬅ RETOUR</a>
+        <div style="font-weight:bold;">STRAT STUDIO 🧩</div>
+        <div class="sys-info" id="sys-info">...</div>
+    </div>
 
-        <select id="stratSelect">
+    <div id="controls"
+        style="background:#1c232b; padding:10px; display:flex; gap:10px; align-items:center; border-bottom:1px solid #333;">
+        <select id="stratSelect" class="strat-select" style="display:inline-block;">
             <option value="" disabled selected>Choisir...</option>
         </select>
-        <button id="loadBtn">📂 Charger</button>
+        <button id="loadBtn" class="btn-sys">📂 Charger</button>
 
         <div style="flex-grow: 1;"></div>
         <div style="width: 2px; height: 30px; background: #555; margin: 0 15px;"></div>
-        <button id="previewBtn" style="background: #6f42c1; color: white;">👁️ Voir Trajet</button>
-        <button id="simuBtn">▶️ Simuler</button>
+        <button id="previewBtn" class="btn-sys" style="background: #6f42c1;">👁️ Voir Trajet</button>
+        <button id="simuBtn" class="btn-sys" style="background: #E91E63;">▶️ Simuler</button>
 
-        <input type="text" id="filename" placeholder="Nom de la strat" value="nouvelle_strat">
-        <button id="saveBtn">💾 Sauvegarder</button>
+        <input type="text" id="filename" placeholder="Nom de la strat" value="nouvelle_strat"
+            style="padding:5px; background:#333; color:white; border:1px solid #555; border-radius:5px;">
+        <button id="saveBtn" class="btn-sys" style="background: #4CAF50;">💾 Sauvegarder</button>
 
-        <div style="width: 2px; height: 30px; background: #555; margin: 0 15px;"></div>
-        <a href="/" style="color: #aaa; text-decoration: none; font-size: 0.9em;">Retour Accueil</a>
         <div id="status" style="margin-left: 20px; font-weight: bold; color: #4cd137;"></div>
     </div>
 
