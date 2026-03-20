@@ -28,6 +28,8 @@ ascenseur(stepPin, dirPin, snsPin, name, invertRotation)
 {}
 
 enum ActionneurCommand {
+    CMD_INIT,
+    CMD_RESET,
     CMD_FLIP,
     CMD_nFLIP,
     CMD_DOWN
@@ -63,6 +65,12 @@ bool Actionneur::queue_command(const char* cmd) {
     else if (strcmp(cmd, "down") == 0) {
         command = CMD_DOWN;
     }
+    else if (strcmp(cmd, "init") == 0) {
+        command = CMD_INIT;
+    }
+    else if (strcmp(cmd, "rset") == 0) {
+        command = CMD_RESET;
+    }
     else {
         return 1; // unknown command
     }
@@ -91,6 +99,12 @@ void Actionneur::taskFunction(void* pvParameters) {
                     break;
                 case CMD_DOWN:
                     self->release();
+                    break;
+                case CMD_INIT:
+                    self->init();
+                    break;
+                case CMD_RESET:
+                    self->reset();
                     break;
             }
         }
@@ -142,6 +156,16 @@ bool Actionneur::release(){
     servoFlip.setAngle(0);
     servoOrient.setAngle(0);
     ascenseur.MoveToHeightShortcut(100);
+
+    return 0;
+}
+
+bool Actionneur::init(){
+
+    return 0;
+}
+
+bool Actionneur::reset(){
 
     return 0;
 }

@@ -43,6 +43,8 @@ class Actionneur {
         bool runSequenceFlip();
         bool runSequenceNoFlip();
         bool release();
+        bool init();
+        bool reset();
         
     private:
         Verin verin;
