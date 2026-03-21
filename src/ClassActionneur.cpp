@@ -19,12 +19,17 @@ Actionneur::Actionneur(
         uint8_t pin_verin1, uint8_t pin_verin2, uint8_t pin_verin3,
 
         // Ascenseur
-        uint8_t stepPin, uint8_t dirPin, String name, bool invertRotation
+        uint8_t stepPin, uint8_t dirPin, String name, bool invertRotation,
+
+        // Positions
+        float orientAngle, float initAngle, float initHeight, float resetAngle, float resetHeight
+
 ):
 servoFlip(unit1, signal1, timer1, opr1, pin_pwm1),
 servoOrient(unit2, signal2, timer2, opr2, pin_pwm2),
 verin(pin_verin1,pin_verin2,pin_verin3),
-ascenseur(stepPin, dirPin, snsPin, name, invertRotation)
+ascenseur(stepPin, dirPin, snsPin, name, invertRotation),
+_orientAngle(orientAngle), _initAngle(initAngle), _initHeight(initHeight), _resetAngle(resetAngle), _resetHeight(resetHeight)
 {}
 
 enum ActionneurCommand {
@@ -121,7 +126,6 @@ void Actionneur::runSequenceDEBUG(){
 /*--------------------------------------------TO  BE OPTIMIZED---------------------------------------------------*/
 
 bool Actionneur::runSequenceFlip(){
-    verin.extend();
     ascenseur.MoveToHeightShortcut(0);
     vTaskDelay(pdMS_TO_TICKS(1000));
     verin.retract();
@@ -134,7 +138,6 @@ bool Actionneur::runSequenceFlip(){
     return 0;
 }
 bool Actionneur::runSequenceNoFlip(){
-    verin.extend();
     ascenseur.MoveToHeightShortcut(0);
     vTaskDelay(pdMS_TO_TICKS(1000));
     verin.retract();
@@ -151,21 +154,23 @@ bool Actionneur::release(){
     verin.extend();
     vTaskDelay(pdMS_TO_TICKS(1000));
     ascenseur.MoveToHeightShortcut(100);
-    // reset actionneur
+    // rearm actionneur
+    init();
+    return 0;
+}
+
+bool Actionneur::init(){ // standby position
+    ascenseur.MoveToHeightShortcut(_initHeight);
+    verin.extend();
+    servoOrient.setAngle(_initAngle);
+    servoFlip.init();
+    return 0;
+}
+
+bool Actionneur::reset(){ // position to fit inside undeployed perimeter
+    ascenseur.MoveToHeightShortcut(_resetHeight);
     verin.retract();
-    servoFlip.setAngle(0);
-    servoOrient.setAngle(0);
-    ascenseur.MoveToHeightShortcut(100);
-
-    return 0;
-}
-
-bool Actionneur::init(){
-
-    return 0;
-}
-
-bool Actionneur::reset(){
-
+    servoOrient.setAngle(_resetAngle);
+    servoFlip.init();
     return 0;
 }
