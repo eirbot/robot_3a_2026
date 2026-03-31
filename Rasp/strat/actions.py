@@ -3,6 +3,31 @@ import time
 import math
 import ihm.shared as shared
 
+# --- AJOUT AU PATH GLOBAL POUR LES IMPORTS CROSS-FOLDERS ---
+import sys
+import os
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+# --- COM ACTIONNEURS (via module dédié) ---
+try:
+    from Actionneur.interface_actionneur import InterfaceActionneur
+    actionneurs = InterfaceActionneur()
+except Exception as e:
+    print(f"⚠️ Attention : Erreur de chargement du module Actionneur ({e}) -> Mode simulation")
+    actionneurs = None
+
+# --- VISION KAPLAS (via module dédié) ---
+try:
+    from utils.sensors.camera_libcamera import LibCamera
+    from Vision.vision_kapla import KaplaVision
+    print("[VISION] Démarrage Picamera2 (LibCamera)...")
+    cam = LibCamera()
+    cam.start()
+    vision = KaplaVision(cam)
+except Exception as e:
+    print(f"⚠️ Attention : Erreur de chargement du module Vision/Caméra ({e}) -> Pas de détection auto")
+    vision = None
+
 # --- CORRECTION DES IMPORTS ---
 try:
     # On essaie d'importer le module Bezier
@@ -185,3 +210,40 @@ class RobotActions:
         self._check_abort()
         print(f"[ACTION] Playing Sound: {sound_name}")
         shared.audio.play(sound_name)
+
+    def prendre_kaplas_camera(self):
+        """
+        Utilise la caméra MIPI et OpenCV ArUco pour récupérer 
+        l'orientation des 4 Kaplas et actionner avec FLIP ou nFLIP appropriés.
+        """
+        self._check_abort()
+        print(f"[ACTION] Analyse Caméra (ArUco) pour les 4 Kaplas (Equipe JAUNE={self.is_yellow})...")
+        
+        if vision:
+            kaplas_decision = vision.detect_kaplas_orientation(team_yellow=self.is_yellow)
+        else:
+            print("[VISION/SIMU] Simulation des Kaplas (Caméra non disponible).")
+            kaplas_decision = ["nFLIP", "nFLIP", "nFLIP", "nFLIP"]
+            
+        print(f"[DECISION] Actionneurs : 1={kaplas_decision[0]} | 2={kaplas_decision[1]} | 3={kaplas_decision[2]} | 4={kaplas_decision[3]}")
+        
+        self.cmd_actionneurs(
+            act1=kaplas_decision[0],
+            act2=kaplas_decision[1],
+            act3=kaplas_decision[2],
+            act4=kaplas_decision[3]
+        )
+        time.sleep(1)
+
+    def cmd_actionneurs(self, command_string=None, act1=None, act2=None, act3=None, act4=None):
+        """
+        Interface Blockly vers le module Actionneur dédié.
+        """
+        self._check_abort()
+        if actionneurs:
+            if command_string is not None:
+                actionneurs.send_raw(command_string)
+            else:
+                actionneurs.send_cmd(act1, act2, act3, act4)
+        else:
+            print("[SIMU] Pas d'interface Actionneur connectée (Mode sans matériel).")

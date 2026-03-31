@@ -91,6 +91,32 @@ document.addEventListener("DOMContentLoaded", function () {
     Blockly.Blocks['poser_kapla'] = { init: function () { this.appendDummyInput().appendField("🖐️ Poser Kapla (H:").appendField(new Blockly.FieldNumber(0), "HAUTEUR").appendField("mm)"); this.setPreviousStatement(true, null); this.setNextStatement(true, null); this.setColour(120); } };
     Blockly.Blocks['robot_stop'] = { init: function () { this.appendDummyInput().appendField("🛑 Arrêter le robot"); this.setPreviousStatement(true, null); this.setNextStatement(true, null); this.setColour(0); } };
 
+    // --- NOUVEAUX ACTIONNEURS (BAS & HAUT NIVEAU) ---
+    Blockly.Blocks['actionneur_unique'] = {
+        init: function () {
+            this.appendDummyInput()
+                .appendField("⚙️ Actionneur")
+                .appendField(new Blockly.FieldDropdown([["1", "1"], ["2", "2"], ["3", "3"], ["4", "4"]]), "ID")
+                .appendField("Action:")
+                .appendField(new Blockly.FieldDropdown([["FLIP (Prendre + Tourne)", "FLIP"], ["nFLIP (Prendre sans tourner)", "nFLIP"], ["DOWN (Poser)", "DOWN"], ["INIT (Match)", "INIT"], ["RESET (Rangé)", "RESET"]]), "CMD");
+            this.setPreviousStatement(true, null);
+            this.setNextStatement(true, null);
+            this.setColour(120);
+            this.setTooltip("Contrôle individuel bas niveau pour un actionneur.");
+        }
+    };
+
+    Blockly.Blocks['prendre_tous_kaplas'] = {
+        init: function () {
+            this.appendDummyInput()
+                .appendField("👁️ Prendre 4 Kaplas (Auto Caméra)");
+            this.setPreviousStatement(true, null);
+            this.setNextStatement(true, null);
+            this.setColour(120);
+            this.setTooltip("Analyse via la caméra et définit s'il faut faire FLIP ou nFLIP pour chaque Kapla.");
+        }
+    };
+
     // --- SONS & LUMIERES ---
     Blockly.Blocks['play_animation'] = {
         init: function () {
@@ -123,6 +149,14 @@ document.addEventListener("DOMContentLoaded", function () {
     Blockly.Python.forBlock['retourner_kapla'] = function (block) { return `robot.retournerKapla()\n`; };
     Blockly.Python.forBlock['poser_kapla'] = function (block) { return `robot.poseKapla(hauteur=${block.getFieldValue('HAUTEUR')})\n`; };
     Blockly.Python.forBlock['robot_stop'] = function (block) { return 'robot.stop()\n'; };
+
+    Blockly.Python.forBlock['actionneur_unique'] = function(block) {
+        return `robot.cmd_actionneurs(act${block.getFieldValue('ID')}='${block.getFieldValue('CMD')}')\n`;
+    };
+
+    Blockly.Python.forBlock['prendre_tous_kaplas'] = function(block) {
+        return `robot.prendre_kaplas_camera()\n`;
+    };
 
     Blockly.Python.forBlock['play_animation'] = function (block) { return `robot.play_animation("${block.getFieldValue('ANIM_NAME')}")\n`; };
     Blockly.Python.forBlock['play_sound'] = function (block) { return `robot.play_sound("${block.getFieldValue('SOUND_NAME')}")\n`; };
@@ -436,7 +470,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
                 simX = targetX; simY = targetY; simTheta = targetTheta;
             }
-            else if (currentBlock.type.includes('kapla') || currentBlock.type.includes('stop') || currentBlock.type.includes('play_')) {
+            else if (currentBlock.type.includes('kapla') || currentBlock.type.includes('stop') || currentBlock.type.includes('play_') || currentBlock.type.includes('actionneur')) {
                 let msg = "Action";
                 if (currentBlock.type === 'prendre_kapla') msg = "Prise Kapla";
                 if (currentBlock.type === 'retourner_kapla') msg = "Retourne Kapla";
@@ -444,6 +478,8 @@ document.addEventListener("DOMContentLoaded", function () {
                 if (currentBlock.type === 'robot_stop') msg = "STOP";
                 if (currentBlock.type === 'play_animation') msg = "Animation: " + currentBlock.getFieldValue('ANIM_NAME');
                 if (currentBlock.type === 'play_sound') msg = "Son: " + currentBlock.getFieldValue('SOUND_NAME');
+                if (currentBlock.type === 'actionneur_unique') msg = `Act. ${currentBlock.getFieldValue('ID')}: ${currentBlock.getFieldValue('CMD')}`;
+                if (currentBlock.type === 'prendre_tous_kaplas') msg = "Prise 4 Kaplas (Caméra)";
                 // AJOUT DE blockId ICI
                 queue.push({ type: 'action', msg: msg, blockId: blockId });
             }
