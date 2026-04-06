@@ -41,7 +41,7 @@ enum ActionneurCommand {
 
 void Actionneur::init(uint8_t queueLength, uint16_t stackSize, UBaseType_t priority){
     commandQueue = xQueueCreate(queueLength, sizeof(ActionneurCommand));
-
+    initMutex();
     verin.init();
     servoFlip.init();
     servoOrient.init();
