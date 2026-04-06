@@ -18,7 +18,7 @@ class AscenseurQueue {
         uint8_t stepPin, uint8_t dirPin, String name, bool invertRotation,
 
         // Positions
-        float initHeight, float resetHeight
+        float initHeight, float resetHeight, float midheight, float highheight
         );
 
         void runSequenceDEBUG();
@@ -41,6 +41,8 @@ class AscenseurQueue {
 
         float _initHeight; // init height
         float _resetHeight;
+        float _midHeight;
+        float _highHeight;
 
     
         static void taskFunction(void* pvParameters);

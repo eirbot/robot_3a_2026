@@ -3,7 +3,6 @@
 
 #include "ClassServo.hpp"
 #include "ClassVerin.hpp"
-#include "ClassAscenseur.hpp"
 
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
@@ -29,11 +28,11 @@ class Actionneur {
         // Verin
         uint8_t pin_verin1, uint8_t pin_verin2, uint8_t pin_verin3,
 
-        // Ascenseur
-        uint8_t stepPin, uint8_t dirPin, String name, bool invertRotation,
-
         // Positions
-        float orientAngle, float initAngle, float initHeight, float resetAngle, float resetHeight
+        float orientAngle, float initAngle, float resetAngle,
+
+        //Ascenseur
+        String name
         );
 
         void runSequenceDEBUG();
@@ -47,12 +46,15 @@ class Actionneur {
         bool release();
         bool init();
         bool reset();
+
+        static void initMutex();
+        void safePrint(String msg);
         
     private:
         Verin verin;
         Servo servoFlip;
         Servo servoOrient;
-        ClassAscenseur ascenseur; 
+        String _name;
     
         TaskHandle_t taskHandle;
         QueueHandle_t commandQueue;
@@ -60,12 +62,12 @@ class Actionneur {
 
         float _orientAngle; // makes place tout flip all kaplas
         float _initAngle; // makes actionneur look forward
-        float _initHeight; // init height
         float _resetAngle; // makes actionneur fit inside perimeter
-        float _resetHeight;
 
     
         static void taskFunction(void* pvParameters);
+
+        static SemaphoreHandle_t serialMutex;
     
         void take();
         void flip();

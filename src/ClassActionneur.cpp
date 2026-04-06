@@ -18,18 +18,17 @@ Actionneur::Actionneur(
         // Verin
         uint8_t pin_verin1, uint8_t pin_verin2, uint8_t pin_verin3,
 
-        // Ascenseur
-        uint8_t stepPin, uint8_t dirPin, String name, bool invertRotation,
-
         // Positions
-        float orientAngle, float initAngle, float initHeight, float resetAngle, float resetHeight
+        float orientAngle, float initAngle, float resetAngle,
+
+        //Ascenseur
+        String name
 
 ):
 servoFlip(unit1, signal1, timer1, opr1, pin_pwm1),
 servoOrient(unit2, signal2, timer2, opr2, pin_pwm2),
 verin(pin_verin1,pin_verin2,pin_verin3),
-ascenseur(stepPin, dirPin, snsPin, name, invertRotation),
-_orientAngle(orientAngle), _initAngle(initAngle), _initHeight(initHeight), _resetAngle(resetAngle), _resetHeight(resetHeight)
+_orientAngle(orientAngle), _initAngle(initAngle), _resetAngle(resetAngle), _name(name)
 {}
 
 enum ActionneurCommand {
@@ -46,8 +45,6 @@ void Actionneur::init(uint8_t queueLength, uint16_t stackSize, UBaseType_t prior
     verin.init();
     servoFlip.init();
     servoOrient.init();
-    ascenseur.init();
-    //ascenseur.StandardOp(queueLength, stackSize, priority);
     xTaskCreate(
         taskFunction,        // function
         "ActionneurTask",    // name
@@ -123,14 +120,32 @@ void Actionneur::runSequenceDEBUG(){
     verin.extend();
 }
 
+
+void Actionneur::initMutex() {
+        if (serialMutex == NULL) {
+            serialMutex = xSemaphoreCreateMutex();
+        }
+    }
+
+void Actionneur::safePrint(String msg) {
+        if (xSemaphoreTake(serialMutex, portMAX_DELAY)) {
+            String cmd = _name + "/" + msg;
+            Serial1.print(cmd);
+            xSemaphoreGive(serialMutex);
+        }
+    }
+
+
 /*--------------------------------------------TO  BE OPTIMIZED---------------------------------------------------*/
 
 bool Actionneur::runSequenceFlip(){
-    ascenseur.MoveToHeightShortcut(0);
+    // ascenseur.MoveToHeightShortcut(0);
+    safePrint("hlow");
     vTaskDelay(pdMS_TO_TICKS(1000));
     verin.retract();
     vTaskDelay(pdMS_TO_TICKS(1000));
-    ascenseur.MoveToHeightShortcut(50);
+    // ascenseur.MoveToHeightShortcut(50);
+    safePrint("hmid");
     servoOrient.setAngle(_orientAngle);
     vTaskDelay(pdMS_TO_TICKS(500));
     servoFlip.setAngle(180);
@@ -138,29 +153,34 @@ bool Actionneur::runSequenceFlip(){
     return 0;
 }
 bool Actionneur::runSequenceNoFlip(){
-    ascenseur.MoveToHeightShortcut(0);
+    // ascenseur.MoveToHeightShortcut(0);
+    safePrint("hlow");
     vTaskDelay(pdMS_TO_TICKS(1000));
     verin.retract();
     vTaskDelay(pdMS_TO_TICKS(1000));
-    ascenseur.MoveToHeightShortcut(50);
+    // ascenseur.MoveToHeightShortcut(50);
+    safePrint("hmid");
     vTaskDelay(pdMS_TO_TICKS(500));
 
     return 0;
     
 }
 bool Actionneur::release(){
-    ascenseur.MoveToHeightShortcut(0);
+    // ascenseur.MoveToHeightShortcut(0);
+    safePrint("hlow");
     vTaskDelay(pdMS_TO_TICKS(1000));
     verin.extend();
     vTaskDelay(pdMS_TO_TICKS(1000));
-    ascenseur.MoveToHeightShortcut(100);
+    // ascenseur.MoveToHeightShortcut(100);
+    safePrint("high");
     // rearm actionneur
     init();
     return 0;
 }
 
 bool Actionneur::init(){ // standby position
-    ascenseur.MoveToHeightShortcut(_initHeight);
+    // ascenseur.MoveToHeightShortcut(_initHeight);
+    safePrint("init");
     verin.extend();
     servoOrient.setAngle(_initAngle);
     servoFlip.init();
@@ -168,7 +188,8 @@ bool Actionneur::init(){ // standby position
 }
 
 bool Actionneur::reset(){ // position to fit inside undeployed perimeter
-    ascenseur.MoveToHeightShortcut(_resetHeight);
+    // ascenseur.MoveToHeightShortcut(_resetHeight);
+    safePrint("rset");
     verin.retract();
     servoOrient.setAngle(_resetAngle);
     servoFlip.init();
