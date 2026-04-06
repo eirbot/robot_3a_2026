@@ -11,10 +11,6 @@ class Actionneur {
     
     public:
         Actionneur(
-
-        // Sensor
-        uint8_t snsPin,
-
         // servoFlip
         mcpwm_unit_t unit1, mcpwm_io_signals_t signal1,
         mcpwm_timer_t timer1, mcpwm_generator_t opr1,
