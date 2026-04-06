@@ -1,4 +1,4 @@
-#ifndef CLASS_ASCENSEUR_MANAGER_HPP
+#ifndef CLASS_ASCENSEUR_ASCENSEUR_HPP
 
 #include <Arduino.h>
 #include "utilities.hpp"
@@ -15,10 +15,10 @@ extern AscenseurQueue ASC2;
 extern AscenseurQueue ASC3;
 extern AscenseurQueue ASC4;
 
-class ClassCommandManager{
+class ClassCommandAscenseur{
 
     public:
-        ClassCommandManager(); // CONSTRUCTOR
+        ClassCommandAscenseur(); // CONSTRUCTOR
         void StartCommandTask(); // CREATE TASK
 
     private:
@@ -30,7 +30,7 @@ class ClassCommandManager{
         size_t uartIndex = 0;
         char uartBuffer[UART_BUFFER_SIZE];
         bool queue_command(const char* command);
-        TaskHandle_t vManagerHandle;
+        TaskHandle_t vAscenseurHandle;
 };
 
 #endif
