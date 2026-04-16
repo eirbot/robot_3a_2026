@@ -91,7 +91,7 @@ void TrajectoryFollower::setNominalSpeed(float v_mps) {
 }
 
 bool TrajectoryFollower::computeCommand(const Pose2D& poseOdom, float dt, float& vL_out, float& vR_out, float& temps_arc) {
-    v_nom = 0.35;
+    v_nom = 0.3;
 
     Serial.print("Point suivant, currentIdx : ");
     Serial.println( currentIdx +1);
@@ -156,6 +156,16 @@ bool TrajectoryFollower::computeCommand(const Pose2D& poseOdom, float dt, float&
 
     float vL = Dist_L/temps_arc;
     float vR = Dist_R/temps_arc;
+
+    //slow down the robot if one of the command is too fast for the motor
+    if(max(vL, vR) >= MAX_SPEED_MM_S / 1000.0){ 
+        vL *= MAX_SPEED_MM_S / (1000.0 * max(vL, vR));
+        vR *= MAX_SPEED_MM_S / (1000.0 * max(vL, vR));
+        temps_arc *= MAX_SPEED_MM_S / (1000.0 * max(vL, vR));
+    }
+
+    Serial.print("max(vL, vR): ");
+    Serial.println(max(vL, vR));
 
     vL_out = vL;
     vR_out = vR;
