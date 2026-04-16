@@ -156,6 +156,15 @@ bool TrajectoryFollower::computeCommand(const Pose2D& poseOdom, const VelMots2D&
 
     temps_arc = Dist/v_nom;
 
+    int nPointsDec = nPoints/2;
+    if(currentIdx > nPoints - nPointsDec){
+        int decIdx = currentIdx - (nPoints - nPointsDec);
+        // temps_arc *= (nPointsDec - decIdx + 1) / (nPointsDec - decIdx);
+        temps_arc *= decIdx;
+        Serial.print(" decIdx : ");
+        Serial.println(decIdx);
+    }
+
     float Dist_L = (R-WHEEL_BASE/2.0)*theta;
     float Dist_R = (R+WHEEL_BASE/2.0)*theta;
 
