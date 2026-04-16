@@ -13,3 +13,5 @@ adafruit-circuitpython-dotstar
 adafruit-blinka
 pywebview
 maturin
+pygame
+pyserial

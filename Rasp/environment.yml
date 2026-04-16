@@ -1,0 +1,12 @@
+name: eirbot
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - python=3.12
+  - numpy
+  - pygame
+  - pyserial
+  - pip
+  - pip:
+    - maturin

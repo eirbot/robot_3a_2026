@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 import numpy as np
-from rplidar_c1m1 import RPLidarC1M1
+from .rplidar_c1m1 import RPLidarC1M1
 
 
 # ---------------- Outils divers ---------------- #
@@ -47,14 +47,14 @@ class EKFLocalizer(RPLidarC1M1):
         self.balises = balises or {
             "A": (50.0, -1594.0),
             "B": (1950.0, -1594.0),
-            "C": (1000.0, 1594.0),
+            "C": (1000.0, 1500.0),
             # "D": (-100.0, 200.0),
         }
 
         # Etat initial (x, y, theta)
         if init_pose is None:
             # à adapter selon ta zone de départ
-            self.x = np.array([500.0, 0.0, 0.0], dtype=float)
+            self.x = np.array([100.0, 1450.0, 0.0], dtype=float)
         else:
             self.x = np.array(init_pose, dtype=float)
 
@@ -304,7 +304,10 @@ class EKFLocalizer(RPLidarC1M1):
 
         # 2) SCAN + extractions
         scan = self.get_scan(min_dist=40, max_dist=6000)
-        obs = self._extract_beacon_measurements(scan)
+        if scan is not None and len(scan) > 0:
+            obs = self._extract_beacon_measurements(scan)
+        else:
+            obs = []
 
         # 3) UPDATE si on a au moins une balise
         if len(obs) > 0:
@@ -328,6 +331,10 @@ class EKFLocalizer(RPLidarC1M1):
 
         # 1) Lire un seul scan
         scan = self.get_scan(min_dist=40, max_dist=6000)
+
+        if scan is None or len(scan) == 0:
+            print("[LOCATE] Scan LIDAR vide ou indisponible -> impossible de se localiser.")
+            return None, 0, None
 
         # 2) Extraire les mesures valides
         obs = self._extract_beacon_measurements(scan)

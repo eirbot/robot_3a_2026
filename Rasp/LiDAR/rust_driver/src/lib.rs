@@ -135,32 +135,22 @@ impl RPLidarC1M1 {
             loop {
                 if self.buf.len() < 5 { break; }
 
-                // Sync with 0xA5
-                if self.buf[0] != 0xA5 {
-                    if let Some(idx) = self.buf.iter().position(|&x| x == 0xA5) {
-                        self.buf.drain(..idx);
-                    } else {
-                        self.buf.clear();
-                        break;
-                    }
-                    if self.buf.len() < 5 { break; }
-                }
-
-                // Decode sample
+                // Sync with S/S_bar and Check bit
                 let b0 = self.buf[0];
                 let b1 = self.buf[1];
-                let b2 = self.buf[2];
-                let b3 = self.buf[3];
-                let b4 = self.buf[4];
-
                 let s = b0 & 0x01;
                 let s_bar = (b0 >> 1) & 0x01;
                 let c = b1 & 0x01;
 
                 if (s ^ s_bar) != 1 || c != 1 {
+                    // Out of sync, drop 1 byte and search again
                     self.buf.drain(..1);
                     continue;
                 }
+
+                let b2 = self.buf[2];
+                let b3 = self.buf[3];
+                let b4 = self.buf[4];
 
                 // Valid packet, consume 5 bytes
                 self.buf.drain(..5);

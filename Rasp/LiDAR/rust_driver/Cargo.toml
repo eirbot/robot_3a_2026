@@ -7,6 +7,9 @@ edition = "2021"
 name = "robot_lidar"
 crate-type = ["cdylib"]
 
+[target.aarch64-unknown-linux-gnu]
+linker = "aarch64-linux-gnu-gcc"
+
 [dependencies]
 pyo3 = { version = "0.21.0", features = ["extension-module"] }
 serialport = "4.2.0"

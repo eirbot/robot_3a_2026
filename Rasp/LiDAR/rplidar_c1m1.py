@@ -2,14 +2,19 @@
 import time
 import numpy as np
 
+import sys
+import os
+current_dir = os.path.dirname(os.path.abspath(__file__))
+if current_dir not in sys.path:
+    sys.path.append(current_dir)
+
 # Tente d'importer le module Rust
-# NOTE: Rust driver désactivé temporairement (bug dans get_scan parsing)
-# try:
-#     from robot_lidar import RPLidarC1M1 as RPLidarC1M1_Rust
-# except ImportError:
-#     RPLidarC1M1_Rust = None
-#     print("[LiDAR] Module Rust 'robot_lidar' introuvable. Installation nécessaire.")
-RPLidarC1M1_Rust = None
+try:
+    from robot_lidar import RPLidarC1M1 as RPLidarC1M1_Rust
+except ImportError as e:
+    RPLidarC1M1_Rust = None
+    print(f"[LiDAR] Module Rust 'robot_lidar' introuvable. Installation nécessaire. Détails: {e}")
+
 
 # Import de backup (l'ancienne version Python pure)
 try:
