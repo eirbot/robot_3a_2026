@@ -15,6 +15,11 @@ struct Point2D {
     float y;
 };
 
+struct VelMots2D {
+    float vL;
+    float vR;
+};
+
 class TrajectoryFollower {
 public:
     static constexpr int MAX_POINTS = 64;
@@ -39,7 +44,7 @@ public:
     // - poseOdom : odom interne ESP32 (m, m, rad)
     // - dt : période de contrôle (s), au cas où tu veux lisser plus tard
     // Résultat en m/s et rad/s
-    bool computeCommand(const Pose2D& poseOdom, float dt, float& vL_out, float& vR_out, float& temps_arc);
+    bool computeCommand(const Pose2D& poseOdom, const VelMots2D& velmots, float dt, float& vL_out, float& vR_out, float& temps_arc);
 
     // Paramètres
     void setLookahead(float Ld_m);    // distance d’anticipation (m)

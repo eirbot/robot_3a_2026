@@ -90,7 +90,7 @@ void TrajectoryFollower::setNominalSpeed(float v_mps) {
     v_nom = v_mps;
 }
 
-bool TrajectoryFollower::computeCommand(const Pose2D& poseOdom, float dt, float& vL_out, float& vR_out, float& temps_arc) {
+bool TrajectoryFollower::computeCommand(const Pose2D& poseOdom, const VelMots2D& velmots, float dt, float& vL_out, float& vR_out, float& temps_arc) {
     v_nom = 0.3;
 
     Serial.print("Point suivant, currentIdx : ");
@@ -157,12 +157,22 @@ bool TrajectoryFollower::computeCommand(const Pose2D& poseOdom, float dt, float&
     float vL = Dist_L/temps_arc;
     float vR = Dist_R/temps_arc;
 
-    //slow down the robot if one of the command is too fast for the motor
-    if(max(vL, vR) >= MAX_SPEED_MM_S / 1000.0){ 
-        vL *= MAX_SPEED_MM_S / (1000.0 * max(vL, vR));
-        vR *= MAX_SPEED_MM_S / (1000.0 * max(vL, vR));
-        temps_arc *= MAX_SPEED_MM_S / (1000.0 * max(vL, vR));
+    float aL = (vL - velmots.vL)/temps_arc;
+    float aR = (vR - velmots.vR)/temps_arc;
+
+    if(max(aL , aR) >= ACCEL_MM_S2 / 1000.0){
+        Serial.print("max(aL , aR) : ");
+        Serial.println(max(aL , aR));
+        vL = velmots.vL + (aL * ACCEL_MM_S2 / (1000.0 * max(aL, aR))) * temps_arc ;
+        vR = velmots.vR + (aR * ACCEL_MM_S2 / (1000.0 * max(aL, aR))) * temps_arc ;
     }
+    //slow down the robot if one of the command is too fast for the motor
+    if(max(vL, vR) >= MAX_SPEED_MM_S / 1000.0){
+        vL *= MAX_SPEED_MM_S / (1000.0 * absMax(vL, vR));
+        vR *= MAX_SPEED_MM_S / (1000.0 * absMax(vL, vR));
+        // temps_arc *= MAX_SPEED_MM_S / (1000.0 * abs(max(vL, vR)));
+    }
+    temps_arc = Dist_L / vL;
 
     Serial.print("max(vL, vR): ");
     Serial.println(max(vL, vR));

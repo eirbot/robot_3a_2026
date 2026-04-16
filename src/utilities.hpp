@@ -37,6 +37,7 @@ typedef struct {
     float vitesseDroite;  // m/s
 } TaskParams;
 
+float absMax(float a, float b);
 
 
 

@@ -63,6 +63,8 @@ void taskControl(void* arg) {
     float lastComputeCommand = micros()/ 1e6f;
     float vL, vR;
     float temps_arc = 1;
+    VelMots2D velmots {vL, vR};
+
     while (true) {
         uint32_t now = micros();
         float dt = (now - lastMicros) / 1e6f;
@@ -86,9 +88,12 @@ void taskControl(void* arg) {
         if(now_long - lastComputeCommand >= temps_arc || newTrajectory){
             newTrajectory = false;
             lastComputeCommand = now_long; 
-            trajectoryFinished = not(follower.computeCommand(odomPose, dt, vL, vR, temps_arc));
+            trajectoryFinished = not(follower.computeCommand(odomPose, velmots, dt, vL, vR, temps_arc));
         }
         applyVLVR(vL, vR);
+        velmots.vL = vL;
+        velmots.vR = vR;
+
         vTaskDelayUntil(&lastWake, pdMS_TO_TICKS(10)); // 50 Hz
     }
 }
