@@ -13,7 +13,6 @@ ClassMotors motors;
 TrajectoryFollower follower;
 
 bool newTrajectory = false;
-bool trajectoryFinished = false;
 
 
 // Tâches
@@ -41,9 +40,7 @@ void setup() {
 }
 
 void loop() {
-    if(trajectoryFinished){
-        SERIAL_PI.println("trajectoryFinished");
-    }
+
     vTaskDelay(pdMS_TO_TICKS(100));
 }
 
@@ -64,6 +61,8 @@ void taskControl(void* arg) {
     float vL, vR;
     float temps_arc = 1;
     VelMots2D velmots {vL, vR};
+
+    bool wasActive = false;
 
     while (true) {
         uint32_t now = micros();
@@ -88,7 +87,12 @@ void taskControl(void* arg) {
         if((now_long - lastComputeCommand) >= temps_arc || newTrajectory){
             newTrajectory = false;
             lastComputeCommand = now_long;
-            trajectoryFinished = not(follower.computeCommand(odomPose, velmots, dt, vL, vR, temps_arc));
+            bool isActiveNow = not(follower.computeCommand(odomPose, velmots, dt, vL, vR, temps_arc));
+
+            if(wasActive && !isActiveNow){
+                SERIAL_PI.println("trajectoryFinished");
+            }
+            wasActive = isActiveNow;
         }
         applyVLVR(vL, vR);
         velmots.vL = vL;

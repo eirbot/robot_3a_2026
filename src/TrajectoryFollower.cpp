@@ -153,40 +153,48 @@ bool TrajectoryFollower::computeCommand(const Pose2D& poseOdom, const VelMots2D&
     // v_nom = 1.0f; //1
     v_nom *= (1.1-dist(supposed_position)*ratio_supposed_position- abs(theta) * ratio_theta); //2
     
+    if(abs(theta) <= PI/2){
+            
+        temps_arc = Dist/v_nom;
 
-    temps_arc = Dist/v_nom;
+        int nPointsDec = nPoints/2;
+        if(currentIdx > nPoints - nPointsDec){
+            int decIdx = currentIdx - (nPoints - nPointsDec);
+            // temps_arc *= (nPointsDec - decIdx + 1) / (nPointsDec - decIdx);
+            temps_arc *= 1 + decIdx*0.2;
+            Serial.print(" decIdx : ");
+            Serial.println(decIdx);
+        }
 
-    int nPointsDec = nPoints/2;
-    if(currentIdx > nPoints - nPointsDec){
-        int decIdx = currentIdx - (nPoints - nPointsDec);
-        // temps_arc *= (nPointsDec - decIdx + 1) / (nPointsDec - decIdx);
-        temps_arc *= decIdx;
-        Serial.print(" decIdx : ");
-        Serial.println(decIdx);
+        float Dist_L = (R-WHEEL_BASE/2.0)*theta;
+        float Dist_R = (R+WHEEL_BASE/2.0)*theta;
+
+        float vL = Dist_L/temps_arc;
+        float vR = Dist_R/temps_arc;
+
+        float aL = (vL - velmots.vL)/temps_arc;
+        float aR = (vR - velmots.vR)/temps_arc;
+
+        if(max(aL , aR) >= ACCEL_MM_S2 / 1000.0){
+            vL = velmots.vL + (aL * ACCEL_MM_S2 / (1000.0 * max(aL, aR))) * temps_arc ;
+            vR = velmots.vR + (aR * ACCEL_MM_S2 / (1000.0 * max(aL, aR))) * temps_arc ;
+        }
+        //slow down the robot if one of the command is too fast for the motor
+        if(max(vL, vR) >= MAX_SPEED_MM_S / 1000.0){
+            vL *= MAX_SPEED_MM_S / (1000.0 * absMax(vL, vR));
+            vR *= MAX_SPEED_MM_S / (1000.0 * absMax(vL, vR));
+        }
+        temps_arc = (abs(Dist_L)/abs(vL) + abs(Dist_R)/abs(vR)) / 2;
+
+        vL_out = vL;
+        vR_out = vR;
     }
-
-    float Dist_L = (R-WHEEL_BASE/2.0)*theta;
-    float Dist_R = (R+WHEEL_BASE/2.0)*theta;
-
-    float vL = Dist_L/temps_arc;
-    float vR = Dist_R/temps_arc;
-
-    float aL = (vL - velmots.vL)/temps_arc;
-    float aR = (vR - velmots.vR)/temps_arc;
-
-    if(max(aL , aR) >= ACCEL_MM_S2 / 1000.0){
-        vL = velmots.vL + (aL * ACCEL_MM_S2 / (1000.0 * max(aL, aR))) * temps_arc ;
-        vR = velmots.vR + (aR * ACCEL_MM_S2 / (1000.0 * max(aL, aR))) * temps_arc ;
+    else{
+        vL_out = velmots.vL;
+        vR_out = velmots.vR;
+        temps_arc = 0.0;
+        Serial.println("Point annulé");
     }
-    //slow down the robot if one of the command is too fast for the motor
-    if(max(vL, vR) >= MAX_SPEED_MM_S / 1000.0){
-        vL *= MAX_SPEED_MM_S / (1000.0 * absMax(vL, vR));
-        vR *= MAX_SPEED_MM_S / (1000.0 * absMax(vL, vR));
-    }
-    temps_arc = (abs(Dist_L)/abs(vL) + abs(Dist_R)/abs(vR)) / 2;
-
-    vL_out = vL;
-    vR_out = vR;
 
     currentIdx++;
     Serial.print("  temps_arc: ");
