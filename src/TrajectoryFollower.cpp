@@ -125,6 +125,11 @@ bool TrajectoryFollower::computeCommand(const Pose2D& poseOdom, const VelMots2D&
     float dx = target.x - pose.x;
     float dy = target.y - pose.y;
 
+    Serial.print("target  : ");
+    Serial.print(target.x);
+    Serial.print("   ");
+    Serial.println(target.y);
+
     float c = cosf(pose.theta);
     float s = sinf(pose.theta);
 
@@ -161,8 +166,6 @@ bool TrajectoryFollower::computeCommand(const Pose2D& poseOdom, const VelMots2D&
     float aR = (vR - velmots.vR)/temps_arc;
 
     if(max(aL , aR) >= ACCEL_MM_S2 / 1000.0){
-        Serial.print("max(aL , aR) : ");
-        Serial.println(max(aL , aR));
         vL = velmots.vL + (aL * ACCEL_MM_S2 / (1000.0 * max(aL, aR))) * temps_arc ;
         vR = velmots.vR + (aR * ACCEL_MM_S2 / (1000.0 * max(aL, aR))) * temps_arc ;
     }
@@ -170,12 +173,8 @@ bool TrajectoryFollower::computeCommand(const Pose2D& poseOdom, const VelMots2D&
     if(max(vL, vR) >= MAX_SPEED_MM_S / 1000.0){
         vL *= MAX_SPEED_MM_S / (1000.0 * absMax(vL, vR));
         vR *= MAX_SPEED_MM_S / (1000.0 * absMax(vL, vR));
-        // temps_arc *= MAX_SPEED_MM_S / (1000.0 * abs(max(vL, vR)));
     }
-    temps_arc = Dist_L / vL;
-
-    Serial.print("max(vL, vR): ");
-    Serial.println(max(vL, vR));
+    temps_arc = (abs(Dist_L)/abs(vL) + abs(Dist_R)/abs(vR)) / 2;
 
     vL_out = vL;
     vR_out = vR;

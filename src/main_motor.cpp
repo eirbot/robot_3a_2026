@@ -85,9 +85,9 @@ void taskControl(void* arg) {
         SERIAL_PI.print(odomPose.theta, 6);
         SERIAL_PI.println("]");
 
-        if(now_long - lastComputeCommand >= temps_arc || newTrajectory){
+        if((now_long - lastComputeCommand) >= temps_arc || newTrajectory){
             newTrajectory = false;
-            lastComputeCommand = now_long; 
+            lastComputeCommand = now_long;
             trajectoryFinished = not(follower.computeCommand(odomPose, velmots, dt, vL, vR, temps_arc));
         }
         applyVLVR(vL, vR);
