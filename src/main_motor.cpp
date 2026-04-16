@@ -1,6 +1,7 @@
 #include <Arduino.h>
 #include "ClassMotors.hpp"
 #include "TrajectoryFollower.hpp"
+#include <driver/gpio.h>
 
 // UART vers la Raspberry : ici Serial (USB)
 #define SERIAL_PI   Serial

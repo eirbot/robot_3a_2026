@@ -208,9 +208,7 @@ def envoyer(message):
                                 msg_list = ast.literal_eval(msg)
                                 robot.x = msg_list[0]
                                 robot.y = msg_list[1]
-                                print(f"robot.theta avant recup de msg_list[2] = {robot.theta}")
                                 robot.theta = msg_list[2]*180/np.pi
-                                print(f"robot.theta après = {robot.theta}")
                                 point0.move(robot.y, robot.x)
                                 robot.move_absolu(robot.x, robot.y, robot.theta)
                                 root.update()
