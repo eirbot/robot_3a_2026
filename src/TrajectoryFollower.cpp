@@ -96,101 +96,81 @@ void TrajectoryFollower::setNominalSpeed(float v_mps) {
 
 bool TrajectoryFollower::computeCommand(const Pose2D& poseOdom, const VelMots2D& velmots, float dt, float& vL_out, float& vR_out, float& temps_arc) {
     
-    // 1. SÉCURITÉ MÉMOIRE
-    if (!active || nPoints == 0 || currentIdx >= nPoints - 1) {
-        vL_out = 0.0f;
-        vR_out = 0.0f;
-        active = false;
-        return false;
+    if (!active || nPoints == 0) {
+        vL_out = 0.0f; vR_out = 0.0f; active = false; return false;
     }
 
-    float current_v_nom = v_nom;
-    if (current_v_nom < 0.05f) current_v_nom = 0.5f;
-
+    // Récupération de la position
     Pose2D pose = hasCorr ? poseCorr : poseOdom;
-    Point2D target = points[currentIdx + 1];
+    Point2D finalTarget = points[nPoints - 1];
 
-    // Distance réelle entre le robot et le point cible
-    float dx_w = target.x - pose.x;
-    float dy_w = target.y - pose.y;
-    float d = sqrtf(dx_w*dx_w + dy_w*dy_w);
+    // Distance au point d'arrivée final
+    float d_final = hypotf(finalTarget.x - pose.x, finalTarget.y - pose.y);
 
-    // 2. LOGIQUE D'AVANCEMENT (Tolérance 12cm pour la fluidité)
-    if (d < 0.12f && currentIdx < nPoints - 2) {
-        currentIdx++;
-        target = points[currentIdx + 1];
-        dx_w = target.x - pose.x;
-        dy_w = target.y - pose.y;
-        d = sqrtf(dx_w*dx_w + dy_w*dy_w);
-    }
-
-    // 3. ARRÊT CHIRURGICAL SUR LE DERNIER POINT (Précision 1cm)
-    if (currentIdx >= nPoints - 2 && d < 0.01f) {
-        vL_out = 0.0f;
-        vR_out = 0.0f;
+    // --- 1. CONDITION D'ARRÊT CHIRURGICALE (2.5 cm) ---
+    if (d_final < 0.025f) {
+        vL_out = 0.0f; vR_out = 0.0f;
         active = false;
         Serial.println("[ESP32] DESTINATION ATTEINTE AVEC PRECISION !");
         return false;
     }
 
-    // --- MATHÉMATIQUES (Repère Robot) ---
+    // --- 2. RECHERCHE DU POINT DE LOOKAHEAD (Vrai Pure Pursuit) ---
+    // On cherche le premier point situé à Ld mètres (ex: 20 cm) devant le robot.
+    float current_Ld = 0.20f; 
+    Point2D lookaheadPt = finalTarget; // Par défaut, on vise la fin
+    
+    // On cherche loin devant pour éviter les zigzags sur les points denses
+    for (int i = currentIdx; i < nPoints; i++) {
+        float dist_pt = hypotf(points[i].x - pose.x, points[i].y - pose.y);
+        if (dist_pt >= current_Ld) {
+            lookaheadPt = points[i];
+            currentIdx = i; // On met à jour l'index pour ne pas reculer dans le tableau
+            break;
+        }
+    }
+
+    // --- 3. TRANSFORMATION REPÈRE ROBOT ---
     float c = cosf(pose.theta);
     float s = sinf(pose.theta);
-    float x_r =  c*dx_w + s*dy_w;     
-    float y_r = -s*dx_w + c*dy_w;     
-
-    // MARCHE ARRIÈRE AUTOMATIQUE
-    bool goBackward = (x_r < 0.0f);
-    float steer_x = goBackward ? -x_r : x_r;
-    float steer_y = goBackward ? -y_r : y_r;
-
-    float theta = 2.0f * atan2f(steer_y, steer_x);
+    float dx = lookaheadPt.x - pose.x;
+    float dy = lookaheadPt.y - pose.y;
     
-    float vL = current_v_nom;
-    float vR = current_v_nom;
-    
-    // Calcul différentiel pour les virages
-    if (fabs(theta) > 0.001f) {
-        float R = d / (2.0f * sinf(fabs(theta) / 2.0f));
-        float w = current_v_nom / R;
-        
-        if (theta > 0) { // Cible à gauche
-            vL = current_v_nom - (WHEEL_BASE / 2.0f) * w;
-            vR = current_v_nom + (WHEEL_BASE / 2.0f) * w;
-        } else { // Cible à droite
-            vL = current_v_nom + (WHEEL_BASE / 2.0f) * w;
-            vR = current_v_nom - (WHEEL_BASE / 2.0f) * w;
-        }
+    float x_r =  c * dx + s * dy; // X: Avant/Arrière
+    float y_r = -s * dx + c * dy; // Y: Gauche/Droite
+    float L2 = x_r * x_r + y_r * y_r;
+
+    // --- 4. CALCUL DE LA COURBURE (\gamma) ---
+    float gamma = 0.0f;
+    if (L2 > 0.001f) {
+        gamma = (2.0f * y_r) / L2; // Formule exacte du Pure Pursuit
     }
 
-    // Inversion finale des moteurs si on recule
-    if (goBackward) {
-        vL = -vL;
-        vR = -vR;
-    }
+    // --- 5. VITESSE LINÉAIRE (V) ET MARCHE ARRIÈRE ---
+    bool goBackward = (x_r < 0.0f); // Si la cible est derrière, on recule
+    float V = v_nom;
+    if (V < 0.05f) V = 0.5f; // Sécurité
 
-    // --- FREINAGE PROPORTIONNEL ---
-    int nPointsDec = nPoints / 4;
-    if (nPointsDec < 3) nPointsDec = 3;
+    // Freinage proportionnel pur en approchant de la fin
+    float V_brake = d_final * 2.5f; // Diminue progressivement
+    if (V_brake < 0.15f) V_brake = 0.15f; // Ne descend jamais sous 15 cm/s pour ne pas bloquer
     
-    if (currentIdx > nPoints - nPointsDec) {
-        if (currentIdx >= nPoints - 2) {
-            // Asservissement proportionnel sur les tout derniers centimètres
-            float v_approche = d * 2.0f; 
-            if (v_approche < 0.05f) v_approche = 0.05f; // Pas moins de 5 cm/s pour ne pas bloquer
-            
-            vL = (vL > 0) ? v_approche : -v_approche;
-            vR = (vR > 0) ? v_approche : -v_approche;
-        } else {
-            // Décélération douce en approche
-            float ratio = (float)(nPoints - 1 - currentIdx) / nPointsDec; 
-            if (ratio < 0.25f) ratio = 0.25f; 
-            vL *= ratio;
-            vR *= ratio;
-        }
-    }
+    if (V > V_brake) V = V_brake;
+    if (goBackward) V = -V;
 
-    // --- LIMITATION D'ACCÉLÉRATION (Vraie physique via dt) ---
+    // --- 6. VITESSE ANGULAIRE (\omega) ET ROUES ---
+    float W = gamma * V;
+
+    // Bride de rotation (Anti-Toupie) pour forcer le robot à avancer
+    float max_W = 3.0f; // Rad/s Max
+    if (W > max_W) W = max_W;
+    if (W < -max_W) W = -max_W;
+
+    // Cinématique différentielle
+    float vL = V - (WHEEL_BASE / 2.0f) * W;
+    float vR = V + (WHEEL_BASE / 2.0f) * W;
+
+    // --- 7. APPLICATION DES LIMITES PHYSIQUES (Accel et VMax) ---
     float aL = (vL - velmots.vL) / dt;
     float aR = (vR - velmots.vR) / dt;
     float max_accel = fmaxf(fabs(aL), fabs(aR));
@@ -202,7 +182,6 @@ bool TrajectoryFollower::computeCommand(const Pose2D& poseOdom, const VelMots2D&
         vR = velmots.vR + aR * factor * dt;
     }
 
-    // --- LIMITATION DE VITESSE MAXIMALE ---
     float max_spd = fmaxf(fabs(vL), fabs(vR));
     float max_spd_allowed = MAX_SPEED_MM_S / 1000.0f;
     if (max_spd > max_spd_allowed) {
@@ -211,20 +190,20 @@ bool TrajectoryFollower::computeCommand(const Pose2D& poseOdom, const VelMots2D&
         vR *= factor;
     }
 
-    // Envoi des commandes
+    // --- SORTIE ---
     vL_out = vL;
     vR_out = vR;
-    temps_arc = dt; // Résiduel pour garder la même signature de fonction
+    temps_arc = dt; 
 
-    // LOG UNIQUE ET PROPRE
-    Serial.print("[ESP32] TargetIdx: ");
-    Serial.print(currentIdx + 1);
-    Serial.print(" | Dist: ");
-    Serial.print(d, 3);
+    // Log clair de navigation
+    Serial.print("[ESP32] TgtIdx: ");
+    Serial.print(currentIdx);
+    Serial.print(" | DistFin: ");
+    Serial.print(d_final, 3);
     Serial.print("m | vL: ");
-    Serial.print(vL, 3);
+    Serial.print(vL, 2);
     Serial.print(" | vR: ");
-    Serial.println(vR, 3);
+    Serial.println(vR, 2);
 
     return true;
 }
