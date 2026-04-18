@@ -1,11 +1,11 @@
-#include <Arduino.h>
 #include "ClassMotors.hpp"
 #include "TrajectoryFollower.hpp"
+#include <Arduino.h>
 #include <driver/gpio.h>
 
 // UART vers la Raspberry : ici Serial (USB)
-#define SERIAL_PI   Serial
-#define BAUD_PI     115200
+#define SERIAL_PI Serial
+#define BAUD_PI 115200
 
 #define EN_Motor 21
 
@@ -15,168 +15,182 @@ TrajectoryFollower follower;
 bool newTrajectory = false;
 
 // Tâches
-void taskControl(void* arg);
-void taskSerialRx(void* arg);
-void taskSerialTx(void* arg);
+void taskControl(void *arg);
+void taskSerialRx(void *arg);
+void taskSerialTx(void *arg);
 
 void setup() {
-    // 1. AGRANDISSEMENT DU BUFFER SERIE (Crucial pour les longues trajectoires JSON)
-    SERIAL_PI.setRxBufferSize(2048);
-    
-    SERIAL_PI.begin(BAUD_PI);
-    delay(500);
-    SERIAL_PI.println("ESP32 Trajectory + Motors ready");
+  // 1. AGRANDISSEMENT DU BUFFER SERIE (Crucial pour les longues trajectoires
+  // JSON)
+  SERIAL_PI.setRxBufferSize(2048);
 
-    pinMode(EN_Motor, OUTPUT);
-    digitalWrite(EN_Motor ,HIGH);
+  SERIAL_PI.begin(BAUD_PI);
+  delay(500);
+  SERIAL_PI.println("ESP32 Trajectory + Motors ready");
 
-    motors.StartMotors();
+  pinMode(EN_Motor, OUTPUT);
+  digitalWrite(EN_Motor, HIGH);
 
-    // 2. CORRECTION DU PURE PURSUIT 
-    follower.setLookahead(0.20f);    // 20 cm (était à 0.02f / 2cm)
-    follower.setNominalSpeed(0.35f); // 0.35 m/s
+  motors.StartMotors();
 
-    xTaskCreatePinnedToCore(taskControl, "Control", 6000, nullptr, 3, nullptr, 1);
-    xTaskCreatePinnedToCore(taskSerialRx, "SerialRx", 6000, nullptr, 2, nullptr, 1);
-    xTaskCreatePinnedToCore(taskSerialTx, "SerialTx", 4000, nullptr, 1, nullptr, 1);
+  // 2. CORRECTION DU PURE PURSUIT
+  follower.setLookahead(0.20f);    // 20 cm (était à 0.02f / 2cm)
+  follower.setNominalSpeed(0.35f); // 0.35 m/s
+
+  xTaskCreatePinnedToCore(taskControl, "Control", 6000, nullptr, 3, nullptr, 1);
+  xTaskCreatePinnedToCore(taskSerialRx, "SerialRx", 6000, nullptr, 2, nullptr,
+                          1);
+  xTaskCreatePinnedToCore(taskSerialTx, "SerialTx", 4000, nullptr, 1, nullptr,
+                          1);
 }
 
 void loop() {
-    // Plus besoin de gérer l'envoi du message de fin ici, 
-    // la tâche Control s'en occupe intelligemment !
-    vTaskDelay(pdMS_TO_TICKS(100));
+  // Plus besoin de gérer l'envoi du message de fin ici,
+  // la tâche Control s'en occupe intelligemment !
+  vTaskDelay(pdMS_TO_TICKS(100));
 }
 
 static void applyVLVR(float vL, float vR) {
-    TaskParams p;
-    p.vitesseGauche = vL;
-    p.vitesseDroite = vR;
-    motors.EnvoyerVitesse(&p);
+  TaskParams p;
+  p.vitesseGauche = vL;
+  p.vitesseDroite = vR;
+  motors.EnvoyerVitesse(&p);
 }
 
 // Tâche de contrôle : pure pursuit + commande moteurs
-void taskControl(void* arg) {
-    TickType_t lastWake = xTaskGetTickCount();
-    uint32_t lastMicros = micros();
+void taskControl(void *arg) {
+  TickType_t lastWake = xTaskGetTickCount();
+  uint32_t lastMicros = micros();
 
-    float lastComputeCommand = micros()/ 1e6f;
-    float vL, vR;
-    float temps_arc = 1;
-    VelMots2D velmots {vL, vR};
+  float lastComputeCommand = micros() / 1e6f;
+  float vL, vR;
+  float temps_arc = 1;
+  VelMots2D velmots{vL, vR};
 
-    // 3. VARIABLE DE MÉMOIRE POUR LE MESSAGE DE FIN
-    bool wasMoving = false;
+  // 3. VARIABLE DE MÉMOIRE POUR LE MESSAGE DE FIN
+  bool wasMoving = false;
 
-    while (true) {
-        uint32_t now = micros();
-        float dt = (now - lastMicros) / 1e6f;
-        if (dt <= 0.0f) dt = 0.001f;
-        lastMicros = now;
+  while (true) {
+    uint32_t now = micros();
+    float dt = (now - lastMicros) / 1e6f;
+    if (dt <= 0.0f)
+      dt = 0.001f;
+    lastMicros = now;
 
-        float now_long = micros()/ 1e6f;
+    float now_long = micros() / 1e6f;
 
-        // Récupère odom interne
-        float x, y, th;
-        motors.GetPosition(x, y, th);
-        Pose2D odomPose { x, y, th };
-        
-        // Envoi odométrie en continu
-        SERIAL_PI.print("[");
-        SERIAL_PI.print(odomPose.x, 6);
-        SERIAL_PI.print(", ");
-        SERIAL_PI.print(odomPose.y, 6);
-        SERIAL_PI.print(", ");
-        SERIAL_PI.print(odomPose.theta, 6);
-        SERIAL_PI.println("]");
+    // Récupère odom interne
+    float x, y, th;
+    motors.GetPosition(x, y, th);
+    Pose2D odomPose{x, y, th};
 
-        if((now_long - lastComputeCommand) >= temps_arc || newTrajectory){
-            newTrajectory = false;
-            lastComputeCommand = now_long;
-            
-            // computeCommand renvoie TRUE si le robot roule, FALSE s'il est arrivé
-            bool isMoving = follower.computeCommand(odomPose, velmots, dt, vL, vR, temps_arc);
+    // Envoi odométrie en continu
+    SERIAL_PI.print("[");
+    SERIAL_PI.print(odomPose.x, 6);
+    SERIAL_PI.print(", ");
+    SERIAL_PI.print(odomPose.y, 6);
+    SERIAL_PI.print(", ");
+    SERIAL_PI.print(odomPose.theta, 6);
+    SERIAL_PI.println("]");
 
-            // LOGIQUE CORRIGÉE : S'il roulait avant, et qu'il est à l'arrêt maintenant -> Fin de trajectoire
-            if(wasMoving && !isMoving){
-                SERIAL_PI.println("trajectoryFinished");
-            }
-            
-            // Mise à jour de la mémoire pour la boucle suivante
-            wasMoving = isMoving;
-        }
-        applyVLVR(vL, vR);
-        velmots.vL = vL;
-        velmots.vR = vR;
+    if ((now_long - lastComputeCommand) >= temps_arc || newTrajectory) {
+      newTrajectory = false;
+      lastComputeCommand = now_long;
 
-        vTaskDelayUntil(&lastWake, pdMS_TO_TICKS(10)); // 50 Hz
+      // computeCommand renvoie TRUE si le robot roule, FALSE s'il est arrivé
+      bool isMoving =
+          follower.computeCommand(odomPose, velmots, dt, vL, vR, temps_arc);
+
+      // LOGIQUE CORRIGÉE : S'il roulait avant, et qu'il est à l'arrêt
+      // maintenant -> Fin de trajectoire
+      if (wasMoving && !isMoving) {
+        SERIAL_PI.println("trajectoryFinished");
+      }
+
+      // Mise à jour de la mémoire pour la boucle suivante
+      wasMoving = isMoving;
     }
+    if (wasMoving) { // Pour ne l'afficher que quand il est censé rouler
+      SERIAL_PI.print("[ESP32 DEBUG] vL: ");
+      SERIAL_PI.print(vL, 3);
+      SERIAL_PI.print(" | vR: ");
+      SERIAL_PI.println(vR, 3);
+    }
+
+    applyVLVR(vL, vR);
+    velmots.vL = vL;
+    velmots.vR = vR;
+
+    vTaskDelayUntil(&lastWake, pdMS_TO_TICKS(10)); // 50 Hz
+  }
 }
 
 // Réception série depuis la Rasp
-void taskSerialRx(void* arg) {
-    String line;
+void taskSerialRx(void *arg) {
+  String line;
 
-    while (true) {
-        while (SERIAL_PI.available()) {
-            char c = SERIAL_PI.read();
-            if (c == '\n') {
-                line.trim();
-                if (line.length() > 0) {
-                    // 1) JSON trajectoire (commence normalement par '[')
-                    if (line[0] == '[') {
-                        if (follower.loadFromJson(line.c_str())) {
-                            SERIAL_PI.println("BEZ OK");
-                            newTrajectory = true;
-                        } else {
-                            SERIAL_PI.println("BEZ ERR");
-                        }
-                    }
-                    // 2) Pose corrigée: "POSE x y theta" (x,y en mm)
-                    else if (line.startsWith("POSE")) {
-                        float x_mm, y_mm, th;
-                        if (sscanf(line.c_str(), "POSE %f %f %f", &x_mm, &y_mm, &th) == 3) {
-                            Pose2D p;
-                            p.x = x_mm / 1000.0f;
-                            p.y = y_mm / 1000.0f;
-                            p.theta = th;
-                            follower.setCorrectedPose(p);
-                        }
-                    }
-                    // 3) SET POSE depuis interface
-                    else if (line.startsWith("SET POSE")){
-                        float x_mm, y_mm, th;
-                        if (sscanf(line.c_str(), "SET POSE %f %f %f", &x_mm, &y_mm, &th) == 3) {
-                            SERIAL_PI.print("SET POSE ");
-                            SERIAL_PI.print(x_mm);
-                            SERIAL_PI.print(" ");
-                            SERIAL_PI.print(y_mm);
-                            SERIAL_PI.print(" ");
-                            SERIAL_PI.println(th);
-                            motors.ResetPosition(x_mm/ 1000.0f, y_mm/ 1000.0f, th);
-                        }
-                    }
-                    // 4) STOP
-                    else if (line.startsWith("STOP")) {
-                        follower.reset();
-                        motors.Stop();
-                    }
-                }
-                line = "";
-            } else if (c != '\r') {
-                line += c;
+  while (true) {
+    while (SERIAL_PI.available()) {
+      char c = SERIAL_PI.read();
+      if (c == '\n') {
+        line.trim();
+        if (line.length() > 0) {
+          // 1) JSON trajectoire (commence normalement par '[')
+          if (line[0] == '[') {
+            if (follower.loadFromJson(line.c_str())) {
+              SERIAL_PI.println("BEZ OK");
+              newTrajectory = true;
+            } else {
+              SERIAL_PI.println("BEZ ERR");
             }
+          }
+          // 2) Pose corrigée: "POSE x y theta" (x,y en mm)
+          else if (line.startsWith("POSE")) {
+            float x_mm, y_mm, th;
+            if (sscanf(line.c_str(), "POSE %f %f %f", &x_mm, &y_mm, &th) == 3) {
+              Pose2D p;
+              p.x = x_mm / 1000.0f;
+              p.y = y_mm / 1000.0f;
+              p.theta = th;
+              follower.setCorrectedPose(p);
+            }
+          }
+          // 3) SET POSE depuis interface
+          else if (line.startsWith("SET POSE")) {
+            float x_mm, y_mm, th;
+            if (sscanf(line.c_str(), "SET POSE %f %f %f", &x_mm, &y_mm, &th) ==
+                3) {
+              SERIAL_PI.print("SET POSE ");
+              SERIAL_PI.print(x_mm);
+              SERIAL_PI.print(" ");
+              SERIAL_PI.print(y_mm);
+              SERIAL_PI.print(" ");
+              SERIAL_PI.println(th);
+              motors.ResetPosition(x_mm / 1000.0f, y_mm / 1000.0f, th);
+            }
+          }
+          // 4) STOP
+          else if (line.startsWith("STOP")) {
+            follower.reset();
+            motors.Stop();
+          }
         }
-        vTaskDelay(pdMS_TO_TICKS(2));
+        line = "";
+      } else if (c != '\r') {
+        line += c;
+      }
     }
+    vTaskDelay(pdMS_TO_TICKS(2));
+  }
 }
 
 // Envoi de l’odom brute à la Rasp (Désactivé car géré dans taskControl)
-void taskSerialTx(void* arg) {
-    TickType_t lastWake = xTaskGetTickCount();
+void taskSerialTx(void *arg) {
+  TickType_t lastWake = xTaskGetTickCount();
 
-    while (true) {
-        // Laissé vide ou pour d'autres usages futurs, 
-        // l'envoi continu de l'odométrie se fait désormais dans taskControl
-        vTaskDelayUntil(&lastWake, pdMS_TO_TICKS(20)); // 50 Hz
-    }
+  while (true) {
+    // Laissé vide ou pour d'autres usages futurs,
+    // l'envoi continu de l'odométrie se fait désormais dans taskControl
+    vTaskDelayUntil(&lastWake, pdMS_TO_TICKS(20)); // 50 Hz
+  }
 }
