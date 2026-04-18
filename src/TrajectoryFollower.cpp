@@ -92,15 +92,15 @@ void TrajectoryFollower::setNominalSpeed(float v_mps) {
 
 bool TrajectoryFollower::computeCommand(const Pose2D& poseOdom, const VelMots2D& velmots, float dt, float& vL_out, float& vR_out, float& temps_arc) {
     v_nom = 0.3;
-
-    Serial.print("Point suivant, currentIdx : ");
-    Serial.println( currentIdx +1);
     
     if (!active || nPoints == 0) {
         vL_out = 0.0f;
         vR_out = 0.0f;
         return false;
     }
+
+    Serial.print("Point suivant, currentIdx : ");
+    Serial.println( currentIdx +1);
 
     // Pose utilisée pour le suivi : si pose corrigée dispo -> on la prend
     Pose2D pose = poseCorr;
@@ -151,7 +151,7 @@ bool TrajectoryFollower::computeCommand(const Pose2D& poseOdom, const VelMots2D&
     float ratio_theta = 0.1;
 
     // v_nom = 1.0f; //1
-    v_nom *= (1.1-dist(supposed_position)*ratio_supposed_position- abs(theta) * ratio_theta); //2
+    v_nom *= (1.1-dist(supposed_position)*ratio_supposed_position- fabs(theta) * ratio_theta); //2
     
     if(abs(theta) <= PI/2){
             
@@ -184,7 +184,7 @@ bool TrajectoryFollower::computeCommand(const Pose2D& poseOdom, const VelMots2D&
             vL *= MAX_SPEED_MM_S / (1000.0 * absMax(vL, vR));
             vR *= MAX_SPEED_MM_S / (1000.0 * absMax(vL, vR));
         }
-        temps_arc = (abs(Dist_L)/abs(vL) + abs(Dist_R)/abs(vR)) / 2;
+        temps_arc = (fabs(Dist_L)/fabs(vL) + fabs(Dist_R)/fabs(vR)) / 2;
 
         vL_out = vL;
         vR_out = vR;
