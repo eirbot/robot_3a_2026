@@ -111,6 +111,13 @@ bool TrajectoryFollower::computeCommand(const Pose2D& poseOdom, const VelMots2D&
     Pose2D pose = hasCorr ? poseCorr : poseOdom;
     Point2D target = points[currentIdx + 1];
 
+    Serial.print("  [DEBUG] Le robot croit etre a -> X: ");
+    Serial.print(pose.x, 3);
+    Serial.print("m | Y: ");
+    Serial.print(pose.y, 3);
+    Serial.print("m | Theta: ");
+    Serial.println(pose.theta, 3);
+
     // Calcul de la distance pure (Monde)
     float dx_w = target.x - pose.x;
     float dy_w = target.y - pose.y;
