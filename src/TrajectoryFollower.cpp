@@ -195,15 +195,16 @@ bool TrajectoryFollower::computeCommand(const Pose2D& poseOdom, const VelMots2D&
     vR_out = vR;
     temps_arc = dt; 
 
-    // Log clair de navigation
-    Serial.print("[ESP32] TgtIdx: ");
-    Serial.print(currentIdx);
-    Serial.print(" | DistFin: ");
-    Serial.print(d_final, 3);
-    Serial.print("m | vL: ");
-    Serial.print(vL, 2);
-    Serial.print(" | vR: ");
-    Serial.println(vR, 2);
+    // Log minimal : uniquement au changement de point cible (pour ne pas saturer le UART à 50Hz)
+    static int lastLoggedIdx = -1;
+    if (currentIdx != lastLoggedIdx) {
+        Serial.print("[ESP32] TgtIdx: ");
+        Serial.print(currentIdx);
+        Serial.print(" | DistFin: ");
+        Serial.print(d_final, 3);
+        Serial.println("m");
+        lastLoggedIdx = currentIdx;
+    }
 
     return true;
 }

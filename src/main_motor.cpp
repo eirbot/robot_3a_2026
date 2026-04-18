@@ -36,9 +36,11 @@ void setup() {
     follower.setLookahead(0.20f);    // 20 cm de lookahead
     follower.setNominalSpeed(0.70f); // 70 cm/s de vitesse de pointe !
 
-    xTaskCreatePinnedToCore(taskControl, "Control", 6000, nullptr, 3, nullptr, 1);
-    xTaskCreatePinnedToCore(taskSerialRx, "SerialRx", 6000, nullptr, 2, nullptr, 1);
-    xTaskCreatePinnedToCore(taskSerialTx, "SerialTx", 4000, nullptr, 1, nullptr, 1);
+    // taskControl sur core 0 (séparé du wifi/serial core 1)
+    // Stacks augmentés pour éviter les stack overflows
+    xTaskCreatePinnedToCore(taskControl,  "Control",  8192, nullptr, 3, nullptr, 0);
+    xTaskCreatePinnedToCore(taskSerialRx, "SerialRx", 12288, nullptr, 2, nullptr, 1);
+    xTaskCreatePinnedToCore(taskSerialTx, "SerialTx",  4096, nullptr, 1, nullptr, 1);
 }
 
 void loop() {
@@ -54,6 +56,8 @@ static void applyVLVR(float vL, float vR) {
 
 // TÂCHE DE CONTRÔLE : TEMPS RÉEL (50Hz)
 void taskControl(void* arg) {
+    // Attente initiale pour laisser StartMotors() terminer avant la 1ère itération
+    vTaskDelay(pdMS_TO_TICKS(100));
     TickType_t lastWake = xTaskGetTickCount();
     uint32_t lastMicros = micros();
 
