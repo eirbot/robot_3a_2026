@@ -153,6 +153,8 @@ class DeplacementServer(threading.Thread):
                 # TEXTE (ex: SET POSE, STOP)
                 self.ser.write((message + '\n').encode())
                 print(f"[COM->ESP] {message}")
+
+                time.sleep(0.05)
                 
                 if message.startswith("SET POSE"):
                     # 1. On vide les vieux messages d'odométrie coincés dans le tuyau
