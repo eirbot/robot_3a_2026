@@ -37,6 +37,9 @@ public:
     // Indique si la trajectoire est finie
     bool isFinished() const;
 
+    // Indique si le suivi est actif (traj en cours)
+    bool isActive() const;
+
     // Réinitialise l’état interne (annule la traj en cours)
     void reset();
 
