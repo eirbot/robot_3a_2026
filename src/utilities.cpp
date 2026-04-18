@@ -1,5 +1,5 @@
 #include "utilities.hpp"
 
 float absMax(float a, float b) {
-    return (abs(a) > abs(b)) ? a : b;
+    return (fabs(a) > fabs(b)) ? a : b;
 }

@@ -160,11 +160,13 @@ bool TrajectoryFollower::computeCommand(const Pose2D& poseOdom, const VelMots2D&
     float max_dist = fmaxf(fabs(Dist_L), fabs(Dist_R));
     temps_arc = max_dist / current_v_nom;
 
-    // Décélération douce sur la fin de la trajectoire
-    int nPointsDec = nPoints / 2;
+    // Décélération uniquement sur la toute fin (le dernier quart)
+    int nPointsDec = nPoints / 4; 
+    if (nPointsDec < 3) nPointsDec = 3; // Au moins 3 points de freinage
+    
     if(currentIdx > nPoints - nPointsDec){
         int decIdx = currentIdx - (nPoints - nPointsDec);
-        temps_arc *= (1.0f + decIdx * 0.2f); // Allonge le temps pour réduire la vitesse
+        temps_arc *= (1.0f + decIdx * 0.1f); // Freinage à 0.1 au lieu de 0.2
     }
 
     // Sécurité absolue anti division par zéro

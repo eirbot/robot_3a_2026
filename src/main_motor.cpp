@@ -35,7 +35,7 @@ void setup() {
 
   // 2. CORRECTION DU PURE PURSUIT
   follower.setLookahead(0.20f);    // 20 cm (était à 0.02f / 2cm)
-  follower.setNominalSpeed(0.35f); // 0.35 m/s
+  follower.setNominalSpeed(0.70f); // 0.70 m/s
 
   xTaskCreatePinnedToCore(taskControl, "Control", 6000, nullptr, 3, nullptr, 1);
   xTaskCreatePinnedToCore(taskSerialRx, "SerialRx", 6000, nullptr, 2, nullptr,

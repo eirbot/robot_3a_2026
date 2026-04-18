@@ -10,8 +10,8 @@
 // Define constants 
 
 #define STEP_PER_REV 3200
-#define MAX_SPEED_MM_S 400.0f
-#define ACCEL_MM_S2   400.0f//200.0f
+#define MAX_SPEED_MM_S 1000.0f // 1 m/s max (ajustable selon les capacités de ton robot)
+#define ACCEL_MM_S2   1500.0f // 1.5 m/s² d'accélération max pour éviter les glissements
 #define HOMING_SPEED_MM_S 10.0f
 #define HOMING_BACKOFF_MM 5.0f
 #define MM_PAR_TOUR 8.0f
