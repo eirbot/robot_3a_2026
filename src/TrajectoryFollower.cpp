@@ -213,8 +213,12 @@ bool TrajectoryFollower::computeCommand(const Pose2D& poseOdom, const VelMots2D&
 
     currentIdx++;
     
-    Serial.print("  temps_arc: ");
-    Serial.println(temps_arc);
+    Serial.print("  [DEBUG] temps_arc: ");
+    Serial.print(temps_arc, 2);
+    Serial.print("s | vL: ");
+    Serial.print(vL, 3);
+    Serial.print(" m/s | vR: ");
+    Serial.println(vR, 3);
 
     return true;
 }

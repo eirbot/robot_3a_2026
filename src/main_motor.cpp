@@ -110,12 +110,6 @@ void taskControl(void *arg) {
       // Mise à jour de la mémoire pour la boucle suivante
       wasMoving = isMoving;
     }
-    if (wasMoving) { // Pour ne l'afficher que quand il est censé rouler
-      SERIAL_PI.print("[ESP32 DEBUG] vL: ");
-      SERIAL_PI.print(vL, 3);
-      SERIAL_PI.print(" | vR: ");
-      SERIAL_PI.println(vR, 3);
-    }
 
     applyVLVR(vL, vR);
     velmots.vL = vL;
