@@ -193,17 +193,18 @@ bool TrajectoryFollower::computeCommand(const Pose2D& poseOdom, const VelMots2D&
         vR *= factor;
     }
 
-    // --- RECALCUL DU TEMPS RÉEL (Après bridage) ---
-    float tL = (fabs(vL) > 0.001f) ? fabs(Dist_L) / fabs(vL) : 0.0f;
-    float tR = (fabs(vR) > 0.001f) ? fabs(Dist_R) / fabs(vR) : 0.0f;
-    
-    if (tL > 0.0f && tR > 0.0f) {
-        temps_arc = (tL + tR) / 2.0f;
-    } else {
-        temps_arc = fmaxf(tL, tR);
+    // --- RECALCUL DU TEMPS RÉEL (Sécurisé) ---
+    // On utilise uniquement la roue la plus rapide pour éviter les divisions par zéro
+    // sur la roue intérieure des virages serrés.
+    float max_v = fmaxf(fabs(vL), fabs(vR));
+    if (max_v > 0.01f) {
+        temps_arc = max_dist / max_v;
     }
     
-    // Dernière sécurité
+    // SÉCURITÉ ANTI-GEL ABSOLUE :
+    // Tes points sont espacés de quelques centimètres. Un segment ne 
+    // devrait *jamais* prendre plus de 1.5 seconde.
+    if (temps_arc > 1.5f) temps_arc = 1.5f;
     if (temps_arc < 0.02f) temps_arc = 0.02f;
 
     // On envoie aux moteurs !
