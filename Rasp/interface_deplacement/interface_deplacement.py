@@ -82,12 +82,24 @@ class DeplacementServer(threading.Thread):
 
     def _connect(self):
         try:
-            self.ser = serial.Serial(port=PORT, baudrate=BAUDRATE, timeout=0.1)
-            print(f"[COM] Port série {PORT} ouvert avec succès.")
+            # 1. On initialise l'objet SANS l'ouvrir immédiatement
+            self.ser = serial.Serial()
+            self.ser.port = PORT
+            self.ser.baudrate = BAUDRATE
+            self.ser.timeout = 0.1
+            
+            # 2. LE BOUCLIER ANTI-RESET 
+            self.ser.dtr = False
+            self.ser.rts = False
+            
+            # 3. On ouvre le port en toute sécurité
+            self.ser.open()
+            self.ser.dtr = False
+            self.ser.rts = False
+            
+            print(f"[COM] Port série {PORT} ouvert avec succès sans Reset.")
             self.is_connected = True
-            # Quand on ouvre l'ESP reboot. On attend 2 secondes.
-            print("[COM] Attente du redémarrage de l'ESP32...")
-            time.sleep(2.0)
+            time.sleep(1.0) # Moins besoin d'attendre si ça ne reboot pas
             return True
         except serial.SerialException as e:
             print(f"[COM] Erreur ouverture port {PORT} : {e}")
@@ -171,6 +183,10 @@ class DeplacementServer(threading.Thread):
             
             if isinstance(message, str):
                 # TEXTE (ex: SET POSE, STOP)
+                if message.startswith("SET POSE"):
+                    self.ser.write(b'\n') # Vide le buffer de l'ESP32
+                    time.sleep(0.05)
+
                 self.ser.write((message + '\n').encode())
                 print(f"[COM->ESP] {message}")
                 
