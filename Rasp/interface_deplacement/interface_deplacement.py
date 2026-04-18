@@ -115,12 +115,11 @@ class DeplacementServer(threading.Thread):
                 elif "BEZ OK" in line:
                     print("[COM] ESP32 a validé la trajectoire Bezier.")
                 elif "currentIdx" in line:
-                    # Ne spamme pas la console, mais on peut le lire
-                    pass
+                    # ON DÉBLOQUE L'AFFICHAGE :
+                    print(f"[ESP32] {line}")
                 else:
-                    # Autres logs venant de l'ESP
-                    # print(f"[ESP32] {line}")
-                    pass
+                    # ON DÉBLOQUE LES AUTRES LOGS :
+                    print(f"[ESP32] {line}")
                     
         except OSError as e:
             print(f"[COM] Déconnexion brutale : {e}")
