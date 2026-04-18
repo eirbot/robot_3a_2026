@@ -108,6 +108,7 @@ void taskControl(void* arg) {
 }
 
 // Réception série depuis la Rasp
+// Réception série depuis la Rasp
 void taskSerialRx(void* arg) {
     String line;
 
@@ -135,12 +136,28 @@ void taskSerialRx(void* arg) {
                             follower.setCorrectedPose(p);
                         }
                     }
-                    else if (line.startsWith("SET POSE")){
-                        float x_mm, y_mm, th;
-                        if (sscanf(line.c_str(), "SET POSE %f %f %f", &x_mm, &y_mm, &th) == 3) {
-                            motors.ResetPosition(x_mm/ 1000.0f, y_mm/ 1000.0f, th);
+                    // --- LA CORRECTION ANTI-PARASITES EST ICI ---
+                    else if (line.indexOf("SET POSE") != -1) {
+                        float x_mm = 0, y_mm = 0, th = 0;
+                        
+                        // On ignore tout ce qu'il y a avant "SET POSE" (les parasites)
+                        int match_index = line.indexOf("SET POSE");
+                        String clean_line = line.substring(match_index);
+                        
+                        if (sscanf(clean_line.c_str(), "SET POSE %f %f %f", &x_mm, &y_mm, &th) == 3) {
+                            motors.ResetPosition(x_mm / 1000.0f, y_mm / 1000.0f, th);
+                            
+                            // LOG DE CONFIRMATION
+                            SERIAL_PI.print("[ESP32] ✅ POSE RESET OK : X=");
+                            SERIAL_PI.print(x_mm / 1000.0f, 3);
+                            SERIAL_PI.print("m, Y=");
+                            SERIAL_PI.print(y_mm / 1000.0f, 3);
+                            SERIAL_PI.println("m");
+                        } else {
+                            SERIAL_PI.println("[ESP32] ❌ ERREUR PARSING SET POSE !");
                         }
                     }
+                    // --------------------------------------------
                     else if (line.startsWith("STOP")) {
                         follower.reset();
                         motors.Stop();
