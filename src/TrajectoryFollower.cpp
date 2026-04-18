@@ -4,7 +4,7 @@
 
 TrajectoryFollower::TrajectoryFollower()
 : nPoints(0), currentIdx(0), active(false), hasCorr(false),
-  Ld(0.20f), v_nom(0.35f) // 20cm lookahead, 0.35m/s par défaut
+  Ld(0.20f), v_nom(0.70f) // 20cm lookahead, 0.70 m/s par défaut
 {
     poseCorr = {0.0f, 0.0f, 0.0f};
 }
@@ -16,7 +16,7 @@ float TrajectoryFollower::wrapPi(float a) {
 }
 
 bool TrajectoryFollower::loadFromJson(const char* json) {
-    StaticJsonDocument<4096> doc; // suffisant pour 50+ points
+    StaticJsonDocument<4096> doc; 
 
     DeserializationError err = deserializeJson(doc, json);
     if (err) {
@@ -76,6 +76,10 @@ bool TrajectoryFollower::isFinished() const {
     return !active;
 }
 
+bool TrajectoryFollower::isActive() const {
+    return active;
+}
+
 void TrajectoryFollower::reset() {
     active = false;
     nPoints = 0;
@@ -92,7 +96,7 @@ void TrajectoryFollower::setNominalSpeed(float v_mps) {
 
 bool TrajectoryFollower::computeCommand(const Pose2D& poseOdom, const VelMots2D& velmots, float dt, float& vL_out, float& vR_out, float& temps_arc) {
     
-    // 1. SÉCURITÉ : Fin de trajet ou Out-Of-Bounds (Évite les crashs mémoire)
+    // 1. SÉCURITÉ MÉMOIRE
     if (!active || nPoints == 0 || currentIdx >= nPoints - 1) {
         vL_out = 0.0f;
         vR_out = 0.0f;
@@ -100,133 +104,126 @@ bool TrajectoryFollower::computeCommand(const Pose2D& poseOdom, const VelMots2D&
         return false;
     }
 
-    // Récupère la vitesse nominale définie dans le main
     float current_v_nom = v_nom;
-    if (current_v_nom < 0.05f) current_v_nom = 0.3f; // Sécurité si oubli d'init
+    if (current_v_nom < 0.05f) current_v_nom = 0.5f;
 
-    Serial.print("Point suivant, currentIdx : ");
-    Serial.println(currentIdx + 1);
-
-    // Pose utilisée pour le suivi
     Pose2D pose = hasCorr ? poseCorr : poseOdom;
     Point2D target = points[currentIdx + 1];
 
-    Serial.print("  [DEBUG] Le robot croit etre a -> X: ");
-    Serial.print(pose.x, 3);
-    Serial.print("m | Y: ");
-    Serial.print(pose.y, 3);
-    Serial.print("m | Theta: ");
-    Serial.println(pose.theta, 3);
-
-    // Calcul de la distance pure (Monde)
+    // Distance réelle entre le robot et le point cible
     float dx_w = target.x - pose.x;
     float dy_w = target.y - pose.y;
     float d = sqrtf(dx_w*dx_w + dy_w*dy_w);
 
-    Serial.print("target  : ");
-    Serial.print(target.x);
-    Serial.print("   ");
-    Serial.println(target.y);
+    // 2. LOGIQUE D'AVANCEMENT (Tolérance 12cm pour la fluidité)
+    if (d < 0.12f && currentIdx < nPoints - 2) {
+        currentIdx++;
+        target = points[currentIdx + 1];
+        dx_w = target.x - pose.x;
+        dy_w = target.y - pose.y;
+        d = sqrtf(dx_w*dx_w + dy_w*dy_w);
+    }
 
+    // 3. ARRÊT CHIRURGICAL SUR LE DERNIER POINT (Précision 1cm)
+    if (currentIdx >= nPoints - 2 && d < 0.01f) {
+        vL_out = 0.0f;
+        vR_out = 0.0f;
+        active = false;
+        Serial.println("[ESP32] DESTINATION ATTEINTE AVEC PRECISION !");
+        return false;
+    }
+
+    // --- MATHÉMATIQUES (Repère Robot) ---
     float c = cosf(pose.theta);
     float s = sinf(pose.theta);
+    float x_r =  c*dx_w + s*dy_w;     
+    float y_r = -s*dx_w + c*dy_w;     
 
-    // Repère monde -> Repère robot
-    float x_r =  c*dx_w + s*dy_w;     // X: Avant/Arrière
-    float y_r = -s*dx_w + c*dy_w;     // Y: Gauche/Droite
-
-    // --- LA MAGIE : MARCHE ARRIÈRE AUTOMATIQUE ---
-    // Si X est négatif, la cible est derrière le robot !
+    // MARCHE ARRIÈRE AUTOMATIQUE
     bool goBackward = (x_r < 0.0f);
-    
-    // On projette virtuellement le point devant le robot pour le calcul d'angle
-    // (En inversant X et Y, on crée un miroir parfait pour braquer à l'envers)
     float steer_x = goBackward ? -x_r : x_r;
     float steer_y = goBackward ? -y_r : y_r;
 
-    // Angle de courbure de l'arc de cercle
     float theta = 2.0f * atan2f(steer_y, steer_x);
-    float Dist_Center = d;
-
-    // Longueur réelle de l'arc (évite la division par zéro en ligne droite)
+    
+    float vL = current_v_nom;
+    float vR = current_v_nom;
+    
+    // Calcul différentiel pour les virages
     if (fabs(theta) > 0.001f) {
-        Dist_Center = (theta / 2.0f) * d / sinf(theta / 2.0f);
+        float R = d / (2.0f * sinf(fabs(theta) / 2.0f));
+        float w = current_v_nom / R;
+        
+        if (theta > 0) { // Cible à gauche
+            vL = current_v_nom - (WHEEL_BASE / 2.0f) * w;
+            vR = current_v_nom + (WHEEL_BASE / 2.0f) * w;
+        } else { // Cible à droite
+            vL = current_v_nom + (WHEEL_BASE / 2.0f) * w;
+            vR = current_v_nom - (WHEEL_BASE / 2.0f) * w;
+        }
     }
 
-    // Si on recule, on ordonne une distance négative
+    // Inversion finale des moteurs si on recule
     if (goBackward) {
-        Dist_Center = -Dist_Center;
+        vL = -vL;
+        vR = -vR;
     }
 
-    // Distances individuelles pour chaque roue (Odométrie différentielle)
-    float Dist_L = Dist_Center - (WHEEL_BASE / 2.0f) * theta;
-    float Dist_R = Dist_Center + (WHEEL_BASE / 2.0f) * theta;
-
-    // --- CALCUL DU TEMPS ET DES VITESSES ---
-    // On base le temps sur la roue qui a le plus grand chemin à parcourir
-    float max_dist = fmaxf(fabs(Dist_L), fabs(Dist_R));
-    temps_arc = max_dist / current_v_nom;
-
-    // Décélération uniquement sur la toute fin (le dernier quart)
-    int nPointsDec = nPoints / 4; 
-    if (nPointsDec < 3) nPointsDec = 3; // Au moins 3 points de freinage
+    // --- FREINAGE PROPORTIONNEL ---
+    int nPointsDec = nPoints / 4;
+    if (nPointsDec < 3) nPointsDec = 3;
     
-    if(currentIdx > nPoints - nPointsDec){
-        int decIdx = currentIdx - (nPoints - nPointsDec);
-        temps_arc *= (1.0f + decIdx * 0.1f); // Freinage à 0.1 au lieu de 0.2
+    if (currentIdx > nPoints - nPointsDec) {
+        if (currentIdx >= nPoints - 2) {
+            // Asservissement proportionnel sur les tout derniers centimètres
+            float v_approche = d * 2.0f; 
+            if (v_approche < 0.05f) v_approche = 0.05f; // Pas moins de 5 cm/s pour ne pas bloquer
+            
+            vL = (vL > 0) ? v_approche : -v_approche;
+            vR = (vR > 0) ? v_approche : -v_approche;
+        } else {
+            // Décélération douce en approche
+            float ratio = (float)(nPoints - 1 - currentIdx) / nPointsDec; 
+            if (ratio < 0.25f) ratio = 0.25f; 
+            vL *= ratio;
+            vR *= ratio;
+        }
     }
 
-    // Sécurité absolue anti division par zéro
-    if (temps_arc < 0.02f) temps_arc = 0.02f;
-
-    // Vitesses théoriques
-    float vL = Dist_L / temps_arc;
-    float vR = Dist_R / temps_arc;
-
-    // --- LIMITATION D'ACCÉLÉRATION ---
-    float aL = (vL - velmots.vL) / temps_arc;
-    float aR = (vR - velmots.vR) / temps_arc;
+    // --- LIMITATION D'ACCÉLÉRATION (Vraie physique via dt) ---
+    float aL = (vL - velmots.vL) / dt;
+    float aR = (vR - velmots.vR) / dt;
     float max_accel = fmaxf(fabs(aL), fabs(aR));
+    float max_accel_allowed = ACCEL_MM_S2 / 1000.0f;
     
-    if (max_accel >= (ACCEL_MM_S2 / 1000.0f)) {
-        float factor = (ACCEL_MM_S2 / 1000.0f) / max_accel;
-        vL = velmots.vL + aL * factor * temps_arc;
-        vR = velmots.vR + aR * factor * temps_arc;
+    if (max_accel > max_accel_allowed) {
+        float factor = max_accel_allowed / max_accel;
+        vL = velmots.vL + aL * factor * dt;
+        vR = velmots.vR + aR * factor * dt;
     }
 
-    // --- LIMITATION DE VITESSE MAX ---
+    // --- LIMITATION DE VITESSE MAXIMALE ---
     float max_spd = fmaxf(fabs(vL), fabs(vR));
-    if (max_spd >= (MAX_SPEED_MM_S / 1000.0f)) {
-        float factor = (MAX_SPEED_MM_S / 1000.0f) / max_spd;
+    float max_spd_allowed = MAX_SPEED_MM_S / 1000.0f;
+    if (max_spd > max_spd_allowed) {
+        float factor = max_spd_allowed / max_spd;
         vL *= factor;
         vR *= factor;
     }
 
-    // --- RECALCUL DU TEMPS RÉEL (Sécurisé) ---
-    // On utilise uniquement la roue la plus rapide pour éviter les divisions par zéro
-    // sur la roue intérieure des virages serrés.
-    float max_v = fmaxf(fabs(vL), fabs(vR));
-    if (max_v > 0.01f) {
-        temps_arc = max_dist / max_v;
-    }
-    
-    // SÉCURITÉ ANTI-GEL ABSOLUE :
-    // Tes points sont espacés de quelques centimètres. Un segment ne 
-    // devrait *jamais* prendre plus de 1.5 seconde.
-    if (temps_arc > 1.5f) temps_arc = 1.5f;
-    if (temps_arc < 0.02f) temps_arc = 0.02f;
-
-    // On envoie aux moteurs !
+    // Envoi des commandes
     vL_out = vL;
     vR_out = vR;
+    temps_arc = dt; // Résiduel pour garder la même signature de fonction
 
-    currentIdx++;
-    
-    Serial.print("  [DEBUG] temps_arc: ");
-    Serial.print(temps_arc, 2);
-    Serial.print("s | vL: ");
+    // LOG UNIQUE ET PROPRE
+    Serial.print("[ESP32] TargetIdx: ");
+    Serial.print(currentIdx + 1);
+    Serial.print(" | Dist: ");
+    Serial.print(d, 3);
+    Serial.print("m | vL: ");
     Serial.print(vL, 3);
-    Serial.print(" m/s | vR: ");
+    Serial.print(" | vR: ");
     Serial.println(vR, 3);
 
     return true;
