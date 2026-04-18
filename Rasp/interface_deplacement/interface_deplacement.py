@@ -22,7 +22,17 @@ def envoyer(message):
     """
     if len(message) == 0:
         return
-        
+    
+    if isinstance(message, str) and message.startswith("SET POSE"):
+        try:
+            parts = message.split()
+            # On met à jour shared.robot_pos avant même que le message parte !
+            shared.robot_pos['y'] = float(parts[2])
+            shared.robot_pos['x'] = float(parts[3])
+            shared.robot_pos['theta'] = float(parts[4]) * (180.0 / np.pi)
+        except Exception as e:
+            pass
+
     if _server_instance:
         if isinstance(message, (list, np.ndarray)):
             # On indique qu'un mouvement va démarrer, on bloque le wait_idle
@@ -143,7 +153,21 @@ class DeplacementServer(threading.Thread):
                 # TEXTE (ex: SET POSE, STOP)
                 self.ser.write((message + '\n').encode())
                 print(f"[COM->ESP] {message}")
-                # Les commandes simples sont considérées comme instantanées
+                
+                if message.startswith("SET POSE"):
+                    # 1. On vide les vieux messages d'odométrie coincés dans le tuyau
+                    self.ser.reset_input_buffer()
+                    
+                    # 2. On force la mise à jour immédiate de la mémoire interne
+                    try:
+                        parts = message.split()
+                        shared.robot_pos['y'] = float(parts[2])
+                        shared.robot_pos['x'] = float(parts[3])
+                        shared.robot_pos['theta'] = float(parts[4]) * (180.0 / np.pi)
+                    except Exception as e:
+                        print(f"[DEBUG] Erreur parsing SET POSE interne : {e}")
+                # ------------------------
+
                 if "STOP" in message:
                     self.move_completed_event.set()
                 
@@ -161,17 +185,7 @@ class DeplacementServer(threading.Thread):
                 if trajectoire_bezier_mm.shape[1] >= 2:
                     trajectoire_bezier_mm[:, [0, 1]] = trajectoire_bezier_mm[:, [1, 0]]
                 
-                # 1. Envoi de la position actuelle pour recaler l'ESP avant le trajet
-                y_mm = shared.robot_pos['y']
-                x_mm = shared.robot_pos['x']
-                theta_rad = shared.robot_pos['theta'] * (np.pi/180.0)
-                cmd_pose = f"SET POSE {y_mm:.2f} {x_mm:.2f} {theta_rad:.4f}\n"
-                self.ser.write(cmd_pose.encode())
-                
-                # Petit délai pour que l'ESP digère le SET POSE avant le JSON
-                time.sleep(0.05) 
-                
-                # 2. Envoi JSON
+                # Envoi JSON
                 json_str = json.dumps(trajectoire_bezier_mm.tolist())
                 self.ser.write((json_str + '\n').encode())
                 print(f"[COM->ESP] Trajectoire ({nb_points} pts) envoyée.")
