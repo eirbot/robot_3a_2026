@@ -15,7 +15,13 @@ window.socket.on('state_update', (state) => {
 
 window.socket.on('sys_info', (data) => {
     const d = document.getElementById('sys-info');
-    if (d) d.innerHTML = `IP: ${data.ip} | Bat: ${data.volt}<br>CPU: ${data.cpu}`;
+    if (d) {
+        let batHtml = `Bat: ${data.volt}`;
+        if (data.volt_float !== undefined && data.volt_float < 18.0) {
+            batHtml = `<span class="tirette-box status-non-armed" style="font-size:0.8em; padding:2px; margin-left:5px; border-radius:3px;">⚠️ BAT BASSE (${data.volt})</span>`;
+        }
+        d.innerHTML = `IP: ${data.ip} | ${batHtml}<br>CPU: ${data.cpu}`;
+    }
 });
 
 // --- FONCTIONS PARTAGÉES ---

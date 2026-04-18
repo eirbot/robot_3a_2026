@@ -31,6 +31,14 @@ def get_cpu_temp():
     except:
         return "??"
 
+def get_voltage_float():
+    if SENSOR_AVAILABLE and voltage_sensor:
+        try:
+            return float(voltage_sensor.voltage)
+        except:
+            pass
+    return 12.4
+
 def get_battery_voltage():
     """Retourne la tension réelle ou une valeur simulée"""
     if SENSOR_AVAILABLE and voltage_sensor:

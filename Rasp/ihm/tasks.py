@@ -5,7 +5,7 @@ import os
 import numpy as np
 # On assure d'importer robot_pos
 from ihm.shared import socketio, state, audio, send_led_cmd, robot_pos 
-from utils import get_ip, get_battery_voltage, get_cpu_temp, get_battery_current
+from utils import get_ip, get_battery_voltage, get_cpu_temp, get_battery_current, get_voltage_float
 
 def background_loop():
     print("[IHM] Background loop démarrée.")
@@ -30,10 +30,22 @@ def background_loop():
             'camera': False 
         }
         
+        volts = get_voltage_float()
+        
+        # --- BAU Virtuel (INA226) ---
+        if volts < 3.0 and state.get("fsm_state") != "STOPPED":
+             print("[TASKS] 🚨 ARRET D'URGENCE (BAU) VIA INA226 (Tension < 3V) !")
+             state['match_running'] = False
+             state['fsm_state'] = "STOPPED"
+             state['tirette'] = "WAIT"
+             send_led_cmd("COLOR:255,0,0") 
+             socketio.emit('state_update', state)
+
         socketio.emit('sys_info', {
             'cpu': f"{psutil.cpu_percent()}%", 
             'temp': get_cpu_temp(),
             'volt': get_battery_voltage(), 
+            'volt_float': volts,
             'current': get_battery_current(),
             'ip': get_ip(), 
             'devs': devs

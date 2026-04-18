@@ -62,6 +62,8 @@ def handle_config(data):
     for key, val in data.items():
         if key in shared.state:
             shared.state[key] = val
+        if key == 'ekf_enabled':
+            shared.ekf_enabled = val
             
     # Si on change de stratégie, on peut logguer
     if 'strat_id' in data:

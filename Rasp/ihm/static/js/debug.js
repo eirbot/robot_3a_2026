@@ -43,7 +43,7 @@ window.socket.on('state_update', (state) => {
         setCheck('chk-lidar', c.lidar);
         setCheck('chk-lidar-simu', c.lidar_simu);
         setCheck('chk-skip-homolog', c.skip_homologation);
-        setCheck('chk-ekf', c.ekf);
+        setCheck('chk-ekf', c.ekf_enabled);
         let camStatus = (typeof c.camera === 'object') ? c.camera.enabled : c.camera;
         setCheck('chk-cam', camStatus);
         setCheck('chk-avoid', c.avoidance);

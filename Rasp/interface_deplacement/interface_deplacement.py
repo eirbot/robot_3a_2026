@@ -110,26 +110,46 @@ class DeplacementServer(threading.Thread):
                     print("[COM] ESP32 : Fin de trajectoire reçue.")
                     self.move_completed_event.set() # Libère le wait_idle() de la strat
                 
-                # --- MISE A JOUR POSITION (Odométrie) ---
+                # --- MISE A JOUR POSITION (Odométrie brute de l'ESP32) ---
                 elif line.startswith('[') and line.endswith(']'):
                     try:
+                        # Exemple reçu de l'ESP32 : [1.8000, 2.7500, -1.5708]
                         msg_list = ast.literal_eval(line)
                         if len(msg_list) >= 3:
-                            shared.robot_pos['x'] = msg_list[0] * 1000
-                            shared.robot_pos['y'] = msg_list[1] * 1000
-                            shared.robot_pos['theta'] = msg_list[2] * 180 / np.pi
-                    except:
+                            # Conversion des Mètres/Radians (ESP32) en Millimètres/Degrés (Python)
+                            raw_x = msg_list[0] * 1000.0
+                            raw_y = msg_list[1] * 1000.0
+                            raw_theta = msg_list[2] * 180.0 / np.pi
+                            
+                            # On sauvegarde la raw_odom pour l'afficher sur le Web (Debug)
+                            shared.raw_odom = {'x': raw_x, 'y': raw_y, 'theta': raw_theta}
+                            
+                            # --- LE BYPASS DE SÉCURITÉ ---
+                            # Si le subprocess EKF est "killé" ou désactivé, on injecte
+                            # l'odométrie brute directement dans la variable officielle de la stratégie !
+                            if getattr(shared, 'ekf_enabled', False) == False:
+                                shared.robot_pos['x'] = raw_x
+                                shared.robot_pos['y'] = raw_y
+                                shared.robot_pos['theta'] = raw_theta
+                                
+                    except Exception as e:
+                        # print(f"[DEBUG] Erreur parsing odométrie brute : {e}")
                         pass
                 
-                # --- LOGS / DEBUG ESP32 ---
+                # --- GESTION DES LOGS DE L'ESP32 ---
                 elif "BEZ OK" in line:
                     print("[COM] ESP32 a validé la trajectoire Bezier.")
-                elif "currentIdx" in line:
-                    # ON DÉBLOQUE L'AFFICHAGE :
-                    print(f"[ESP32] {line}")
+                elif "BEZ ERR" in line:
+                    print("[COM] ERREUR : ESP32 a rejeté la trajectoire JSON !")
+                elif "TargetIdx" in line or "DESTINATION ATTEINTE" in line:
+                    # On affiche les beaux logs de suivi de trajectoire qu'on a codés en C++
+                    print(line)
+                elif line.startswith("[ESP32]"):
+                    # Pour attraper tous les autres logs C++ qui commencent par [ESP32]
+                    print(line)
                 else:
-                    # ON DÉBLOQUE LES AUTRES LOGS :
-                    print(f"[ESP32] {line}")
+                    # On ignore silencieusement le reste pour ne pas spammer
+                    pass
                     
         except OSError as e:
             print(f"[COM] Déconnexion brutale : {e}")
@@ -153,13 +173,12 @@ class DeplacementServer(threading.Thread):
                 # TEXTE (ex: SET POSE, STOP)
                 self.ser.write((message + '\n').encode())
                 print(f"[COM->ESP] {message}")
-
-                time.sleep(0.05)
                 
                 if message.startswith("SET POSE"):
                     # 1. On vide les vieux messages d'odométrie coincés dans le tuyau
                     self.ser.reset_input_buffer()
                     
+                    time.sleep(0.2)
                     # 2. On force la mise à jour immédiate de la mémoire interne
                     try:
                         parts = message.split()

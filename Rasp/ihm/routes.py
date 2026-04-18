@@ -190,6 +190,13 @@ def config_edit():
     key = data.get('key')
     val = data.get('val')
     
+    # Sync de la variable dans l'état racine si applicable
+    if key in state:
+        state[key] = val
+    if key == 'ekf_enabled':
+        import ihm.shared as shared_module
+        shared_module.ekf_enabled = val
+    
     if 'config' in state:
         conf = state['config']
         

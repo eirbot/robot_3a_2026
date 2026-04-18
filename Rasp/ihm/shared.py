@@ -51,8 +51,12 @@ state = {
     "strat_id": "strat_homologation", 
     "fsm_state": "INIT",
     "strat_mode": cfg.get("strat_mode", "DYNAMIC"),
-    "strat_id": cfg.get("strat_id", 1)
+    "strat_id": cfg.get("strat_id", 1),
+    "ekf_enabled": cfg.get("ekf_enabled", True)
 }
+
+# Variable exposée en tant qu'attribut pour le bypass de sécu
+ekf_enabled = state["ekf_enabled"]
 
 # Position Robot Partagée (Mise à jour par le Main, Lue par l'IHM)
 robot_pos = {'x': 1500, 'y': 1000, 'theta': 0}
