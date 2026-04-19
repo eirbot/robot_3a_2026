@@ -198,11 +198,18 @@ bool TrajectoryFollower::computeCommand(const Pose2D& poseOdom, const VelMots2D&
     // Log minimal : uniquement au changement de point cible (pour ne pas saturer le UART à 50Hz)
     static int lastLoggedIdx = -1;
     if (currentIdx != lastLoggedIdx) {
-        Serial.print("[ESP32] TgtIdx: ");
+        Serial.print("[ESP32] Tgt:");
         Serial.print(currentIdx);
-        Serial.print(" | DistFin: ");
-        Serial.print(d_final, 3);
-        Serial.println("m");
+        Serial.print(" | Pos:(");
+        Serial.print(pose.x, 3); // Position X actuelle
+        Serial.print(",");
+        Serial.print(pose.y, 3); // Position Y actuelle
+        Serial.print(") | dFin:");
+        Serial.print(d_final, 3); // Distance restante
+        Serial.print("m | vL:");
+        Serial.print(vL, 2);     // Vitesse moteur Gauche
+        Serial.print(" | vR:");
+        Serial.println(vR, 2);   // Vitesse moteur Droit
         lastLoggedIdx = currentIdx;
     }
 
