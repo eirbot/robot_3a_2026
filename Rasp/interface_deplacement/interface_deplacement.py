@@ -14,16 +14,20 @@ BAUDRATE = 115200
 # File d'attente globale pour envoyer des commandes à l'ESP32
 _cmd_queue = queue.Queue()
 _server_instance = None
+_ignore_odom_until = 0.0
 
 def envoyer(message):
     """
     Envoie un message (texte ou trajectoire) à la file d'attente du thread de déplacement.
     Cette fonction est NON-BLOQUANTE pour la stratégie.
     """
+    global _ignore_odom_until
+
     if len(message) == 0:
         return
     
     if isinstance(message, str) and message.startswith("SET POSE"):
+        _ignore_odom_until = time.time() + 0.5
         try:
             parts = message.split()
             # On met à jour shared.robot_pos avant même que le message parte !
@@ -140,9 +144,10 @@ class DeplacementServer(threading.Thread):
                             # Si le subprocess EKF est "killé" ou désactivé, on injecte
                             # l'odométrie brute directement dans la variable officielle de la stratégie !
                             if getattr(shared, 'ekf_enabled', False) == False:
-                                shared.robot_pos['x'] = raw_x
-                                shared.robot_pos['y'] = raw_y
-                                shared.robot_pos['theta'] = raw_theta
+                                if time.time() > globals()['_ignore_odom_until']:
+                                    shared.robot_pos['x'] = raw_x
+                                    shared.robot_pos['y'] = raw_y
+                                    shared.robot_pos['theta'] = raw_theta
                                 
                     except Exception as e:
                         # print(f"[DEBUG] Erreur parsing odométrie brute : {e}")
