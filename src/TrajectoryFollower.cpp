@@ -107,8 +107,8 @@ bool TrajectoryFollower::computeCommand(const Pose2D& poseOdom, const VelMots2D&
     // Distance au point d'arrivée final
     float d_final = hypotf(finalTarget.x - pose.x, finalTarget.y - pose.y);
 
-    // --- 1. CONDITION D'ARRÊT CHIRURGICALE (2.5 cm) ---
-    if (d_final < 0.025f) {
+    // --- 1. CONDITION D'ARRÊT CHIRURGICALE (1.0 cm) ---
+    if (d_final < 0.010f) {
         vL_out = 0.0f; vR_out = 0.0f;
         active = false;
         Serial.println("[ESP32] DESTINATION ATTEINTE AVEC PRECISION !");
@@ -116,8 +116,8 @@ bool TrajectoryFollower::computeCommand(const Pose2D& poseOdom, const VelMots2D&
     }
 
     // --- 2. RECHERCHE DU POINT DE LOOKAHEAD (Vrai Pure Pursuit) ---
-    // On cherche le premier point situé à Ld mètres (ex: 20 cm) devant le robot.
-    float current_Ld = 0.20f; 
+    // On cherche le premier point situé à Ld mètres (ex: 8 cm) devant le robot.
+    float current_Ld = 0.08f; 
     Point2D lookaheadPt = finalTarget; // Par défaut, on vise la fin
     
     // On cherche loin devant pour éviter les zigzags sur les points denses
