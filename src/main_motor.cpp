@@ -133,7 +133,7 @@ void taskSerialRx(void* arg) {
                             p.x = x_mm / 1000.0f;
                             p.y = y_mm / 1000.0f;
                             p.theta = th;
-                            follower.setCorrectedPose(p);
+                            // follower.setCorrectedPose(p);
                         }
                     }
                     // --- LA CORRECTION ANTI-PARASITES EST ICI ---
