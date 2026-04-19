@@ -14,6 +14,7 @@ import ast
 import json
 from PIL import Image, ImageTk
 from esp32_detect import find_esp32_port
+import re
 
 points_courbe_bezier = 20
 
@@ -204,7 +205,7 @@ def envoyer(message):
                         msg = ser.readline().decode(errors="ignore").strip()
                         if msg:
                             print(">>", msg)
-                            if(msg[0]=='['):
+                            if(msg[0]=='[' and msg[1]!='E'):
                                 msg_list = ast.literal_eval(msg)
                                 robot.x = msg_list[0]
                                 robot.y = msg_list[1]
