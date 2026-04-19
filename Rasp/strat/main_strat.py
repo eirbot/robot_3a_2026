@@ -107,10 +107,17 @@ def strat_loop():
                 print(f"[STRAT] Erreur d'exécution : {e}")
                 robot.stop()
             finally:
-                shared.state["fsm_state"] = "FINISHED"
+                # Ne pas écraser un état si l'IHM a déjà fait un RESET ou un STOP
+                if shared.state["fsm_state"] == "RUNNING":
+                    shared.state["fsm_state"] = "FINISHED"
 
         # --- ETAT 3 : FINI ---
         elif current_state == "FINISHED":
             if not shared.state["match_running"]:
                 shared.state["fsm_state"] = "WAIT_START"
+            time.sleep(0.5)
+
+        # --- ETAT 4 : ARRÊT D'URGENCE / STOP ---
+        elif current_state == "STOPPED":
+            # Attente du RESET depuis l'IHM (le /reset remet fsm_state = 'WAIT_START')
             time.sleep(0.5)

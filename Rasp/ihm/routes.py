@@ -148,7 +148,11 @@ def handle_action(act):
     print(f"[IHM] Action: {act}")
     
     if act == 'start':
-        # On donne le signal de départ, le thread strat fera la transition vers "RUNNING"
+        # Si on relance depuis un état d'arrêt, on remet la FSM en WAIT_START
+        if state.get('fsm_state') in ('STOPPED', 'FINISHED'):
+            state['fsm_state'] = 'WAIT_START'
+            state['timer_str'] = "100.0"
+            state['match_finished'] = False
         state['match_running'] = True
         state['start_time'] = time.time()
         
@@ -156,6 +160,8 @@ def handle_action(act):
         # Arrêt d'urgence
         state['match_running'] = False
         state['fsm_state'] = 'STOPPED'
+        # Remet la tirette en attente de ré-armement pour permettre un redémarrage
+        state['tirette'] = 'WAIT_INSERT'
         
     elif act == 'reset': 
         # On remet l'état d'attente reconnu par main_strat
@@ -164,6 +170,8 @@ def handle_action(act):
         state['timer_str'] = "100.0"
         state['match_finished'] = False
         state['match_running'] = False
+        # Remet la tirette en WAIT_INSERT : l'utilisateur peut relancer directement avec GO
+        state['tirette'] = 'WAIT_INSERT'
         
     elif act == 'team':
         state['team'] = 'JAUNE' if state['team'] == 'BLEUE' else 'BLEUE'
