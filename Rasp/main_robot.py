@@ -21,21 +21,42 @@ from hardware_thread import hardware_loop
 if __name__ == "__main__":
     print("--- ROBOT 2026 : Démarrage ---")
     
-    init_motors()
+    # Détection de l'environnement plus robuste
+    import platform
+    machine = platform.machine().lower()
+    is_pi = "arm" in machine or "aarch64" in machine
+    
+    # Double check : certains PC linux ont /sys/class/gpio mais ne sont pas des Pi
+    if is_pi and not os.path.exists('/proc/device-tree/model'):
+        is_pi = False
+        
+    print(f"[MAIN] Environnement : {'Raspberry Pi (' + machine + ')' if is_pi else 'PC/Simulation (' + machine + ')'}")
+
+    if is_pi:
+        try:
+            init_motors()
+        except Exception as e:
+            print(f"[MAIN] Erreur initialisation moteurs : {e}")
+    else:
+        print("[MAIN] Mode simulation : Moteurs ignorés.")
     
     led_process = None
     try:
-        # 0. Start LED Service (Subprocess)
-        led_script = os.path.join(os.path.dirname(__file__), 'utils', 'led_service.py')
-        if os.path.exists(led_script):
-            print(f"[MAIN] Lancement du service LED : {led_script}")
-            led_process = subprocess.Popen([sys.executable, led_script])
+        # 0. Start LED Service (Subprocess) - Uniquement sur Pi
+        if is_pi:
+            led_script = os.path.join(os.path.dirname(__file__), 'utils', 'led_service.py')
+            if os.path.exists(led_script):
+                print(f"[MAIN] Lancement du service LED : {led_script}")
+                led_process = subprocess.Popen([sys.executable, led_script])
         else:
-            print(f"[MAIN] ERREUR: led_service.py introuvable à {led_script}")
+            print("[MAIN] Mode simulation : Service LED ignoré.")
 
         # 1. Thread HARDWARE (Lidar, EKF)
-        hw_thread = threading.Thread(target=hardware_loop, daemon=True)
-        hw_thread.start()
+        if is_pi:
+            hw_thread = threading.Thread(target=hardware_loop, daemon=True)
+            hw_thread.start()
+        else:
+            print("[MAIN] Mode simulation : Thread Hardware ignoré.")
 
         # 2. Thread STRATEGIE (IA, Décisions)
         strat_thread = threading.Thread(target=strat_loop, daemon=True)
@@ -45,37 +66,41 @@ if __name__ == "__main__":
         ihm_thread = threading.Thread(target=run_ihm, daemon=True)
         ihm_thread.start()
 
-        # 3.5 Thread BOUTONS (GPIO)
-        from buttons_thread import run_buttons_loop
-        btn_thread = threading.Thread(target=run_buttons_loop, daemon=True)
-        btn_thread.start()
-
+        # 3.5 Thread BOUTONS (GPIO) - Uniquement sur Pi
+        if is_pi:
+            try:
+                from buttons_thread import run_buttons_loop
+                btn_thread = threading.Thread(target=run_buttons_loop, daemon=True)
+                btn_thread.start()
+            except ImportError:
+                print("[MAIN] RPi.GPIO non disponible.")
+        
         # 3.6 Thread TIMER (Décompte + Sync IHM)
         from timer_thread import start_timer_thread
         start_timer_thread()
         
-        # Petit délai pour laisser le temps à Flask/SocketIO de démarrer
-        time.sleep(2)
+        time.sleep(1)
 
-        # --- UPDATE LED INITIALE (Couleur Equipe) ---
-        # Ne pas écraser si on a une alerte tirette en cours
-        if shared.state.get('tirette_msg') != "REMOVE_TO_RESET":
-            print(f"[MAIN] Application de la couleur d'équipe : {shared.state['team']}")
-            if shared.state['team'] == 'JAUNE':
-                 shared.send_led_cmd("COLOR:255,160,0") # Jaune
-            else:
-                 shared.send_led_cmd("COLOR:0,0,255") # Bleue
+        # 4. Interface Graphique
+        print(f"[MAIN] Interface disponible sur http://localhost:5000")
+        
+        if is_pi:
+            try:
+                webview.create_window('Robot 2026', 'http://127.0.0.1:5000', fullscreen=True)
+                webview.start()
+            except Exception as e:
+                print(f"[MAIN] Impossible de lancer webview : {e}")
+                while True: time.sleep(1)
         else:
-             print("[MAIN] Alerte Tirette active, on ne force pas la couleur d'équipe.")
-             # On renvoie la commande car le service LED n'était peut-être pas prêt lors du thread boutons
-             shared.send_led_cmd("ANIM:BLINK:255,100,0,350")
-
-        # 4. Interface Graphique (Bloquant le Main) 
-        # On lance la fenêtre qui affiche le site local
-        # fullscreen=True est recommandé pour l'écran 7" du robot
-        print("[MAIN] Lancement de l'affichage local...")
-        webview.create_window('Robot 2026', 'http://127.0.0.1:5000', fullscreen=True)
-        webview.start()
+            print("[MAIN] Mode simulation : Utilisez votre navigateur sur http://localhost:5000")
+            print("[MAIN] Appuyez sur Ctrl+C pour arrêter.")
+            try:
+                # Tentative optionnelle sur PC
+                # webview.create_window('Robot 2026 - SIMU', 'http://127.0.0.1:5000', width=800, height=480)
+                # webview.start()
+                while True: time.sleep(1)
+            except (KeyboardInterrupt, Exception):
+                pass
         
     except KeyboardInterrupt:
         print("\n[MAIN] Arrêt demandé.")
