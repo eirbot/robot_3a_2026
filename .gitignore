@@ -4,3 +4,10 @@
 .vscode/launch.json
 .vscode/ipch
 speed_tunning
+.vscode/
+*.pyc
+*.pyo
+*.pyd
+__pycache__/
+.venv/
+

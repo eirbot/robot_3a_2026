@@ -3,6 +3,12 @@ rpi_ws281x
 matplotlib
 smbus2
 psutil
-pygame
 pillow
 numpy
+flask
+flask-socketio
+eventlet
+opencv-contrib-python
+adafruit-circuitpython-dotstar
+adafruit-blinka
+pywebview

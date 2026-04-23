@@ -153,4 +153,3 @@ void ClassMotors::UpdateOdometry() {
         xSemaphoreGive(posMutex);
     }
 }
-
