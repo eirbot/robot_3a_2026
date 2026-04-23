@@ -103,7 +103,7 @@ class RobotActions:
 
 
     # --- LE COEUR DU SUJET : GOTO BEZIER ---
-    def goto(self, x, y, theta, force=500):
+    def goto(self, x, y, theta, force=500, retry=True):
         """
         Déplacement via Courbe de Bézier + Envoi ESP32
         """
@@ -152,6 +152,26 @@ class RobotActions:
                 
                 # On attend que l'ESP finisse son mouvement
                 wait_idle(timeout=15.0) 
+                
+                # --- VERIFICATION OBSTACLE ---
+                if retry:
+                    # Sommes-nous arrivés près de P3 ?
+                    dist_to_target = math.sqrt((shared.robot_pos['x'] - p3_x)**2 + (shared.robot_pos['y'] - p3_y)**2)
+                    
+                    if dist_to_target > 50.0:  # mm
+                        if shared.state.get('obstacle_detected'):
+                            print("[STRAT] 🛑 Trajectoire interrompue par OBSTACLE. En attente...")
+                            while shared.state.get('obstacle_detected'):
+                                self._check_abort()
+                                time.sleep(0.1)
+                            
+                            print("[STRAT] ✅ Obstacle disparu, recalcul de la trajectoire !")
+                            # On adoucit la force selon la distance restante
+                            new_force = max(100.0, min(float(force), dist_to_target * 0.8))
+                            self.goto(x, y, theta, force=new_force, retry=True)
+                        else:
+                            print("[STRAT] Arrivée prématurée sans détection LiDAR (peut-être un timeout).")
+
             except Exception as e:
                 print(f"[ERREUR] Échec envoi trajectoire : {e}")
             

@@ -14,8 +14,7 @@ from strat.main_strat import strat_loop
 # Import des communications avec les moteurs
 from interface_deplacement.interface_deplacement import init as init_motors
 
-# Import des logiques
-from hardware_thread import hardware_loop
+# Note : L'ancien EKF Python est supprimé, on va utiliser le C++ UDP + Thread Python
 
 # --- MAIN ---
 if __name__ == "__main__":
@@ -33,9 +32,25 @@ if __name__ == "__main__":
         else:
             print(f"[MAIN] ERREUR: led_service.py introuvable à {led_script}")
 
-        # 1. Thread HARDWARE (Lidar, EKF)
-        hw_thread = threading.Thread(target=hardware_loop, daemon=True)
-        hw_thread.start()
+        # 1. Compilation et Lancement du driver LiDAR C++ (Subprocess)
+        lidar_cpp = os.path.join(os.path.dirname(__file__), 'LiDAR', 'lidar_udp.cpp')
+        lidar_bin = os.path.join(os.path.dirname(__file__), 'LiDAR', 'lidar_udp')
+        
+        if not os.path.exists(lidar_bin):
+            print("[MAIN] Compilation du driver LiDAR C++ (-O3)...")
+            subprocess.run(["g++", "-O3", lidar_cpp, "-o", lidar_bin], check=True)
+            
+        print("[MAIN] Lancement du service LiDAR UDP en C++...")
+        lidar_process = subprocess.Popen([lidar_bin])
+        
+        # 1.5 Thread Anti-Collision (Ecoute de l'UDP)
+        from strat.actions import RobotActions
+        from LiDAR.lidar_thread import LidarCollisionThread
+        
+        # On fournit null s'il n'y pas besoin, mais l'objet RobotActions se map directement à l'IHM
+        robot_instance = RobotActions()
+        collision_thread = LidarCollisionThread(robot=robot_instance, seuil_mm=300.0)
+        collision_thread.start()
 
         # 2. Thread STRATEGIE (IA, Décisions)
         strat_thread = threading.Thread(target=strat_loop, daemon=True)
@@ -89,5 +104,13 @@ if __name__ == "__main__":
                 led_process.wait(timeout=2)
             except subprocess.TimeoutExpired:
                 led_process.kill()
+        
+        if 'lidar_process' in locals() and lidar_process:
+            print("[MAIN] Arrêt du capteur LiDAR (C++)...")
+            lidar_process.terminate()
+            try:
+                lidar_process.wait(timeout=2)
+            except subprocess.TimeoutExpired:
+                lidar_process.kill()
         
         sys.exit(0)
