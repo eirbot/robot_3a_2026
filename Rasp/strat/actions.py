@@ -132,27 +132,37 @@ class RobotActions:
             shared.robot_pos['y'] = p3_y
             shared.robot_pos['theta'] = theta_end
 
+##-----------------------------------NEW-------------------------------------##
+
+    import serial
+    cmd_arms = serial.Serial('/dev/esp32_arms', 115200)
+
+    def orders_to_esp32(self, command):
+        # command is 4 bits xxxx
+        ACT = ['ACT1','ACT2','ACT3','ACT4']
+        for i in range(4) : 
+            if command[i]:
+                self.cmd_arms.write((ACT[i]+'/FLIP\n').encode('utf-8'))
+            else: 
+                self.cmd_arms.write((ACT[i]+'/NFLP\n').encode('utf-8'))
+        time.sleep(1)
+        
+    def poseKapla(self):
+        self._check_abort()
+        self.cmd_arms.write(('ACT1/FLIP\n').encode('utf-8'))
+        self.cmd_arms.write(('ACT2/FLIP\n').encode('utf-8'))
+        self.cmd_arms.write(('ACT3/FLIP\n').encode('utf-8'))
+        self.cmd_arms.write(('ACT4/FLIP\n').encode('utf-8'))
+        time.sleep(1)
+
+##---------------------------------------------------------------------------##
+
     def stop(self):
         print("[ACTION] STOP")
         # Si on a la com, on envoie un arrêt
         if envoyer:
             # Adapter selon ton protocole (ex: envoyer([0,0]) ou string "STOP")
             pass 
-
-    def prendreKapla(self, hauteur=0):
-        self._check_abort()
-        print(f"[ACTION] Prise Kapla H={hauteur}")
-        time.sleep(1)
-
-    def retournerKapla(self):
-        self._check_abort()
-        print("[ACTION] Retourne Kapla")
-        time.sleep(1)
-
-    def poseKapla(self, hauteur=0):
-        self._check_abort()
-        print(f"[ACTION] Pose Kapla H={hauteur}")
-        time.sleep(1)
 
     def GoBase(self):
         self.is_returning = True
