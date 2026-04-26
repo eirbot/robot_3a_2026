@@ -5,7 +5,10 @@ import ast
 import numpy as np
 import threading
 import queue
+import math
 import ihm.shared as shared
+from LiDAR.ekf import RobotEKF
+
 
 # --- CONFIGURATION ---
 PORT = '/dev/esp32_motors'
@@ -140,14 +143,53 @@ class DeplacementServer(threading.Thread):
                             # On sauvegarde la raw_odom pour l'afficher sur le Web (Debug)
                             shared.raw_odom = {'x': raw_x, 'y': raw_y, 'theta': raw_theta}
                             
-                            # --- LE BYPASS DE SÉCURITÉ ---
-                            # Si le subprocess EKF est "killé" ou désactivé, on injecte
-                            # l'odométrie brute directement dans la variable officielle de la stratégie !
-                            if getattr(shared, 'ekf_enabled', False) == False:
+                            # Initialisation si c'est la toute première boucle
+                            if getattr(self, 'last_raw_time', None) is None:
+                                self.last_raw_x = raw_x
+                                self.last_raw_y = raw_y
+                                self.last_raw_theta_rad = raw_theta
+                                self.last_raw_time = time.time()
+                                
+                            dx = raw_x - self.last_raw_x
+                            dy = raw_y - self.last_raw_y
+                            
+                            # Calcul de delta angle normalisé
+                            dtheta = raw_theta - self.last_raw_theta_rad
+                            dtheta = (dtheta + math.pi) % (2 * math.pi) - math.pi
+                            
+                            delta_dist = math.hypot(dx, dy)
+                            
+                            # Le signe de la distance dépend de la direction (marche avant / arrière) par rapport au cap
+                            if dx * math.cos(self.last_raw_theta_rad) + dy * math.sin(self.last_raw_theta_rad) < 0:
+                                delta_dist = -delta_dist
+                            
+                            self.last_raw_x = raw_x
+                            self.last_raw_y = raw_y
+                            self.last_raw_theta_rad = raw_theta
+                            
+                            # Bypass : On injecte dans l'EKF si on en a un
+                            ekf_filter = getattr(shared, 'ekf_filter', None)
+                            if ekf_filter is not None:
+                                x_p, y_p, cap_p = ekf_filter.predict(delta_dist, dtheta)
+                                
+                                # Le filtre devient la source absolue de vérité Web et Algorithmique
+                                shared.robot_pos['x'] = x_p
+                                shared.robot_pos['y'] = y_p
+                                shared.robot_pos['theta'] = cap_p
+                                
+                                # Feedback vers L'ESP32: On corrige le cap pour le PurePursuit
+                                # Pour ne pas surcharger le buffer série, on envoie 10x par seconde max
+                                now = time.time()
+                                if now - self.last_raw_time >= 0.1:
+                                    self.last_raw_time = now
+                                    self.ser.write(f"POSE {x_p:.2f} {y_p:.2f} {math.radians(cap_p):.6f}\n".encode())
+                                    
+                            else:
+                                # Mode Rescue: Pas d'EKF disponible, on prend le brut ESP32
                                 if time.time() > globals()['_ignore_odom_until']:
                                     shared.robot_pos['x'] = raw_x
                                     shared.robot_pos['y'] = raw_y
-                                    shared.robot_pos['theta'] = raw_theta
+                                    shared.robot_pos['theta'] = raw_theta * (180.0 / np.pi)
                                 
                     except Exception as e:
                         # print(f"[DEBUG] Erreur parsing odométrie brute : {e}")
@@ -206,6 +248,15 @@ class DeplacementServer(threading.Thread):
                         shared.robot_pos['y'] = float(parts[2])
                         shared.robot_pos['x'] = float(parts[3])
                         shared.robot_pos['theta'] = float(parts[4]) * (180.0 / np.pi)
+                        
+                        # --- REMISE A ZERO DU FILTRE D'ETAT
+                        shared.ekf_filter = RobotEKF(shared.robot_pos['x'], shared.robot_pos['y'], shared.robot_pos['theta'])
+                        
+                        if hasattr(self, 'last_raw_x'):
+                            del self.last_raw_x
+                            del self.last_raw_y
+                            del self.last_raw_theta_rad
+                            
                     except Exception as e:
                         print(f"[DEBUG] Erreur parsing SET POSE interne : {e}")
                 # ------------------------

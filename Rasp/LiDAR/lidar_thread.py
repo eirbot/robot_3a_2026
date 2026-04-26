@@ -30,10 +30,13 @@ class LidarCollisionThread(threading.Thread):
         
         while self.running:
             try:
-                data, addr = self.sock.recvfrom(12)
+                data, addr = self.sock.recvfrom(52)
                 
-                if len(data) == 12:
-                    angle, dist, intensity = struct.unpack('<fff', data)
+                if len(data) == 52:
+                    unpacked = struct.unpack('<fff i fffffffff', data)
+                    
+                    angle, dist, intensity = unpacked[0:3]
+                    num_beacons = unpacked[3]
                     
                     import ihm.shared as shared
                     
@@ -58,6 +61,20 @@ class LidarCollisionThread(threading.Thread):
                                 shared.send_led_cmd("COLOR:255,160,0")
                             else:
                                 shared.send_led_cmd("COLOR:0,0,255")
+                                
+                    # --- INTÉGRATION EKF & TRILATÉRATION ---
+                    if num_beacons == 3:
+                        from LiDAR.localise import calculer_pose
+                        mesures = [(unpacked[4], unpacked[5]), (unpacked[7], unpacked[8]), (unpacked[10], unpacked[11])]
+                        result, status = calculer_pose(mesures)
+                        
+                        if status == "OK":
+                            x_lidar, y_lidar, theta_lidar, err_lidar = result
+                            
+                            ekf_filter = getattr(shared, 'ekf_filter', None)
+                            if ekf_filter is not None:
+                                # On met à jour le filtre avec les mesures absolues trouvées !
+                                ekf_filter.update_lidar(x_lidar, y_lidar, theta_lidar, err_lidar)
                         
             except socket.timeout:
                 print("[⚠️ ALERTE] Perte de com LiDAR. Arrêt par sécurité.")

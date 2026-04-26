@@ -1,3 +1,4 @@
+#include <algorithm>
 #include <arpa/inet.h>
 #include <cmath>
 #include <cstring>
@@ -14,6 +15,12 @@ struct LidarPoint {
   float angle;
   float distance;
   float intensity;
+};
+
+struct LidarState {
+  LidarPoint closest_obstacle;
+  int num_beacons;
+  LidarPoint beacons[3];
 };
 #pragma pack(pop)
 
@@ -36,7 +43,6 @@ float normalize_angle(float angle) {
 int main() {
   int sock = socket(AF_INET, SOCK_DGRAM, 0);
   sockaddr_in addr;
-  memset(&addr, 0, sizeof(addr));
   addr.sin_family = AF_INET;
   addr.sin_port = htons(8080);
   inet_pton(AF_INET, "127.0.0.1", &addr.sin_addr);
@@ -74,23 +80,29 @@ int main() {
   float min_dist = 99999.0f, min_angle = 0.0f, min_qual = 0.0f;
   bool has_points = false;
   float last_angle_sync = -1.0f;
-
-  // --- VARIABLES DU FILTRE DE COHÉRENCE ---
   float last_obj_dist = 0.0f;
   float last_obj_angle = 0.0f;
   int coherent_points = 0;
 
-  cout << "[LIDAR] C++ Prêt ! Filtre de grappe (Cluster) ACTIVÉ." << endl;
+  LidarPoint detected_beacons[10];
+  int beacon_count = 0;
+  bool in_beacon_cluster = false;
+  int cur_beacon_pts = 0;
+  float cur_beacon_min_dist = 99999.0f;
+  float cur_beacon_angle = 0.0f;
+  float cur_beacon_qual = 0.0f;
+  float last_beacon_dist = 0.0f;
+  float last_beacon_angle = 0.0f;
+
+  // --- PARAMÈTRES BALISES ---
+  const int MIN_BEACON_POINTS = 2;
+  const int MAX_BEACON_POINTS = 15; // Un humain fera souvent + de 20 points
+
+  cout << "[LIDAR] C++ Prêt ! Filtre anti-humain (taille max: "
+       << MAX_BEACON_POINTS << " pts) activé." << endl;
 
   while (true) {
     int n = read(serial_fd, chunk, sizeof(chunk));
-    if (n <= 0) {
-      cerr << "[LIDAR C++] ⚡ ERREUR CRITIQUE: Perte de connexion USB de "
-              "lecture (n="
-           << n << ") ! Le port a saut\u00e9." << endl;
-      break;
-    }
-
     for (int i = 0; i < n; i++) {
       buf[0] = buf[1];
       buf[1] = buf[2];
@@ -106,7 +118,6 @@ int main() {
         float dist = ((buf[4] << 8) | buf[3]) / 4.0f;
         float qual = (float)((buf[0] >> 2) & 0x3F);
 
-        // Anti-désynchronisation (Vérif angle)
         bool angle_ok = true;
         if (last_angle_sync >= 0.0f && S == 0) {
           float diff = angle - last_angle_sync;
@@ -125,47 +136,108 @@ int main() {
 
         last_angle_sync = angle;
 
-        // --- GESTION DU TOUR COMPLET ---
         if (S == 1) {
-          // ALWAYS send a packet. If no obstacles, dist is 99999.0f
-          LidarPoint pt = {min_angle, min_dist, min_qual};
-          sendto(sock, &pt, sizeof(pt), 0, (struct sockaddr *)&addr,
+          // Fermer un cluster à la fin du tour
+          if (in_beacon_cluster && cur_beacon_pts >= MIN_BEACON_POINTS &&
+              cur_beacon_pts <= MAX_BEACON_POINTS && beacon_count < 10) {
+            detected_beacons[beacon_count++] = {
+                cur_beacon_angle, cur_beacon_min_dist, cur_beacon_qual};
+          }
+
+          LidarState state;
+          state.closest_obstacle =
+              has_points ? LidarPoint{min_angle, min_dist, min_qual}
+                         : LidarPoint{0.0f, 99999.0f, 0.0f};
+          state.num_beacons = std::min(beacon_count, 3);
+
+          for (int b = 0; b < 3; b++) {
+            if (b < beacon_count)
+              state.beacons[b] = detected_beacons[b];
+            else
+              state.beacons[b] = {0.0f, 0.0f, 0.0f};
+          }
+
+          sendto(sock, &state, sizeof(state), 0, (struct sockaddr *)&addr,
                  sizeof(addr));
 
           min_dist = 99999.0f;
           has_points = false;
-          coherent_points = 0; // Reset du cluster en début de tour
+          coherent_points = 0;
+          beacon_count = 0;
+          in_beacon_cluster = false;
+          cur_beacon_pts = 0;
         }
 
-        // --- FILTRE DE DISTANCE & QUALITÉ ---
-        if (dist > 80.0f && qual > 10.0f) {
+        // LOGIQUE BALISES
+        if (dist > 80.0f && qual >= 48.0f) {
+          float angle_diff = angle - last_beacon_angle;
+          if (angle_diff < -180.0f)
+            angle_diff += 360.0f;
+          else if (angle_diff > 180.0f)
+            angle_diff -= 360.0f;
 
-          // Calcul de la distance avec le point précédent
+          if (!in_beacon_cluster) {
+            in_beacon_cluster = true;
+            cur_beacon_pts = 1;
+            cur_beacon_min_dist = dist;
+            cur_beacon_angle = angle;
+            cur_beacon_qual = qual;
+          } else if (fabs(dist - last_beacon_dist) < 150.0f &&
+                     fabs(angle_diff) < 5.0f) {
+            cur_beacon_pts++;
+            if (dist < cur_beacon_min_dist) {
+              cur_beacon_min_dist = dist;
+              cur_beacon_angle = angle;
+              cur_beacon_qual = qual;
+            }
+          } else {
+            // LE FILTRE ANTI-HUMAIN EST ICI
+            if (cur_beacon_pts >= MIN_BEACON_POINTS &&
+                cur_beacon_pts <= MAX_BEACON_POINTS && beacon_count < 10) {
+              detected_beacons[beacon_count++] = {
+                  cur_beacon_angle, cur_beacon_min_dist, cur_beacon_qual};
+            }
+            cur_beacon_pts = 1;
+            cur_beacon_min_dist = dist;
+            cur_beacon_angle = angle;
+            cur_beacon_qual = qual;
+          }
+          last_beacon_dist = dist;
+          last_beacon_angle = angle;
+        } else {
+          if (in_beacon_cluster) {
+            // LE FILTRE ANTI-HUMAIN EST ICI AUSSI
+            if (cur_beacon_pts >= MIN_BEACON_POINTS &&
+                cur_beacon_pts <= MAX_BEACON_POINTS && beacon_count < 10) {
+              detected_beacons[beacon_count++] = {
+                  cur_beacon_angle, cur_beacon_min_dist, cur_beacon_qual};
+            }
+            in_beacon_cluster = false;
+            cur_beacon_pts = 0;
+          }
+        }
+
+        // LOGIQUE ANTI-COLLISION
+        if (dist > 80.0f && qual > 10.0f) {
           float angle_diff = angle - last_obj_angle;
           if (angle_diff < -180.0f)
             angle_diff += 360.0f;
           else if (angle_diff > 180.0f)
             angle_diff -= 360.0f;
 
-          // Si le point est à moins de 50mm et 5° du point précédent, c'est le
-          // même objet
-          if (fabs(dist - last_obj_dist) < 50.0f && fabs(angle_diff) < 5.0f) {
+          if (fabs(dist - last_obj_dist) < 50.0f && fabs(angle_diff) < 5.0f)
             coherent_points++;
-          } else {
-            coherent_points = 1; // C'est un point isolé, on reset le compteur
-          }
+          else
+            coherent_points = 1;
 
           last_obj_dist = dist;
           last_obj_angle = angle;
 
-          // --- VALIDATION : Au moins 3 points collés ---
-          if (coherent_points >= 3) {
-            if (dist < min_dist) {
-              min_dist = dist;
-              min_angle = angle;
-              min_qual = qual;
-              has_points = true;
-            }
+          if (coherent_points >= 3 && dist < min_dist) {
+            min_dist = dist;
+            min_angle = angle;
+            min_qual = qual;
+            has_points = true;
           }
         }
 
