@@ -140,7 +140,7 @@ class RobotActions:
             try:
                 # Génération d'une liste de points (ex: 50 points)
                 points_bezier = Bezier.bezier_cubique_discret(
-                    50, 
+                    20, 
                     (p0_x, p0_y), 
                     (p1_x, p1_y), 
                     (p2_x, p2_y), 
@@ -152,7 +152,7 @@ class RobotActions:
                 
                 # On attend que l'ESP finisse son mouvement
                 wait_idle(timeout=15.0) 
-                
+                '''
                 # --- VERIFICATION OBSTACLE ---
                 if retry:
                     # Sommes-nous arrivés près de P3 ?
@@ -171,7 +171,7 @@ class RobotActions:
                             self.goto(x, y, theta, force=new_force, retry=True)
                         else:
                             print("[STRAT] Arrivée prématurée sans détection LiDAR (peut-être un timeout).")
-
+                '''
             except Exception as e:
                 print(f"[ERREUR] Échec envoi trajectoire : {e}")
             

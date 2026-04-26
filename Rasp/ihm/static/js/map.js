@@ -51,7 +51,9 @@ function drawMap() {
         const size = 300 * scaleX;
         ctxMap.save();
         ctxMap.translate(px, py);
-        ctxMap.rotate(-robotPos.theta * Math.PI / 180);
+        // L'image robot.png pointe vers le HAUT par défaut
+        // Convention robot : 0°=droite, 90°=haut, -90°=bas
+        ctxMap.rotate((90 - robotPos.theta) * Math.PI / 180);
         ctxMap.drawImage(imgRobot, -size / 2, -size / 2, size, size);
         ctxMap.restore();
     }

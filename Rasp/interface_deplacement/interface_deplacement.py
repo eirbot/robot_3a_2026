@@ -182,14 +182,16 @@ class DeplacementServer(threading.Thread):
                                 now = time.time()
                                 if now - self.last_raw_time >= 0.1:
                                     self.last_raw_time = now
-                                    self.ser.write(f"POSE {x_p:.2f} {y_p:.2f} {math.radians(cap_p):.6f}\n".encode())
+                                    # Désactivé : on ne renvoie plus la correction de pose à l'ESP32 pendant le déplacement
+                                    # Le SET POSE initial suffit pour caler la position de départ
+                                    # self.ser.write(f"POSE {x_p:.2f} {y_p:.2f} {math.radians(cap_p):.6f}\n".encode())
                                     
                             else:
                                 # Mode Rescue: Pas d'EKF disponible, on prend le brut ESP32
                                 if time.time() > globals()['_ignore_odom_until']:
                                     shared.robot_pos['x'] = raw_x
                                     shared.robot_pos['y'] = raw_y
-                                    shared.robot_pos['theta'] = raw_theta * (180.0 / np.pi)
+                                    shared.robot_pos['theta'] = raw_theta  # Déjà en degrés (converti ligne 141)
                                 
                     except Exception as e:
                         # print(f"[DEBUG] Erreur parsing odométrie brute : {e}")

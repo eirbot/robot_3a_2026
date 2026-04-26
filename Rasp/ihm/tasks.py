@@ -51,11 +51,7 @@ def background_loop():
             'devs': devs
         })
 
-        # --- 3. AJOUT : Envoi Position Robot (Map) ---
-        # C'est ce qui manquait pour que la page /map bouge !
-        socketio.emit('map_update', {
-            'pos': robot_pos
-        })
-        # ---------------------------------------------
+        # --- 3. Envoi Position Robot en temps réel (Map) ---
+        socketio.emit('robot_position', robot_pos)
 
         socketio.sleep(0.1) # 10Hz (Suffisant pour une fluidité visuelle)
