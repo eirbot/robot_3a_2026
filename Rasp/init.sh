@@ -30,10 +30,12 @@ source "$VENV_DIR/bin/activate"
 
 echo "[4/9] Installation des dépendances Python..."
 if [ -f "$PROJECT_DIR/requirements.txt" ]; then
-    pip install -r "$PROJECT_DIR/requirements.txt"
+    # On utilise le chemin complet vers le python de la venv
+    # Cela garantit qu'on installe au bon endroit sans erreur PEP 668
+    "$VENV_DIR/bin/python3" -m pip install --upgrade pip
+    "$VENV_DIR/bin/python3" -m pip install -r "$PROJECT_DIR/requirements.txt"
 else
     echo "Fichier requirements.txt introuvable dans $PROJECT_DIR."
-    echo "Veuillez vérifier le chemin ou créer le fichier."
     exit 1
 fi
 

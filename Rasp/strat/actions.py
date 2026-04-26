@@ -198,6 +198,17 @@ class RobotActions:
         if envoyer:
             envoyer("STOP")
 
+    def approcheKapla(self):
+        self._check_abort()
+        print("[ACTION] Approche Kapla")
+        x_robot, y_robot, theta_robot = shared.robot_pos['x'], shared.robot_pos['y'], shared.robot_pos['theta']
+        # On recule par rapport à l'angle du robot pour se recaler bien devant
+        x = x_robot - cos(theta_robot) * 100
+        y = y_robot - sin(theta_robot) * 100
+        self.goto(x, y, theta_robot, force=200)
+        # TODO : recupération des coo via la camera
+        x_kapla, y_kapla, theta_kapla = 0, 0, 0
+        self.goto(x_kapla, y_kapla, theta_kapla, force=200)
 
     def prendreKapla(self, hauteur=0):
         self._check_abort()
