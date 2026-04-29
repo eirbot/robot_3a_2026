@@ -90,7 +90,11 @@ class RobotActions:
 
         # 3. Envoi à l'ESP32 (Reset Odométrie)
         if envoyer:
-            cmd = f"SET POSE {real_y:.2f} {real_x:.2f} {math.radians(real_theta):.4f}"
+            # Conversion repère Table → ESP32 (Mapping manual_remote)
+            # Puisque la strat est déjà tournée de 90°, l'angle est déjà bon !
+            theta_esp = math.radians(real_theta)
+            # Format manual_remote : SET POSE Table_Y Table_X theta_rad
+            cmd = f"SET POSE {real_y:.2f} {real_x:.2f} {theta_esp:.4f}"
             envoyer(cmd)
             
             # Wait a brief moment to ensure the ESP has processed the pose reset

@@ -51,9 +51,10 @@ function drawMap() {
         const size = 300 * scaleX;
         ctxMap.save();
         ctxMap.translate(px, py);
-        // L'image robot.png pointe vers le HAUT par défaut
-        // Convention robot : 0°=droite, 90°=haut, -90°=bas
-        ctxMap.rotate((90 - robotPos.theta) * Math.PI / 180);
+        // L'image robot.png pointe vers le BAS (bras actionneurs) dans son fichier source.
+        // On la tourne de 180° pour qu'elle pointe vers le HAUT (theta=0 dans la strat).
+        // On retire robotPos.theta car la strat est en CCW et Canvas.rotate est en CW.
+        ctxMap.rotate((180 - robotPos.theta) * Math.PI / 180);
         ctxMap.drawImage(imgRobot, -size / 2, -size / 2, size, size);
         ctxMap.restore();
     }
