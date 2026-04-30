@@ -1,63 +1,53 @@
-#pragma once
-#include <Arduino.h>
-#include <AccelStepper.h>
-#include "utilities.hpp"
-#include "freertos/FreeRTOS.h"
-#include "freertos/task.h"
-#include "freertos/queue.h"
-#include "freertos/semphr.h"
+#ifndef CLASSMOTORS_H
+#define CLASSMOTORS_H
+
+#include "Arduino.h"
+#include <cmath>
+
+#include "AccelStepper.h"
+#include "common.h"
+
+#define DECCEL 30000.0
 
 class ClassMotors {
 public:
-    ClassMotors();
-    void StartMotors();
+  ClassMotors();
+  static void vMotors(void *pvParameters);
 
-    // Envoi d'une nouvelle commande
-    void EnvoyerVitesse(TaskParams* params);
+  void WaitUntilDone();
+  void StartMotors();
+  void EnvoyerDonnees(void *Params);
+  void TransferQueueBuffer();
+  void RestoreQueueBuffer();
+  void Stop();
+  void RestartMotors();
 
-    // STOP immédiat
-    void Stop();
+  long GetStepDid() const { return stepDid; }
+  long GetCurrentStep() const { return currentStep; }
+  float GetDistanceDid() const { return distanceDid; }
+  void UpdateOdometry();
 
-    // Odométrie
-    void GetPosition(float &x, float &y, float &angle);
-
-    // Remise à zéro de la position
-    void ResetPosition(float x = 0, float y = 0, float angle = 0);
-
-    long out[10];
-
-private:
-    static void vMotors(void* pvParameters);
-    void UpdateOdometry();
-
-    static ClassMotors* instancePtr;
-    static void IRAM_ATTR onTimer();
-    hw_timer_t* timer = nullptr;
+  void GetPosition(float &x, float &y, float &angle);
+  void SetPosition(float x, float y, float angle);
 
 private:
-    // Les deux moteurs
-    AccelStepper moteurGauche;
-    AccelStepper moteurDroit;
+  QueueHandle_t xQueue;
+  QueueHandle_t xQueueBuffer;
 
-    // File FreeRTOS
-    QueueHandle_t xQueue;
+  long stepDid;
+  long currentStep;
+  float distanceDid;
 
-    // Task handle
-    TaskHandle_t vMotorsHandle;
+  float x_pos = X_POS_INIT;
+  float y_pos = Y_POS_INIT;
+  float orientation = ANGLE_INIT; // radians
 
-    // Mutex position
-    SemaphoreHandle_t posMutex;
-
-    // Odométrie
-    float x_pos;
-    float y_pos;
-    float orientation;
-
-    long lastStepGauche;
-    long lastStepDroit;
-
-    // Constantes robot
-    const float dRoues = 0.0723f;      // diamètre roue (m)
-    const float ecartRoues = 0.343f;   // entraxe (m)
-    const float stepPerRev = 3200.0f; //3200.0f  // steps par tour moteur (sans microstepping)
+  long lastStepGauche = 0;
+  long lastStepDroit = 0;
 };
+
+void StopStepper(AccelStepper &moteur1, AccelStepper &moteur2);
+
+extern ClassMotors mot;
+
+#endif

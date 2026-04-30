@@ -28,19 +28,15 @@ except Exception as e:
     print(f"⚠️ Attention : Erreur de chargement du module Vision/Caméra ({e}) -> Pas de détection auto")
     vision = None
 
-# --- CORRECTION DES IMPORTS ---
 try:
-    # On essaie d'importer le module Bezier
-    import interface_deplacement.bezier as Bezier
-    
-    # On essaie d'importer directement la fonction 'envoyer' depuis interface_deplacement.py
-    # (Assure-toi que la fonction s'appelle bien 'envoyer' dans ce fichier, sinon change le nom ici)
-    from interface_deplacement.interface_deplacement import envoyer
+    # On essaie d'importer la classe ESPMotors
+    import interface_deplacement
+    esp = ESPMotors()
+    esp.start()
 
 except ImportError as e:
     print(f"⚠️ Attention : Modules de déplacement non trouvés ({e}) -> Mode Simulation pur")
-    Bezier = None
-    envoyer = None  # On définit envoyer à None pour que les 'if envoyer:' fonctionnent
+    esp = None
 
 # --- CONSTANTES ---
 TABLE_WIDTH = 3000
@@ -89,118 +85,30 @@ class RobotActions:
         print(f"[ACTION] SET_POS -> ({real_x}, {real_y}, {real_theta}°)")
 
         # 3. Envoi à l'ESP32 (Reset Odométrie)
-        if envoyer:
-            # Conversion repère Table → ESP32 (Mapping manual_remote)
-            # Puisque la strat est déjà tournée de 90°, l'angle est déjà bon !
-            theta_esp = math.radians(real_theta)
-            # Format manual_remote : SET POSE Table_Y Table_X theta_rad
-            cmd = f"SET POSE {real_y:.2f} {real_x:.2f} {theta_esp:.4f}"
-            envoyer(cmd)
-            
-            # Wait a brief moment to ensure the ESP has processed the pose reset
-            try:
-                import interface_deplacement.interface_deplacement as idp
-                idp.wait_idle(timeout=0.5)
-            except: pass
+        if esp:
+            esp.set_pos(real_x, real_y, real_theta)
         else:
             print("[SIMU] SET_POS virtuel (Pas de com)")
 
 
     # --- LE COEUR DU SUJET : GOTO BEZIER ---
-    def goto(self, x, y, theta, force=500, retry=True):
+    def goto(self, x, y, theta):
         """
         Déplacement via Courbe de Bézier + Envoi ESP32
         """
         self._check_abort()
-        
-        # 1. Position actuelle (P0) et Angle départ
-        p0_x = shared.robot_pos['x']
-        p0_y = shared.robot_pos['y']
-        theta_start = shared.robot_pos['theta']
 
-        # 2. Cible (P3) avec Symétrie
-        p3_x, p3_y, theta_end = self._apply_sym(x, y, theta)
-
-        print(f"[ACTION] Bezier -> ({p3_x:.0f}, {p3_y:.0f}, {theta_end:.0f}°) Force={force}")
-
-        # 3. Calcul P1 et P2
-        rad_start = math.radians(theta_start)
-        rad_end = math.radians(theta_end)
-
-        p1_x = p0_x + force * math.cos(rad_start)
-        p1_y = p0_y + force * math.sin(rad_start)
-
-        p2_x = p3_x - force * math.cos(rad_end)
-        p2_y = p3_y - force * math.sin(rad_end)
-
-        # 4. GÉNÉRATION DES POINTS ET ENVOI
-        try:
-            from interface_deplacement.interface_deplacement import is_ready, wait_idle
-            simulating = not is_ready()
-        except:
-            simulating = True
-
-        if Bezier and envoyer and not simulating:
-            try:
-                # Génération d'une liste de points (ex: 50 points)
-                points_bezier = Bezier.bezier_cubique_discret(
-                    20, 
-                    (p0_x, p0_y), 
-                    (p1_x, p1_y), 
-                    (p2_x, p2_y), 
-                    (p3_x, p3_y)
-                )
-                
-                # Envoi via Série (non-bloquant)
-                envoyer(points_bezier)
-                
-                # On attend que l'ESP finisse son mouvement
-                wait_idle(timeout=15.0) 
-                '''
-                # --- VERIFICATION OBSTACLE ---
-                if retry:
-                    # Sommes-nous arrivés près de P3 ?
-                    dist_to_target = math.sqrt((shared.robot_pos['x'] - p3_x)**2 + (shared.robot_pos['y'] - p3_y)**2)
-                    
-                    if dist_to_target > 50.0:  # mm
-                        if shared.state.get('obstacle_detected'):
-                            print("[STRAT] 🛑 Trajectoire interrompue par OBSTACLE. En attente...")
-                            while shared.state.get('obstacle_detected'):
-                                self._check_abort()
-                                time.sleep(0.1)
-                            
-                            print("[STRAT] ✅ Obstacle disparu, recalcul de la trajectoire !")
-                            # On adoucit la force selon la distance restante
-                            new_force = max(100.0, min(float(force), dist_to_target * 0.8))
-                            self.goto(x, y, theta, force=new_force, retry=True)
-                        else:
-                            print("[STRAT] Arrivée prématurée sans détection LiDAR (peut-être un timeout).")
-                '''
-            except Exception as e:
-                print(f"[ERREUR] Échec envoi trajectoire : {e}")
-            
+        if esp:
+            esp.goto(x, y, theta)
         else:
-            # 5. MODE SIMULATION (Si pas de driver ou pas d'ESP)
-            print("[SIMU] Pas de connexion ESP, simulation du temps de trajet...")
-            dist = math.sqrt((p3_x - p0_x)**2 + (p3_y - p0_y)**2)
-            # Vitesse arbitraire pour la simulation (300mm/s)
-            simulated_duration = dist / 300.0 
-            steps = int(simulated_duration * 10)
-            
-            for _ in range(max(1, steps)):
-                time.sleep(0.1)
-                self._check_abort()
-
-            # Mise à jour finale triche
-            shared.robot_pos['x'] = p3_x
-            shared.robot_pos['y'] = p3_y
-            shared.robot_pos['theta'] = theta_end
-
+            print("[SIMU] GOTO virtuel (Pas de com)")
+        
     def stop(self):
         print("[ACTION] STOP")
-        # Si on a la com, on envoie un arrêt
-        if envoyer:
-            envoyer("STOP")
+        if esp:
+            esp.stop()
+        else:
+            print("[SIMU] STOP virtuel (Pas de com)")
 
     def approcheKapla(self):
         self._check_abort()
@@ -209,10 +117,10 @@ class RobotActions:
         # On recule par rapport à l'angle du robot pour se recaler bien devant
         x = x_robot - cos(theta_robot) * 100
         y = y_robot - sin(theta_robot) * 100
-        self.goto(x, y, theta_robot, force=200)
+        self.goto(x, y, theta_robot)
         # TODO : recupération des coo via la camera
         x_kapla, y_kapla, theta_kapla = 0, 0, 0
-        self.goto(x_kapla, y_kapla, theta_kapla, force=200)
+        self.goto(x_kapla, y_kapla, theta_kapla)
 
     def prendreKapla(self, hauteur=0):
         self._check_abort()
@@ -232,8 +140,7 @@ class RobotActions:
     def GoBase(self):
         self.is_returning = True
         print("⚡ RETOUR BASE")
-        # Retour base avec une grosse force pour une belle courbe large
-        self.goto(250, 1000, 180, force=800)
+        self.goto(250, 1000, 180)
         time.sleep(1)
 
     def play_animation(self, anim_name):
