@@ -149,11 +149,11 @@ document.addEventListener("DOMContentLoaded", function () {
     Blockly.Python.forBlock['poser_kapla'] = function (block) { return `robot.poseKapla(hauteur=${block.getFieldValue('HAUTEUR')})\n`; };
     Blockly.Python.forBlock['robot_stop'] = function (block) { return 'robot.stop()\n'; };
 
-    Blockly.Python.forBlock['actionneur_unique'] = function(block) {
+    Blockly.Python.forBlock['actionneur_unique'] = function (block) {
         return `robot.cmd_actionneurs(act${block.getFieldValue('ID')}='${block.getFieldValue('CMD')}')\n`;
     };
 
-    Blockly.Python.forBlock['prendre_tous_kaplas'] = function(block) {
+    Blockly.Python.forBlock['prendre_tous_kaplas'] = function (block) {
         return `robot.prendre_kaplas_camera()\n`;
     };
 
@@ -212,7 +212,7 @@ document.addEventListener("DOMContentLoaded", function () {
         const scaleX = canvas.width / TABLE_WIDTH; // 3000 -> correspond à Y
         const scaleY = canvas.height / TABLE_HEIGHT; // 2000 -> correspond à X
         return {
-            x: (canvas.width / 2) - (y_mm * scaleX),
+            x: (canvas.width / 2) + (y_mm * scaleX),
             y: x_mm * scaleY
         };
     }
@@ -223,7 +223,7 @@ document.addEventListener("DOMContentLoaded", function () {
         const scaleY = canvas.height / TABLE_HEIGHT;
         return {
             x: Math.round(py / scaleY),
-            y: Math.round(((canvas.width / 2) - px) / scaleX)
+            y: Math.round((px - (canvas.width / 2)) / scaleX)
         };
     }
 
@@ -237,7 +237,8 @@ document.addEventListener("DOMContentLoaded", function () {
 
     // Vérifie si un point est hors de la table
     function isOutOfBounds(p) {
-        return p.x < 0 || p.x > TABLE_WIDTH || p.y < 0 || p.y > TABLE_HEIGHT;
+        // X : 0 à 2000, Y : -1500 à 1500
+        return p.x < 0 || p.x > TABLE_HEIGHT || p.y < -1500 || p.y > 1500;
     }
 
     // --- ERREURS & BLOCKLY ---
@@ -341,15 +342,15 @@ document.addEventListener("DOMContentLoaded", function () {
 
         // 5. Robot
         let screenPos = worldToScreen(robot.x, robot.y);
-        const robotSizePx = (300 / TABLE_WIDTH) * canvas.width;
+        const robotSizePx = (370 / TABLE_WIDTH) * canvas.width;
 
         ctx.save();
         ctx.translate(screenPos.x, screenPos.y);
 
         // Gestion Rotation : Adaptation au nouveau repère
-        // Dans le repère map: MapTheta=0 -> X_map (+Y_scr, soit 90° canvas)
-        // MapTheta=90 -> Y_map (-X_scr, soit 180° canvas)
-        let rotationRad = robot.theta * (Math.PI / 180) + Math.PI / 2;
+        // Dans le repère map: MapTheta=0 -> X_map (vers le bas)
+        // MapTheta=90 -> Y_map (vers la droite sur l'écran)
+        let rotationRad = -robot.theta * (Math.PI / 180) + Math.PI / 2;
 
         // Correction Orientation Image
         if (ROBOT_IMAGE_ORIENTATION === 'UP') rotationRad += Math.PI / 2;
@@ -385,11 +386,12 @@ document.addEventListener("DOMContentLoaded", function () {
     // 3. LISTENERS & INTERACTION SOURIS
     // ============================================================
 
-    // Suivi souris pour tooltip
     canvas.addEventListener('mousemove', function (evt) {
         var rect = canvas.getBoundingClientRect();
-        var mx = evt.clientX - rect.left;
-        var my = evt.clientY - rect.top;
+        var scaleX_mouse = canvas.width / rect.width;
+        var scaleY_mouse = canvas.height / rect.height;
+        var mx = (evt.clientX - rect.left) * scaleX_mouse;
+        var my = (evt.clientY - rect.top) * scaleY_mouse;
 
         let worldPos = screenToWorld(mx, my);
 
@@ -407,7 +409,9 @@ document.addEventListener("DOMContentLoaded", function () {
     // Clic pour logguer la position
     canvas.addEventListener('click', function (evt) {
         var rect = canvas.getBoundingClientRect();
-        let worldPos = screenToWorld(evt.clientX - rect.left, evt.clientY - rect.top);
+        var scaleX_mouse = canvas.width / rect.width;
+        var scaleY_mouse = canvas.height / rect.height;
+        let worldPos = screenToWorld((evt.clientX - rect.left) * scaleX_mouse, (evt.clientY - rect.top) * scaleY_mouse);
         logSim(`📍 Clic: X=${worldPos.x}, Y=${worldPos.y}`);
     });
 
@@ -416,32 +420,39 @@ document.addEventListener("DOMContentLoaded", function () {
     // 4. PARSING & LOGIQUE SÉQUENTIELLE
     // ============================================================
 
-    // Analyse les blocs et retourne une file d'actions + le chemin complet
-    function parseBlocks(isPreview) {
+    function applySymmetry(x, y, theta) {
+        let symToggle = document.getElementById('symToggle');
+        if (symToggle && symToggle.checked) {
+            return { x: x, y: -y, theta: -theta };
+        }
+        return { x: x, y: y, theta: theta };
+    }
+
+    function parseSequence(firstBlock, currentX, currentY, currentTheta) {
         let queue = []; let pPath = [];
-        let simX = DEFAULT_START_X, simY = DEFAULT_START_Y, simTheta = DEFAULT_START_THETA;
+        let simX = currentX, simY = currentY, simTheta = currentTheta;
 
-        var topBlocks = workspace.getTopBlocks(true);
-        if (topBlocks.length === 0) return { queue: [], path: [] };
-        topBlocks.sort((a, b) => a.getRelativeToSurfaceXY().y - b.getRelativeToSurfaceXY().y);
-
-        var currentBlock = topBlocks[0];
+        let currentBlock = firstBlock;
         while (currentBlock) {
-            let blockId = currentBlock.id; // ON RECUPERE L'ID
+            let blockId = currentBlock.id;
 
             if (currentBlock.type === 'robot_start') {
-                simX = parseInt(currentBlock.getFieldValue('X'));
-                simY = parseInt(currentBlock.getFieldValue('Y'));
-                simTheta = parseInt(currentBlock.getFieldValue('THETA'));
-                if (!isPreview) {
-                    robot.x = simX; robot.y = simY; robot.theta = simTheta;
-                    logSim(`📍 Départ: ${simX}, ${simY}`);
-                }
+                let rawX = parseInt(currentBlock.getFieldValue('X'));
+                let rawY = parseInt(currentBlock.getFieldValue('Y'));
+                let rawTheta = parseInt(currentBlock.getFieldValue('THETA'));
+
+                let sym = applySymmetry(rawX, rawY, rawTheta);
+                simX = sym.x; simY = sym.y; simTheta = sym.theta;
+
+                queue.push({ type: 'start', x: simX, y: simY, theta: simTheta, blockId: blockId });
             }
             else if (currentBlock.type === 'robot_goto') {
-                let targetX = parseInt(currentBlock.getFieldValue('X'));
-                let targetY = parseInt(currentBlock.getFieldValue('Y'));
-                let targetTheta = parseInt(currentBlock.getFieldValue('THETA'));
+                let rawX = parseInt(currentBlock.getFieldValue('X'));
+                let rawY = parseInt(currentBlock.getFieldValue('Y'));
+                let rawTheta = parseInt(currentBlock.getFieldValue('THETA'));
+
+                let sym = applySymmetry(rawX, rawY, rawTheta);
+                let targetX = sym.x; let targetY = sym.y; let targetTheta = sym.theta;
 
                 let p0 = { x: simX, y: simY };
                 let p3 = { x: targetX, y: targetY };
@@ -450,6 +461,20 @@ document.addEventListener("DOMContentLoaded", function () {
                 pPath.push({ p0, p3, blockId: blockId });
 
                 simX = targetX; simY = targetY; simTheta = targetTheta;
+            }
+            else if (currentBlock.type === 'controls_repeat_ext') {
+                let times = 0;
+                let timesBlock = currentBlock.getInputTargetBlock('TIMES');
+                if (timesBlock && timesBlock.type === 'math_number') {
+                    times = parseInt(timesBlock.getFieldValue('NUM'));
+                }
+                let doBlock = currentBlock.getInputTargetBlock('DO');
+                for (let i = 0; i < times; i++) {
+                    let subResult = parseSequence(doBlock, simX, simY, simTheta);
+                    queue = queue.concat(subResult.queue);
+                    pPath = pPath.concat(subResult.path);
+                    simX = subResult.endX; simY = subResult.endY; simTheta = subResult.endTheta;
+                }
             }
             else if (currentBlock.type.includes('kapla') || currentBlock.type.includes('stop') || currentBlock.type.includes('play_') || currentBlock.type.includes('actionneur')) {
                 let msg = "Action";
@@ -461,12 +486,21 @@ document.addEventListener("DOMContentLoaded", function () {
                 if (currentBlock.type === 'play_sound') msg = "Son: " + currentBlock.getFieldValue('SOUND_NAME');
                 if (currentBlock.type === 'actionneur_unique') msg = `Act. ${currentBlock.getFieldValue('ID')}: ${currentBlock.getFieldValue('CMD')}`;
                 if (currentBlock.type === 'prendre_tous_kaplas') msg = "Prise 4 Kaplas (Caméra)";
-                // AJOUT DE blockId ICI
+
                 queue.push({ type: 'action', msg: msg, blockId: blockId });
             }
             currentBlock = currentBlock.getNextBlock();
         }
-        return { queue, path: pPath };
+        return { queue, path: pPath, endX: simX, endY: simY, endTheta: simTheta };
+    }
+
+    function parseBlocks(isPreview) {
+        var topBlocks = workspace.getTopBlocks(true);
+        if (topBlocks.length === 0) return { queue: [], path: [] };
+        topBlocks.sort((a, b) => a.getRelativeToSurfaceXY().y - b.getRelativeToSurfaceXY().y);
+
+        let res = parseSequence(topBlocks[0], DEFAULT_START_X, DEFAULT_START_Y, DEFAULT_START_THETA);
+        return { queue: res.queue, path: res.path };
     }
 
     function generatePreview() {
@@ -476,8 +510,8 @@ document.addEventListener("DOMContentLoaded", function () {
 
         let errorCount = 0;
         previewPath.forEach(bz => {
-                let mid = getSegmentPoint(0.5, bz.p0, bz.p3);
-                if (isOutOfBounds(bz.p3) || isOutOfBounds(mid)) {
+            let mid = getSegmentPoint(0.5, bz.p0, bz.p3);
+            if (isOutOfBounds(bz.p3) || isOutOfBounds(mid)) {
                 // MARQUAGE ERREUR
                 markBlockError(bz.blockId, "Hors table !");
                 errorCount++;
@@ -509,7 +543,14 @@ document.addEventListener("DOMContentLoaded", function () {
                 workspace.highlightBlock(action.blockId);
             }
 
-            if (action.type === 'goto') {
+            if (action.type === 'start') {
+                robot.x = action.x;
+                robot.y = action.y;
+                robot.theta = action.theta;
+                logSim(`📍 Départ: ${action.x}, ${action.y}`);
+                processNextAction();
+            }
+            else if (action.type === 'goto') {
                 logSim(`Go (${action.x}, ${action.y})`);
 
                 let p0 = { x: robot.x, y: robot.y };

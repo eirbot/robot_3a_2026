@@ -95,9 +95,9 @@ class ESPMotors:
                 if len(parts) == 4:
                     # On met à jour directement ton dictionnaire global "shared"
                     # Ainsi ton IHM et ta Strat ont toujours la position en temps réel
-                    shared.state['robot_x'] = float(parts[1])
-                    shared.state['robot_y'] = float(parts[2])
-                    shared.state['robot_theta'] = float(parts[3])
+                    shared.robot_pos['x'] = float(parts[1])
+                    shared.robot_pos['y'] = float(parts[2])
+                    shared.robot_pos['theta'] = float(parts[3])
             except ValueError:
                 print(f"[MOTORS] ⚠️ Erreur de parsing Odométrie : {msg}")
         elif msg == "D":

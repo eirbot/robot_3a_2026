@@ -47,22 +47,20 @@ function drawMap() {
         // La table fait 3000 de large (axe Y) et 2000 de profondeur (axe X)
         const scaleY_map = w / 3000; // Echelle pour l'axe Y (qui est horizontal sur l'écran)
         const scaleX_map = h / 2000; // Echelle pour l'axe X (qui est vertical sur l'écran)
-        
+
         // Origine en haut au milieu : 
-        // Y va vers la gauche -> px = centre - (Y * echelle)
+        // Y va vers la DROITE sur l'écran -> px = centre + (Y * echelle)
         // X va vers le bas -> py = X * echelle
-        const px = (w / 2) - (robotPos.y * scaleY_map);
+        const px = (w / 2) + (robotPos.y * scaleY_map);
         const py = robotPos.x * scaleX_map;
-        const size = 300 * scaleY_map;
-        
+        const size = 370 * scaleY_map;
+
         ctxMap.save();
         ctxMap.translate(px, py);
-        
+
         // L'image robot.png pointe vers le BAS dans son fichier source.
-        // Dans le repère map, l'angle 0 est l'axe X (vers le bas).
-        // Donc si theta=0, pas besoin de tourner l'image, elle pointe déjà vers le bas.
-        // L'angle theta augmente vers Y (gauche), ce qui correspond à une rotation horaire sur le canvas.
-        ctxMap.rotate(robotPos.theta * Math.PI / 180);
+        // L'angle theta augmente vers Y, ce qui correspond maintenant à une rotation anti-horaire sur le canvas.
+        ctxMap.rotate(-robotPos.theta * Math.PI / 180);
         ctxMap.drawImage(imgRobot, -size / 2, -size / 2, size, size);
         ctxMap.restore();
     }

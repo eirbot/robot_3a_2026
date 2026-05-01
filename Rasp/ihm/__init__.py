@@ -4,6 +4,12 @@ import ihm.routes
 import ihm.events
 from ihm.tasks import background_loop
 
+import logging
+
+# Disable werkzeug logs to prevent web server spam
+log = logging.getLogger('werkzeug')
+log.setLevel(logging.ERROR)
+
 # Classe simple pour rediriger les prints vers l'IHM
 class LogCapture:
     def __init__(self, original, tag):

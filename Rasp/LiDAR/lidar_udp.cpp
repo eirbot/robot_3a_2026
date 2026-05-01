@@ -49,8 +49,11 @@ int main() {
 
   const char *port = "/dev/lidar";
   int serial_fd = open(port, O_RDWR | O_NOCTTY | O_SYNC);
-  if (serial_fd < 0)
+  if (serial_fd < 0) {
+    cout << "[LIDAR C++] ❌ ERREUR: Impossible d'ouvrir " << port << endl;
     return 1;
+  }
+  cout << "[LIDAR C++] ✅ Connecté sur " << port << endl;
 
   struct termios tty;
   tcgetattr(serial_fd, &tty);
@@ -83,6 +86,7 @@ int main() {
   float last_obj_dist = 0.0f;
   float last_obj_angle = 0.0f;
   int coherent_points = 0;
+  int points_since_last_send = 0;
 
   LidarPoint detected_beacons[10];
   int beacon_count = 0;
@@ -103,6 +107,22 @@ int main() {
 
   while (true) {
     int n = read(serial_fd, chunk, sizeof(chunk));
+
+    if (n <= 0) {
+      cout << "[LIDAR C++] ❌ ERREUR DE LECTURE (Lidar débranché ou chute de "
+              "tension ?)"
+           << endl;
+      close(serial_fd);
+      usleep(1000000); // Wait 1 second
+      serial_fd = open(port, O_RDWR | O_NOCTTY | O_SYNC);
+      if (serial_fd >= 0) {
+        tcsetattr(serial_fd, TCSANOW, &tty);
+        write(serial_fd, start_cmd, 2);
+        cout << "[LIDAR C++] ✅ Reconnexion USB réussie !" << endl;
+      }
+      continue;
+    }
+
     for (int i = 0; i < n; i++) {
       buf[0] = buf[1];
       buf[1] = buf[2];
@@ -135,9 +155,10 @@ int main() {
         }
 
         last_angle_sync = angle;
+        points_since_last_send++;
 
-        if (S == 1) {
-          // Fermer un cluster à la fin du tour
+        if (S == 1 || points_since_last_send > 2000) {
+          // Fermer un cluster à la fin du tour ou en cas de blocage physique
           if (in_beacon_cluster && cur_beacon_pts >= MIN_BEACON_POINTS &&
               cur_beacon_pts <= MAX_BEACON_POINTS && beacon_count < 10) {
             detected_beacons[beacon_count++] = {
@@ -166,6 +187,7 @@ int main() {
           beacon_count = 0;
           in_beacon_cluster = false;
           cur_beacon_pts = 0;
+          points_since_last_send = 0;
         }
 
         // LOGIQUE BALISES

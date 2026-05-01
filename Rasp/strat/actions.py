@@ -18,12 +18,13 @@ except Exception as e:
 
 # --- VISION KAPLAS (via module dédié) ---
 try:
-    from utils.sensors.camera_libcamera import LibCamera
-    from Vision.vision_kapla import KaplaVision
-    print("[VISION] Démarrage Picamera2 (LibCamera)...")
-    cam = LibCamera()
-    cam.start()
-    vision = KaplaVision(cam)
+    # from utils.sensors.camera_libcamera import LibCamera
+    # from Vision.vision_kapla import KaplaVision
+    print("[VISION] Picamera2 désactivé temporairement.")
+    # cam = LibCamera()
+    # cam.start()
+    # vision = KaplaVision(cam)
+    vision = None
 except Exception as e:
     print(f"⚠️ Attention : Erreur de chargement du module Vision/Caméra ({e}) -> Pas de détection auto")
     vision = None
@@ -91,15 +92,16 @@ class RobotActions:
             print("[SIMU] SET_POS virtuel (Pas de com)")
 
 
-    # --- LE COEUR DU SUJET : GOTO BEZIER ---
     def goto(self, x, y, theta):
         """
-        Déplacement via Courbe de Bézier + Envoi ESP32
+        Déplacement en ligne droite + Envoi ESP32
         """
         self._check_abort()
+        
+        real_x, real_y, real_theta = self._apply_sym(x, y, theta)
 
         if esp:
-            esp.goto(x, y, theta)
+            esp.goto(real_x, real_y, real_theta)
         else:
             print("[SIMU] GOTO virtuel (Pas de com)")
         
@@ -109,6 +111,14 @@ class RobotActions:
             esp.stop()
         else:
             print("[SIMU] STOP virtuel (Pas de com)")
+
+    def toggle_lidar(self):
+        """Envoie le signal L pour mettre en pause ou reprendre la trajectoire."""
+        print("[ACTION] TOGGLE LIDAR (PAUSE/REPRISE)")
+        if esp:
+            esp.toggle_lidar()
+        else:
+            print("[SIMU] TOGGLE LIDAR virtuel")
 
     def approcheKapla(self):
         self._check_abort()

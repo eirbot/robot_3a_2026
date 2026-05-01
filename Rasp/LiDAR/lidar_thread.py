@@ -19,7 +19,7 @@ class LidarCollisionThread(threading.Thread):
         # Configuration UDP
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self.sock.bind(("127.0.0.1", 8080))
-        self.sock.settimeout(0.5) # Sécurité : si le C++ plante, on s'en rend compte
+        self.sock.settimeout(2.0) # Sécurité : si le C++ plante, on s'en rend compte (2s au lieu de 0.5s pour éviter les faux positifs)
         
         # Init de l'état obstacle
         import ihm.shared as shared
@@ -27,6 +27,7 @@ class LidarCollisionThread(threading.Thread):
 
     def run(self):
         print(f"[LIDAR THREAD] Démarrage de la surveillance. Seuil = {self.seuil_mm} mm")
+        last_log_time = time.time()
         
         while self.running:
             try:
@@ -38,6 +39,11 @@ class LidarCollisionThread(threading.Thread):
                     angle, dist, intensity = unpacked[0:3]
                     num_beacons = unpacked[3]
                     
+                    if time.time() - last_log_time > 2.0:
+                        if dist < 90000:  # 99999 is used as 'no obstacle' in CPP
+                            print(f"[LIDAR THREAD] Ping... (Obstacle à {dist:.0f} mm, Angle: {angle:.1f}°)")
+                        last_log_time = time.time()
+                        
                     import ihm.shared as shared
                     
                     if dist < self.seuil_mm:
@@ -45,8 +51,11 @@ class LidarCollisionThread(threading.Thread):
                             print(f"[🛑 OBSTACLE] Obstacle à {dist:.0f} mm ! Pause de la trajectoire !")
                             shared.state["obstacle_detected"] = True
                             
-                            # Arrêt physique des moteurs via l'instance de RobotActions
-                            self.robot.stop()  
+                            # Arrêt physique des moteurs via l'instance de RobotActions (Envoi 'L' toggle)
+                            if hasattr(self.robot, 'toggle_lidar'):
+                                self.robot.toggle_lidar()
+                            else:
+                                self.robot.stop()
                             
                             # Mise à jour IHM visuelle uniquement
                             shared.send_led_cmd("COLOR:255,165,0") # Orange pour avertissement
@@ -55,6 +64,10 @@ class LidarCollisionThread(threading.Thread):
                         if shared.state.get("obstacle_detected"):
                             print(f"[✅ LIBRE] Obstacle parti (dist: {dist:.0f}mm) ! Reprise...")
                             shared.state["obstacle_detected"] = False
+                            
+                            # Reprise physique de la trajectoire (Envoi 'L' toggle)
+                            if hasattr(self.robot, 'toggle_lidar'):
+                                self.robot.toggle_lidar()
                             
                             # On restaure la couleur de la team
                             if shared.state.get("team") == "JAUNE":
