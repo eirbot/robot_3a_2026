@@ -10,8 +10,9 @@ void ComWithRasp::StartCom() {
 
 void ComWithRasp::StartTelemetry() {
   // Crée une tâche FreeRTOS qui appelle this->TelemetryLoop()
-  xTaskCreate([](void *obj) { static_cast<ComWithRasp *>(obj)->TelemetryLoop(); },
-              "TelemetryLoop", 4000, this, 1, NULL);
+  xTaskCreate(
+      [](void *obj) { static_cast<ComWithRasp *>(obj)->TelemetryLoop(); },
+      "TelemetryLoop", 4000, this, 1, NULL);
 }
 
 void ComWithRasp::Receive() {
@@ -26,18 +27,18 @@ void ComWithRasp::Receive() {
       if (c == '\n' || c == '\r') {
         // On vérifie qu'on a bien reçu au moins une lettre
         if (rx_index > 0) {
-          rx_buffer[rx_index] = '\0'; // On met le caractère de fin de chaîne obligatoire en C
+          rx_buffer[rx_index] =
+              '\0'; // On met le caractère de fin de chaîne obligatoire en C
           // On transfère le tableau sécurisé dans ta variable String habituelle
-          commande = String(rx_buffer); 
+          commande = String(rx_buffer);
           Serial.println("-> Ligne complete securisee : [" + commande + "]");
           // On lance ton découpage
           processLine();
           // On remet le curseur du tableau à zéro pour le prochain message
-          rx_index = 0; 
+          rx_index = 0;
           commande = ""; // On nettoie au cas où
         }
-      } 
-      else {
+      } else {
         // C'est une lettre normale, on la range dans le tableau
         // (On garde une marge de 1 pour le caractère de fin '\0')
         if (rx_index < 63) {
@@ -50,7 +51,7 @@ void ComWithRasp::Receive() {
       }
     }
     // On rend la main à FreeRTOS
-    vTaskDelay(10 / portTICK_PERIOD_MS); 
+    vTaskDelay(10 / portTICK_PERIOD_MS);
   }
 }
 
@@ -77,7 +78,7 @@ void ComWithRasp::Send() {
 }
 
 void ComWithRasp::processLine() {
-  commande.trim(); 
+  commande.trim();
   String command = "";
   std::vector<int> params;
 
@@ -85,11 +86,10 @@ void ComWithRasp::processLine() {
   if (spaceIndex == -1) {
     // Cas 1 : La commande n'a pas de paramètres (ex: "L")
     command = commande;
-  } 
-  else {
+  } else {
     // Cas 2 : La commande a des paramètres (ex: "G 100 200 90")
     command = commande.substring(0, spaceIndex);
-    
+
     // On avance pour chercher les nombres
     int currentIndex = spaceIndex + 1;
     while (currentIndex < commande.length()) {
@@ -111,7 +111,7 @@ void ComWithRasp::processLine() {
         paramStr = commande.substring(currentIndex, nextSpace);
         currentIndex = nextSpace + 1;
       }
-      
+
       // On convertit et on ajoute au vecteur
       params.push_back(paramStr.toInt());
     }
@@ -123,7 +123,8 @@ void ComWithRasp::processLine() {
   Serial.print("' | Parametres [");
   for (int i = 0; i < params.size(); i++) {
     Serial.print(params[i]);
-    if (i < params.size() - 1) Serial.print(", ");
+    if (i < params.size() - 1)
+      Serial.print(", ");
   }
   Serial.println("]");
 
@@ -136,6 +137,7 @@ void ComWithRasp::processCommand(const String &cmd,
   if (cmd == "G" && params.size() == 3) {
     Serial.println("GoToPosition");
     serialGoto.Go((float)params[0], (float)params[1], (float)params[2]);
+    Serial.println("D");
   } else if (cmd == "L") {
     Serial.println("Lidar");
     LiDAR_state = !LiDAR_state; // Toggle du LiDAR

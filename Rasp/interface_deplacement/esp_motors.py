@@ -13,6 +13,7 @@ class ESPMotors:
         self.tx_lock = threading.Lock() 
         self.running = False
         self.rx_thread = None
+        self.cmd_done_event = threading.Event()
 
     def start(self):
         """Initialise la connexion et lance le thread d'écoute."""
@@ -52,7 +53,10 @@ class ESPMotors:
     # --- Fonctions simplifiées pour tes autres threads ---
     
     def goto(self, x, y, theta):
+        self.cmd_done_event.clear()
         self.send(f"G {x} {y} {theta}")
+        # Bloque l'exécution de la strat jusqu'à ce que l'ESP dise "DONE"
+        self.cmd_done_event.wait()
 
     def set_pos(self, x, y, theta):
         self.send(f"S {x} {y} {theta}")
@@ -92,3 +96,6 @@ class ESPMotors:
                     shared.state['robot_theta'] = float(parts[3])
             except ValueError:
                 print(f"[MOTORS] ⚠️ Erreur de parsing Odométrie : {msg}")
+        elif msg == "D":
+            # Le mouvement est terminé, on débloque le goto()
+            self.cmd_done_event.set()
