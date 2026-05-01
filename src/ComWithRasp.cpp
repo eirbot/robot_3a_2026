@@ -67,7 +67,7 @@ void ComWithRasp::TelemetryLoop() {
     Serial.print(" ");
     Serial.println(angle * RAD_TO_DEG);
 
-    vTaskDelay(5000 / portTICK_PERIOD_MS);
+    vTaskDelay(100 / portTICK_PERIOD_MS);
   }
 }
 

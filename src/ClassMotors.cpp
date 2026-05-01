@@ -18,6 +18,8 @@ void ClassMotors::vMotors(void *pvParameters) {
   while (1) {
     if (xQueueReceive(instance->xQueue, &taskParams, portMAX_DELAY) == pdPASS) {
 
+      TickType_t lastOdoUpdate = xTaskGetTickCount();
+
       float speed = (taskParams.vitesse * stepPerRev) / ((M_PI * dRoues));
       float accel = speed * 0.6;
       moteurGauche.setMaxSpeed(speed);
@@ -36,13 +38,13 @@ void ClassMotors::vMotors(void *pvParameters) {
         moteurGauche.move(steps); // steps negatif pour reculer
         moteurDroit.move(steps);
 
+        int antiCrashCounter = 0;
+
         while (moteurGauche.distanceToGo() != 0 ||
                moteurDroit.distanceToGo() != 0) { // Gooo
 
-          FLAG_CLEAR = &LiDAR_state;
-
           // Si FLAG_STOP est actif
-          if (!*FLAG_CLEAR) {
+          if (!LiDAR_state) {
             if (!wasStopped) {
               // Ralentissement progressif
               StopStepper(moteurGauche, moteurDroit);
@@ -82,7 +84,16 @@ void ClassMotors::vMotors(void *pvParameters) {
 
             moteurGauche.run();
             moteurDroit.run();
-            instance->UpdateOdometry();
+            
+            if ((xTaskGetTickCount() - lastOdoUpdate) >= odoInterval) {
+              instance->UpdateOdometry();
+              lastOdoUpdate = xTaskGetTickCount();
+            }
+          }
+          antiCrashCounter++;
+          if (antiCrashCounter > 3000) {
+              taskYIELD(); 
+              antiCrashCounter = 0;
           }
         }
       } else if (taskParams.distance == 0) { // Pour tourner
@@ -102,11 +113,15 @@ void ClassMotors::vMotors(void *pvParameters) {
                moteurDroit.distanceToGo() != 0) { // Goooo
           moteurGauche.run();
           moteurDroit.run();
-          instance->UpdateOdometry();
+          
+          if ((xTaskGetTickCount() - lastOdoUpdate) >= odoInterval) {
+            instance->UpdateOdometry();
+            lastOdoUpdate = xTaskGetTickCount();
+          }
         }
       } else {
       }
-      vTaskDelay(100);
+      vTaskDelay(10);
     }
   }
 }
@@ -124,10 +139,11 @@ void ClassMotors::EnvoyerDonnees(void *Params) {
 }
 
 void ClassMotors::WaitUntilDone() {
-  // Boucle bloquante tant que la file contient des messages
-  while (uxQueueMessagesWaiting(xQueue) > 0) {
-    vTaskDelay(
-        pdMS_TO_TICKS(10)); // Petite pause pour ne pas bloquer l'ordonnanceur
+  // On attend que la file soit vide ET que les moteurs soient à l'arrêt
+  while (uxQueueMessagesWaiting(xQueue) > 0 || 
+         moteurGauche.distanceToGo() != 0 || 
+         moteurDroit.distanceToGo() != 0) {
+    vTaskDelay(pdMS_TO_TICKS(10)); 
   }
 }
 
@@ -217,13 +233,10 @@ void ClassMotors::SetPosition(float x, float y, float angle) {
 void ClassMotors::UpdateOdometry() {
   long currentStepGauche = moteurGauche.currentPosition();
   long currentStepDroit = moteurDroit.currentPosition();
-
   long deltaStepGauche = currentStepGauche - lastStepGauche;
   long deltaStepDroit = currentStepDroit - lastStepDroit;
 
-  // Si pas de mouvement, on ne met pas à jour
-  if (deltaStepGauche == 0 && deltaStepDroit == 0)
-    return;
+  if (deltaStepGauche == 0 && deltaStepDroit == 0) return;
 
   lastStepGauche = currentStepGauche;
   lastStepDroit = currentStepDroit;
@@ -231,23 +244,19 @@ void ClassMotors::UpdateOdometry() {
   float distanceParStep = (M_PI * dRoues) / stepPerRev;
   float s_L = deltaStepGauche * distanceParStep;
   float s_R = deltaStepDroit * distanceParStep;
-
   float delta_s = (s_R + s_L) / 2.0;
-  float delta_theta = (s_R - s_L) / ecartRoues; // radians
+  float delta_theta = (s_R - s_L) / ecartRoues;
 
-  float x, y, angle;
-  GetPosition(x, y, angle);
+  // Optimisation : On fait les maths d'abord, on verrouille ensuite !
+  if (xSemaphoreTake(xPositionMutex, portMAX_DELAY) == pdTRUE) {
+    orientation += delta_theta;
 
-  angle += delta_theta;
+    if (orientation > M_PI) orientation -= 2 * M_PI;
+    if (orientation < -M_PI) orientation += 2 * M_PI;
 
-  // Normalisation angle entre -π et π
-  if (angle > M_PI)
-    angle -= 2 * M_PI;
-  if (angle < -M_PI)
-    angle += 2 * M_PI;
-
-  x += delta_s * sin(angle);
-  y += delta_s * cos(angle);
-
-  SetPosition(x, y, angle);
+    x_pos += delta_s * cos(orientation);
+    y_pos += delta_s * sin(orientation);
+    
+    xSemaphoreGive(xPositionMutex);
+  }
 }

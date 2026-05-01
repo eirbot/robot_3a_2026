@@ -9,6 +9,8 @@
 
 #define DECCEL 30000.0
 
+const TickType_t odoInterval = pdMS_TO_TICKS(20); // 20 ms = 50 Hz
+
 class ClassMotors {
 public:
   ClassMotors();

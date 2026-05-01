@@ -8,9 +8,7 @@ AccelStepper moteurDroit(AccelStepper::DRIVER, STEPD, DIRD);  // STEP, DIR
 
 ClassMotors mot;
 
-volatile bool *FLAG_CLEAR = NULL; // Valeur initiale (1 = continue, 0 = stop)
 bool FLAG_STOP = false;           // Valeur initiale (1 = stop, 0 = continue)
-bool FLAG_DEBUG = true; // Valeur initiale (1 = debug, 0 = normal)
 
 SemaphoreHandle_t xPositionMutex;
 

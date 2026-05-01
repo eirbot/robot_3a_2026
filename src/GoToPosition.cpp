@@ -16,7 +16,7 @@ void GoToPosition::CalculPolar() {
   float delta_y = y_final - y_initial;
 
   r = sqrt(delta_x * delta_x + delta_y * delta_y);
-  float sigma = atan2(delta_x, delta_y) * RAD_TO_DEG;
+  float sigma = atan2(delta_y, delta_x) * RAD_TO_DEG;
 
   pangle = sigma - cangle_initial;
   pangleFin = cangle_final - sigma;
@@ -110,8 +110,8 @@ void GoToPosition::SetPos(float x, float y, float cangle) {
 void GoToPosition::UpdateFinalPoseAfterStop(float distanceDid) {
   cangle_initial += pangle;
 
-  float dx = distanceDid * sin(cangle_initial * DEG_TO_RAD);
-  float dy = distanceDid * cos(cangle_initial * DEG_TO_RAD);
+  float dx = distanceDid * cos(cangle_initial * DEG_TO_RAD);
+  float dy = distanceDid * sin(cangle_initial * DEG_TO_RAD);
 
   x_initial += dx;
   y_initial += dy;

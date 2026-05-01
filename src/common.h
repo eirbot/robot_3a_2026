@@ -6,7 +6,7 @@
 #define STEPG 22
 #define DIRG 13
 
-#define SPEEDMAX 650
+#define SPEEDMAX 1500
 #define ACCELMAX 3000
 
 #define dRoues 72.0
@@ -41,9 +41,7 @@ extern TaskHandle_t handleDoStrat;
 
 extern SemaphoreHandle_t xPositionMutex;
 
-extern volatile bool *FLAG_CLEAR; // Valeur initiale (1 = continue, 0 = stop)
 extern bool FLAG_STOP;            // Valeur initiale (1 = stop, 0 = continue)
-extern bool FLAG_DEBUG;           // Valeur initiale (1 = debug, 0 = normal)
 
 extern volatile bool LiDAR_state; // Valeur initiale (1 = clear, 0 = obstacle)
 #endif
