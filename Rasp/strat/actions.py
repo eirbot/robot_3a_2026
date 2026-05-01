@@ -30,7 +30,7 @@ except Exception as e:
 
 try:
     # On essaie d'importer la classe ESPMotors
-    import interface_deplacement
+    from interface_deplacement.esp_motors import ESPMotors
     esp = ESPMotors()
     esp.start()
 
@@ -64,11 +64,11 @@ class RobotActions:
         self._check_time()
 
     def _apply_sym(self, x, y, theta=None):
-        """Symétrie axiale pour l'équipe JAUNE"""
+        """Symétrie axiale pour l'équipe JAUNE (Axe Y=0 au centre)"""
         if self.is_yellow:
-            new_x = TABLE_WIDTH - x
-            new_y = y
-            new_theta = (180 - theta) % 360 if theta is not None else None
+            new_x = x
+            new_y = -y
+            new_theta = (-theta) % 360 if theta is not None else None
             return new_x, new_y, new_theta
         return x, y, theta
     
@@ -140,7 +140,7 @@ class RobotActions:
     def GoBase(self):
         self.is_returning = True
         print("⚡ RETOUR BASE")
-        self.goto(250, 1000, 180)
+        self.goto(250, 0, 180)
         time.sleep(1)
 
     def play_animation(self, anim_name):

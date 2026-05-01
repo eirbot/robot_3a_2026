@@ -11,16 +11,9 @@ from ihm import run_ihm
 import ihm.shared as shared
 from strat.main_strat import strat_loop
 
-# Import des communications avec les moteurs
-from interface_deplacement.interface_deplacement import init as init_motors
-
-# Note : L'ancien EKF Python est supprimé, on va utiliser le C++ UDP + Thread Python
-
 # --- MAIN ---
 if __name__ == "__main__":
     print("--- ROBOT 2026 : Démarrage ---")
-    
-    init_motors()
     
     led_process = None
     try:

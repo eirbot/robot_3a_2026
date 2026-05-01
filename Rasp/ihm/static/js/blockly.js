@@ -21,7 +21,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
     // Valeurs par défaut si le bloc "Départ" n'est pas utilisé
     const DEFAULT_START_X = 250;
-    const DEFAULT_START_Y = 1000;
+    const DEFAULT_START_Y = 0;
     const DEFAULT_START_THETA = 0;
 
 
@@ -62,7 +62,7 @@ document.addEventListener("DOMContentLoaded", function () {
             this.appendDummyInput()
                 .appendField("🏁 Départ Match (Bleu)")
                 .appendField("X").appendField(new Blockly.FieldNumber(250), "X")
-                .appendField("Y").appendField(new Blockly.FieldNumber(1000), "Y")
+                .appendField("Y").appendField(new Blockly.FieldNumber(0), "Y")
                 .appendField("θ").appendField(new Blockly.FieldNumber(0), "THETA");
             this.setNextStatement(true, null);
             this.setColour(290); // Violet
@@ -70,18 +70,17 @@ document.addEventListener("DOMContentLoaded", function () {
         }
     };
 
-    // --- BLOC GOTO (BÉZIER) ---
+    // --- BLOC GOTO ---
     Blockly.Blocks['robot_goto'] = {
         init: function () {
             this.appendDummyInput()
                 .appendField("Aller à X").appendField(new Blockly.FieldNumber(1000), "X")
-                .appendField("Y").appendField(new Blockly.FieldNumber(1000), "Y")
-                .appendField("θ").appendField(new Blockly.FieldNumber(0), "THETA")
-                .appendField("Force").appendField(new Blockly.FieldNumber(400), "FORCE");
+                .appendField("Y").appendField(new Blockly.FieldNumber(0), "Y")
+                .appendField("θ").appendField(new Blockly.FieldNumber(0), "THETA");
             this.setPreviousStatement(true, null);
             this.setNextStatement(true, null);
             this.setColour(230); // Bleu
-            this.setTooltip("Déplacement courbe. Force = distance du point de contrôle.");
+            this.setTooltip("Déplacement en ligne droite puis rotation finale.");
         }
     };
 
@@ -144,7 +143,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
     // --- GÉNÉRATEURS PYTHON ---
     Blockly.Python.forBlock['robot_start'] = function (block) { return `robot.set_pos(${block.getFieldValue('X')}, ${block.getFieldValue('Y')}, ${block.getFieldValue('THETA')})\n`; };
-    Blockly.Python.forBlock['robot_goto'] = function (block) { return `robot.goto(${block.getFieldValue('X')}, ${block.getFieldValue('Y')}, ${block.getFieldValue('THETA')}, force=${block.getFieldValue('FORCE')})\n`; };
+    Blockly.Python.forBlock['robot_goto'] = function (block) { return `robot.goto(${block.getFieldValue('X')}, ${block.getFieldValue('Y')}, ${block.getFieldValue('THETA')})\n`; };
     Blockly.Python.forBlock['prendre_kapla'] = function (block) { return `robot.prendreKapla(hauteur=${block.getFieldValue('HAUTEUR')})\n`; };
     Blockly.Python.forBlock['retourner_kapla'] = function (block) { return `robot.retournerKapla()\n`; };
     Blockly.Python.forBlock['poser_kapla'] = function (block) { return `robot.poseKapla(hauteur=${block.getFieldValue('HAUTEUR')})\n`; };
@@ -208,30 +207,31 @@ document.addEventListener("DOMContentLoaded", function () {
 
     // --- FONCTIONS DE CONVERSION ---
 
-    // Convertit Millimètres (Y Haut) vers Pixels Écran (Y Bas)
+    // Convertit Millimètres vers Pixels Écran (Nouveau Repère)
     function worldToScreen(x_mm, y_mm) {
-        const scale = canvas.width / TABLE_WIDTH;
+        const scaleX = canvas.width / TABLE_WIDTH; // 3000 -> correspond à Y
+        const scaleY = canvas.height / TABLE_HEIGHT; // 2000 -> correspond à X
         return {
-            x: x_mm * scale,
-            y: canvas.height - (y_mm * scale)
+            x: (canvas.width / 2) - (y_mm * scaleX),
+            y: x_mm * scaleY
         };
     }
 
     // Convertit Pixels Écran vers Millimètres (Pour la souris)
     function screenToWorld(px, py) {
-        const scale = canvas.width / TABLE_WIDTH;
+        const scaleX = canvas.width / TABLE_WIDTH;
+        const scaleY = canvas.height / TABLE_HEIGHT;
         return {
-            x: Math.round(px / scale),
-            y: Math.round((canvas.height - py) / scale)
+            x: Math.round(py / scaleY),
+            y: Math.round(((canvas.width / 2) - px) / scaleX)
         };
     }
 
-    // Calcul Point Bézier (t entre 0 et 1)
-    function getBezierPoint(t, p0, p1, p2, p3) {
-        let u = 1 - t; let tt = t * t; let uu = u * u; let uuu = uu * u; let ttt = tt * t;
+    // Calcul Point Segment (t entre 0 et 1)
+    function getSegmentPoint(t, p0, p3) {
         return {
-            x: uuu * p0.x + 3 * uu * t * p1.x + 3 * u * tt * p2.x + ttt * p3.x,
-            y: uuu * p0.y + 3 * uu * t * p1.y + 3 * u * tt * p2.y + ttt * p3.y
+            x: p0.x + t * (p3.x - p0.x),
+            y: p0.y + t * (p3.y - p0.y)
         };
     }
 
@@ -263,38 +263,29 @@ document.addEventListener("DOMContentLoaded", function () {
         ctx.font = "10px Arial";
         ctx.textAlign = "center";
 
-        // Verticales
-        for (let x = 0; x <= TABLE_WIDTH; x += GRID_STEP) {
-            let p = worldToScreen(x, 0);
-            ctx.beginPath(); ctx.moveTo(p.x, 0); ctx.lineTo(p.x, canvas.height); ctx.stroke();
-            ctx.fillText(x, p.x, canvas.height - 5);
-        }
-        // Horizontales
-        ctx.textAlign = "left";
-        for (let y = 0; y <= TABLE_HEIGHT; y += GRID_STEP) {
+        // Lignes pour Y (gauche à droite)
+        for (let y = -1500; y <= 1500; y += GRID_STEP) {
             let p = worldToScreen(0, y);
+            ctx.beginPath(); ctx.moveTo(p.x, 0); ctx.lineTo(p.x, canvas.height); ctx.stroke();
+            if (y % 500 === 0) ctx.fillText(y, p.x, 10);
+        }
+        // Lignes pour X (haut en bas)
+        ctx.textAlign = "left";
+        for (let x = 0; x <= 2000; x += GRID_STEP) {
+            let p = worldToScreen(x, 0);
             ctx.beginPath(); ctx.moveTo(0, p.y); ctx.lineTo(canvas.width, p.y); ctx.stroke();
-            if (y > 0) ctx.fillText(y, 5, p.y - 2);
+            if (x % 500 === 0 && x > 0) ctx.fillText(x, 5, p.y - 2);
         }
     }
 
-    function drawBezierCurve(bz, color, width) {
+    function drawStraightPath(bz, color, width) {
         let p0 = worldToScreen(bz.p0.x, bz.p0.y);
-        let p1 = worldToScreen(bz.p1.x, bz.p1.y);
-        let p2 = worldToScreen(bz.p2.x, bz.p2.y);
         let p3 = worldToScreen(bz.p3.x, bz.p3.y);
 
         ctx.beginPath();
         ctx.moveTo(p0.x, p0.y);
-        ctx.bezierCurveTo(p1.x, p1.y, p2.x, p2.y, p3.x, p3.y);
+        ctx.lineTo(p3.x, p3.y);
         ctx.strokeStyle = color; ctx.lineWidth = width; ctx.stroke();
-
-        // Points de contrôle P1/P2 en jaune si c'est la courbe active
-        if (color.includes("255, 0, 0")) {
-            ctx.fillStyle = "yellow";
-            ctx.beginPath(); ctx.arc(p1.x, p1.y, 3, 0, 2 * Math.PI); ctx.fill();
-            ctx.beginPath(); ctx.arc(p2.x, p2.y, 3, 0, 2 * Math.PI); ctx.fill();
-        }
     }
 
     // BOUCLE DE RENDU PRINCIPALE
@@ -311,12 +302,11 @@ document.addEventListener("DOMContentLoaded", function () {
         // 3. Prévisualisation (Trait Cyan ou Orange si erreur)
         if (previewPath.length > 0) {
             previewPath.forEach(bz => {
-                // Check simple sur le point d'arrivée et un point milieu
-                let mid = getBezierPoint(0.5, bz.p0, bz.p1, bz.p2, bz.p3);
+                let mid = getSegmentPoint(0.5, bz.p0, bz.p3);
                 if (isOutOfBounds(bz.p3) || isOutOfBounds(mid)) {
-                    drawBezierCurve(bz, "rgba(255, 140, 0, 0.8)", 3); // Orange Alerte
+                    drawStraightPath(bz, "rgba(255, 140, 0, 0.8)", 3); // Orange Alerte
                 } else {
-                    drawBezierCurve(bz, "rgba(0, 255, 255, 0.6)", 2); // Cyan OK
+                    drawStraightPath(bz, "rgba(0, 255, 255, 0.6)", 2); // Cyan OK
                 }
             });
         }
@@ -334,22 +324,18 @@ document.addEventListener("DOMContentLoaded", function () {
                 processNextAction();
             } else {
                 // Calcul position courante
-                let pos = getBezierPoint(robot.bezier.t, robot.bezier.p0, robot.bezier.p1, robot.bezier.p2, robot.bezier.p3);
+                let pos = getSegmentPoint(robot.bezier.t, robot.bezier.p0, robot.bezier.p3);
 
                 // Calcul orientation (Tangente)
-                let nextPos = getBezierPoint(robot.bezier.t + 0.01, robot.bezier.p0, robot.bezier.p1, robot.bezier.p2, robot.bezier.p3);
-                let dx = nextPos.x - pos.x;
-                let dy = nextPos.y - pos.y;
-                robot.theta = Math.atan2(dy, dx) * (180 / Math.PI);
-
-                // Check collision temps réel
-                if (isOutOfBounds(pos)) {
-                    // Optionnel : afficher alerte dans console
+                let dx = robot.bezier.p3.x - robot.bezier.p0.x;
+                let dy = robot.bezier.p3.y - robot.bezier.p0.y;
+                if (dx !== 0 || dy !== 0) {
+                    robot.theta = Math.atan2(dy, dx) * (180 / Math.PI);
                 }
 
                 robot.x = pos.x;
                 robot.y = pos.y;
-                drawBezierCurve(robot.bezier, "rgba(255, 0, 0, 0.8)", 4);
+                drawStraightPath(robot.bezier, "rgba(255, 0, 0, 0.8)", 4);
             }
         }
 
@@ -360,8 +346,10 @@ document.addEventListener("DOMContentLoaded", function () {
         ctx.save();
         ctx.translate(screenPos.x, screenPos.y);
 
-        // Gestion Rotation : Math (CCW) vers Canvas (CW) -> Inverse signe
-        let rotationRad = -robot.theta * (Math.PI / 180);
+        // Gestion Rotation : Adaptation au nouveau repère
+        // Dans le repère map: MapTheta=0 -> X_map (+Y_scr, soit 90° canvas)
+        // MapTheta=90 -> Y_map (-X_scr, soit 180° canvas)
+        let rotationRad = robot.theta * (Math.PI / 180) + Math.PI / 2;
 
         // Correction Orientation Image
         if (ROBOT_IMAGE_ORIENTATION === 'UP') rotationRad += Math.PI / 2;
@@ -454,19 +442,12 @@ document.addEventListener("DOMContentLoaded", function () {
                 let targetX = parseInt(currentBlock.getFieldValue('X'));
                 let targetY = parseInt(currentBlock.getFieldValue('Y'));
                 let targetTheta = parseInt(currentBlock.getFieldValue('THETA'));
-                let force = parseInt(currentBlock.getFieldValue('FORCE'));
 
                 let p0 = { x: simX, y: simY };
                 let p3 = { x: targetX, y: targetY };
-                let radStart = simTheta * (Math.PI / 180);
-                let radEnd = targetTheta * (Math.PI / 180);
 
-                let p1 = { x: p0.x + force * Math.cos(radStart), y: p0.y + force * Math.sin(radStart) };
-                let p2 = { x: p3.x - force * Math.cos(radEnd), y: p3.y - force * Math.sin(radEnd) };
-
-                // AJOUT DE blockId ICI
-                queue.push({ type: 'goto', x: targetX, y: targetY, theta: targetTheta, force: force, blockId: blockId });
-                pPath.push({ p0, p1, p2, p3, blockId: blockId });
+                queue.push({ type: 'goto', x: targetX, y: targetY, theta: targetTheta, blockId: blockId });
+                pPath.push({ p0, p3, blockId: blockId });
 
                 simX = targetX; simY = targetY; simTheta = targetTheta;
             }
@@ -495,8 +476,8 @@ document.addEventListener("DOMContentLoaded", function () {
 
         let errorCount = 0;
         previewPath.forEach(bz => {
-            let mid = getBezierPoint(0.5, bz.p0, bz.p1, bz.p2, bz.p3);
-            if (isOutOfBounds(bz.p3) || isOutOfBounds(mid)) {
+                let mid = getSegmentPoint(0.5, bz.p0, bz.p3);
+                if (isOutOfBounds(bz.p3) || isOutOfBounds(mid)) {
                 // MARQUAGE ERREUR
                 markBlockError(bz.blockId, "Hors table !");
                 errorCount++;
@@ -533,14 +514,8 @@ document.addEventListener("DOMContentLoaded", function () {
 
                 let p0 = { x: robot.x, y: robot.y };
                 let p3 = { x: action.x, y: action.y };
-                let force = action.force;
-                let radStart = robot.theta * (Math.PI / 180);
-                let radEnd = action.theta * (Math.PI / 180);
 
-                let p1 = { x: p0.x + force * Math.cos(radStart), y: p0.y + force * Math.sin(radStart) };
-                let p2 = { x: p3.x - force * Math.cos(radEnd), y: p3.y - force * Math.sin(radEnd) };
-
-                robot.bezier = { p0, p1, p2, p3, targetTheta: action.theta, t: 0 };
+                robot.bezier = { p0, p3, targetTheta: action.theta, t: 0 };
                 robot.isMoving = true;
             }
             else if (action.type === 'action') {

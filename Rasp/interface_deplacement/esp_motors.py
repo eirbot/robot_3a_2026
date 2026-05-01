@@ -81,7 +81,7 @@ class ESPMotors:
         """Déchiffre le message et met à jour l'état partagé du robot."""
         # print(f"[MOTORS] <- {msg}") # Décommenter pour le debug
         
-        if msg.startswith("POS"):
+        if msg.startswith("T "):
             try:
                 parts = msg.split()
                 if len(parts) == 4:
@@ -91,4 +91,4 @@ class ESPMotors:
                     shared.state['robot_y'] = float(parts[2])
                     shared.state['robot_theta'] = float(parts[3])
             except ValueError:
-                print(f"[MOTORS] ⚠️ Erreur de parsing POS : {msg}")
+                print(f"[MOTORS] ⚠️ Erreur de parsing Odométrie : {msg}")
