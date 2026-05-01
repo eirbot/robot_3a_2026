@@ -11,7 +11,7 @@ GoToPosition serialGoto{X_POS_INIT, Y_POS_INIT, ANGLE_INIT, 1000, 1000, 0};
 
 void setup() {
   esp_task_wdt_init(10, true);
-  ComWithRasp comRasp;
+  static ComWithRasp comRasp;
 
   // Config des vitesses max et accélérations
   moteurGauche.setMaxSpeed(SPEEDMAX);

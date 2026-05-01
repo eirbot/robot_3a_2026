@@ -47,7 +47,7 @@ int main() {
   addr.sin_port = htons(8080);
   inet_pton(AF_INET, "127.0.0.1", &addr.sin_addr);
 
-  const char *port = "/dev/ttyUSB0";
+  const char *port = "/dev/lidar";
   int serial_fd = open(port, O_RDWR | O_NOCTTY | O_SYNC);
   if (serial_fd < 0)
     return 1;

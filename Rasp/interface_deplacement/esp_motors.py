@@ -4,7 +4,7 @@ import time
 import ihm.shared as shared  # On importe ton shared pour y stocker X, Y, Theta
 
 class ESPMotors:
-    def __init__(self, port='/dev/esp_motors', baudrate=115200):
+    def __init__(self, port='/dev/esp32_motors', baudrate=115200):
         self.port = port
         self.baudrate = baudrate
         self.ser = None
@@ -19,6 +19,9 @@ class ESPMotors:
         """Initialise la connexion et lance le thread d'écoute."""
         try:
             self.ser = serial.Serial(self.port, self.baudrate, timeout=0.1)
+            # Désactive DTR et RTS pour éviter que l'ESP32 ne reste bloqué en mode Reset ou Bootloader
+            self.ser.setDTR(False)
+            self.ser.setRTS(False)
             self.ser.reset_input_buffer()
             print(f"[MOTORS] ✅ Connexion établie sur {self.port}")
             
@@ -72,10 +75,11 @@ class ESPMotors:
         while self.running:
             try:
                 if self.ser.in_waiting > 0:
-                    ligne = self.ser.readline().decode('utf-8').strip()
+                    ligne = self.ser.readline().decode('utf-8', errors='ignore').strip()
                     if ligne:
                         self._process_message(ligne)
             except Exception as e:
+                print(f"[MOTORS] Exception in rx loop: {e}")
                 # Évite que le thread ne crash silencieusement en cas de bruit série
                 pass 
                 
