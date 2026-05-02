@@ -4,7 +4,7 @@ import time
 import ihm.shared as shared  # On importe ton shared pour y stocker X, Y, Theta
 
 class ESPMotors:
-    def __init__(self, port='/dev/esp32_motors', baudrate=115200):
+    def __init__(self, port='/dev/esp_motors', baudrate=115200):
         self.port = port
         self.baudrate = baudrate
         self.ser = None
@@ -14,6 +14,7 @@ class ESPMotors:
         self.running = False
         self.rx_thread = None
         self.cmd_done_event = threading.Event()
+        self.cmd_aborted = False
 
     def start(self):
         """Initialise la connexion et lance le thread d'écoute."""
@@ -57,9 +58,11 @@ class ESPMotors:
     
     def goto(self, x, y, theta):
         self.cmd_done_event.clear()
+        self.cmd_aborted = False
         self.send(f"G {x} {y} {theta}")
-        # Bloque l'exécution de la strat jusqu'à ce que l'ESP dise "DONE"
+        # Bloque l'exécution de la strat jusqu'à ce que l'ESP dise "DONE" ou "ABORT"
         self.cmd_done_event.wait()
+        return not self.cmd_aborted
 
     def set_pos(self, x, y, theta):
         self.send(f"S {x} {y} {theta}")
@@ -101,5 +104,10 @@ class ESPMotors:
             except ValueError:
                 print(f"[MOTORS] ⚠️ Erreur de parsing Odométrie : {msg}")
         elif msg == "D":
-            # Le mouvement est terminé, on débloque le goto()
+            # Le mouvement est terminé avec succès
+            self.cmd_aborted = False
+            self.cmd_done_event.set()
+        elif msg == "A":
+            # Le mouvement a été annulé (timeout obstacle)
+            self.cmd_aborted = True
             self.cmd_done_event.set()

@@ -46,7 +46,7 @@ void GoToPosition::CalculPolar() {
   }
 }
 
-void GoToPosition::Go(float x_f, float y_f, float cangle_f) {
+bool GoToPosition::Go(float x_f, float y_f, float cangle_f) {
   static int retryCount = 0;
 
   TaskParams Params;
@@ -74,6 +74,8 @@ void GoToPosition::Go(float x_f, float y_f, float cangle_f) {
     float x, y, angle;
     mot.GetPosition(x, y, angle);
     FLAG_STOP = false;
+    
+    return false; // Mouvement annulé
 
   } else {
     float x, y, angle;
@@ -82,6 +84,8 @@ void GoToPosition::Go(float x_f, float y_f, float cangle_f) {
     x_initial = x;
     y_initial = y;
     cangle_initial = cangle_final;
+    
+    return true; // Mouvement terminé
   }
 }
 

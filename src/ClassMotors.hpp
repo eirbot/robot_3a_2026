@@ -48,7 +48,7 @@ private:
   long lastStepDroit = 0;
 };
 
-void StopStepper(AccelStepper &moteur1, AccelStepper &moteur2);
+void StopStepper(AccelStepper &moteur1, AccelStepper &moteur2, ClassMotors* instance = nullptr);
 
 extern ClassMotors mot;
 

@@ -19,10 +19,13 @@ private:
   void TelemetryLoop(); // Envoi périodique de la télémétrie
   void processLine(); // Découpe et traite la commande
   void processCommand(const String &cmd, const std::vector<int> &params);
+  void asyncGoTo(float x, float y, float angle);
+  static void GoToTask(void* pvParameters);
 
   String commande;
   char rcv;
   static constexpr int MAX_COMMAND_LENGTH = 64;
+  volatile bool isMoving = false;
 };
 
 #endif

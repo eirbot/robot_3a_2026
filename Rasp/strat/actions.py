@@ -101,7 +101,12 @@ class RobotActions:
         real_x, real_y, real_theta = self._apply_sym(x, y, theta)
 
         if esp:
-            esp.goto(real_x, real_y, real_theta)
+            success = esp.goto(real_x, real_y, real_theta)
+            while not success:
+                print(f"[ACTION] 🔄 GOTO annulé par l'ESP (Obstacle), recalcul et relance vers ({real_x}, {real_y}, {real_theta}°)")
+                self._check_abort()
+                time.sleep(0.5)
+                success = esp.goto(real_x, real_y, real_theta)
         else:
             print("[SIMU] GOTO virtuel (Pas de com)")
         

@@ -46,8 +46,12 @@ void ClassMotors::vMotors(void *pvParameters) {
           // Si FLAG_STOP est actif
           if (!LiDAR_state) {
             if (!wasStopped) {
-              // Ralentissement progressif
-              StopStepper(moteurGauche, moteurDroit);
+              // Ralentissement progressif avec mise à jour odométrie en temps réel
+              StopStepper(moteurGauche, moteurDroit, instance);
+
+              // On met à jour l'odométrie juste après le freinage pour avoir la
+              // position exacte de pause
+              instance->UpdateOdometry();
 
               stopStartTime =
                   xTaskGetTickCount(); // Première fois qu'on détecte l'arrêt
@@ -75,6 +79,12 @@ void ClassMotors::vMotors(void *pvParameters) {
                   (instance->GetStepDid() * M_PI * dRoues) / stepPerRev;
 
               instance->TransferQueueBuffer();
+              
+              // On annule le mouvement restant pour que distanceToGo() devienne 0
+              // Sinon WaitUntilDone() bloque indéfiniment !
+              moteurGauche.move(0);
+              moteurDroit.move(0);
+
               break; // sort de la boucle de mouvement
             }
           } else {
@@ -84,7 +94,7 @@ void ClassMotors::vMotors(void *pvParameters) {
 
             moteurGauche.run();
             moteurDroit.run();
-            
+
             if ((xTaskGetTickCount() - lastOdoUpdate) >= odoInterval) {
               instance->UpdateOdometry();
               lastOdoUpdate = xTaskGetTickCount();
@@ -92,10 +102,15 @@ void ClassMotors::vMotors(void *pvParameters) {
           }
           antiCrashCounter++;
           if (antiCrashCounter > 3000) {
-              taskYIELD(); 
-              antiCrashCounter = 0;
+            taskYIELD();
+            antiCrashCounter = 0;
           }
         }
+
+        // S'assurer que les tout derniers pas sont comptabilisés à la fin du
+        // mouvement
+        instance->UpdateOdometry();
+
       } else if (taskParams.distance == 0) { // Pour tourner
         steps = (int)((std::abs(taskParams.angle) / 360.0) *
                       (M_PI * ecartRoues) * stepPerRev / (M_PI * dRoues));
@@ -113,12 +128,16 @@ void ClassMotors::vMotors(void *pvParameters) {
                moteurDroit.distanceToGo() != 0) { // Goooo
           moteurGauche.run();
           moteurDroit.run();
-          
+
           if ((xTaskGetTickCount() - lastOdoUpdate) >= odoInterval) {
             instance->UpdateOdometry();
             lastOdoUpdate = xTaskGetTickCount();
           }
         }
+
+        // S'assurer que les tout derniers pas de la rotation sont comptabilisés
+        instance->UpdateOdometry();
+
       } else {
       }
       vTaskDelay(10);
@@ -140,10 +159,9 @@ void ClassMotors::EnvoyerDonnees(void *Params) {
 
 void ClassMotors::WaitUntilDone() {
   // On attend que la file soit vide ET que les moteurs soient à l'arrêt
-  while (uxQueueMessagesWaiting(xQueue) > 0 || 
-         moteurGauche.distanceToGo() != 0 || 
-         moteurDroit.distanceToGo() != 0) {
-    vTaskDelay(pdMS_TO_TICKS(10)); 
+  while (uxQueueMessagesWaiting(xQueue) > 0 ||
+         moteurGauche.distanceToGo() != 0 || moteurDroit.distanceToGo() != 0) {
+    vTaskDelay(pdMS_TO_TICKS(10));
   }
 }
 
@@ -163,7 +181,7 @@ void ClassMotors::RestoreQueueBuffer() {
 
 void ClassMotors::Stop() {
   // Stopper les moteurs en douceur
-  StopStepper(moteurGauche, moteurDroit);
+  StopStepper(moteurGauche, moteurDroit, this);
 
   // Calculs de distance uniquement si un mouvement était actif
   if (GetCurrentStep() != 0) {
@@ -198,17 +216,30 @@ void ClassMotors::RestartMotors() {
   }
 }
 
-void StopStepper(AccelStepper &moteur1, AccelStepper &moteur2) {
+void StopStepper(AccelStepper &moteur1, AccelStepper &moteur2, ClassMotors* instance) {
   moteur1.setAcceleration(DECCEL); // Ralentissement
   moteur2.setAcceleration(DECCEL); // Ralentissement
 
   moteur1.stop(); // Arrête le moteur
   moteur2.stop(); // Arrête le moteur
+  
+  TickType_t lastOdoUpdate = xTaskGetTickCount();
+  
   while (moteur1.isRunning() || moteur2.isRunning()) {
     // On attend que les moteurs s'arrêtent
     moteur1.run();
     moteur2.run();
+    
+    if (instance != nullptr && (xTaskGetTickCount() - lastOdoUpdate) >= odoInterval) {
+        instance->UpdateOdometry();
+        lastOdoUpdate = xTaskGetTickCount();
+    }
   }
+  
+  if (instance != nullptr) {
+      instance->UpdateOdometry();
+  }
+  
   vTaskDelay(100);
 }
 
@@ -236,7 +267,8 @@ void ClassMotors::UpdateOdometry() {
   long deltaStepGauche = currentStepGauche - lastStepGauche;
   long deltaStepDroit = currentStepDroit - lastStepDroit;
 
-  if (deltaStepGauche == 0 && deltaStepDroit == 0) return;
+  if (deltaStepGauche == 0 && deltaStepDroit == 0)
+    return;
 
   lastStepGauche = currentStepGauche;
   lastStepDroit = currentStepDroit;
@@ -251,12 +283,14 @@ void ClassMotors::UpdateOdometry() {
   if (xSemaphoreTake(xPositionMutex, portMAX_DELAY) == pdTRUE) {
     orientation += delta_theta;
 
-    if (orientation > M_PI) orientation -= 2 * M_PI;
-    if (orientation < -M_PI) orientation += 2 * M_PI;
+    if (orientation > M_PI)
+      orientation -= 2 * M_PI;
+    if (orientation < -M_PI)
+      orientation += 2 * M_PI;
 
     x_pos += delta_s * cos(orientation);
     y_pos += delta_s * sin(orientation);
-    
+
     xSemaphoreGive(xPositionMutex);
   }
 }

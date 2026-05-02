@@ -135,16 +135,53 @@ void ComWithRasp::processLine() {
 void ComWithRasp::processCommand(const String &cmd,
                                  const std::vector<int> &params) {
   if (cmd == "G" && params.size() == 3) {
-    Serial.println("GoToPosition");
-    serialGoto.Go((float)params[0], (float)params[1], (float)params[2]);
-    Serial.println("D");
+    if (!isMoving) {
+      Serial.println("GoToPosition (async)");
+      isMoving = true;
+      
+      // On alloue une structure pour passer les arguments + l'instance courante
+      struct GoToArgs {
+        float x, y, angle;
+        ComWithRasp* instance;
+      };
+      
+      GoToArgs* args = new GoToArgs{(float)params[0], (float)params[1], (float)params[2], this};
+      xTaskCreate(GoToTask, "GoToTask", 4096, args, 2, NULL);
+    } else {
+      Serial.println("Deplacement deja en cours");
+    }
   } else if (cmd == "L") {
-    Serial.println("Lidar");
     LiDAR_state = !LiDAR_state; // Toggle du LiDAR
+    Serial.println(LiDAR_state ? "LiDAR CLEAR" : "LiDAR OBSTACLE");
   } else if (cmd == "S" && params.size() == 3) {
     Serial.println("SetPos");
     serialGoto.SetPos((float)params[0], (float)params[1], (float)params[2]);
   } else {
     Serial.println("Commande inconnue");
   }
+}
+
+void ComWithRasp::GoToTask(void* pvParameters) {
+  // Définition locale de la structure pour décoder les arguments
+  struct GoToArgs {
+    float x, y, angle;
+    ComWithRasp* instance;
+  };
+
+  GoToArgs* args = static_cast<GoToArgs*>(pvParameters);
+  
+  // Lancement du déplacement bloquant DANS CE THREAD séparé
+  bool success = serialGoto.Go(args->x, args->y, args->angle);
+  
+  // Fin du déplacement
+  if (success) {
+    Serial.println("D"); // Done
+  } else {
+    Serial.println("A"); // Aborted
+  }
+  
+  args->instance->isMoving = false;
+  
+  delete args;
+  vTaskDelete(NULL);
 }

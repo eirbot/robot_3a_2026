@@ -28,6 +28,9 @@ class LidarCollisionThread(threading.Thread):
     def run(self):
         print(f"[LIDAR THREAD] Démarrage de la surveillance. Seuil = {self.seuil_mm} mm")
         last_log_time = time.time()
+
+        last_obstacle_time = 0.0
+        clear_delay = 1.0
         
         while self.running:
             try:
@@ -46,34 +49,31 @@ class LidarCollisionThread(threading.Thread):
                         
                     import ihm.shared as shared
                     
-                    if dist < self.seuil_mm:
+                    if dist > 0 and dist < self.seuil_mm:
+                        # On voit un obstacle : on remet le chronomètre à zéro !
+                        last_obstacle_time = time.time()
+                        
                         if not shared.state.get("obstacle_detected"):
                             print(f"[🛑 OBSTACLE] Obstacle à {dist:.0f} mm ! Pause de la trajectoire !")
                             shared.state["obstacle_detected"] = True
                             
-                            # Arrêt physique des moteurs via l'instance de RobotActions (Envoi 'L' toggle)
                             if hasattr(self.robot, 'toggle_lidar'):
                                 self.robot.toggle_lidar()
                             else:
                                 self.robot.stop()
                             
-                            # Mise à jour IHM visuelle uniquement
-                            shared.send_led_cmd("COLOR:255,165,0") # Orange pour avertissement
                     else:
-                        # Si le point est plus loin, ça veut dire que l'obstacle est parti
+                        # Le LiDAR ne voit rien sur CE tour. 
+                        # Est-ce que le robot était en pause ?
                         if shared.state.get("obstacle_detected"):
-                            print(f"[✅ LIBRE] Obstacle parti (dist: {dist:.0f}mm) ! Reprise...")
-                            shared.state["obstacle_detected"] = False
                             
-                            # Reprise physique de la trajectoire (Envoi 'L' toggle)
-                            if hasattr(self.robot, 'toggle_lidar'):
-                                self.robot.toggle_lidar()
-                            
-                            # On restaure la couleur de la team
-                            if shared.state.get("team") == "JAUNE":
-                                shared.send_led_cmd("COLOR:255,160,0")
-                            else:
-                                shared.send_led_cmd("COLOR:0,0,255")
+                            # On vérifie si la voie est libre depuis ASSEZ LONGTEMPS (1 seconde)
+                            if time.time() - last_obstacle_time > clear_delay:
+                                print(f"[✅ LIBRE] Voie libre confirmée (dist: {dist:.0f}mm) ! Reprise...")
+                                shared.state["obstacle_detected"] = False
+                                
+                                if hasattr(self.robot, 'toggle_lidar'):
+                                    self.robot.toggle_lidar()
                                 
                     # --- INTÉGRATION EKF & TRILATÉRATION ---
                     if num_beacons == 3:
