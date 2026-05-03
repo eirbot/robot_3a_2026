@@ -2,10 +2,9 @@
 #define CLASSMOTORS_H
 
 #include "Arduino.h"
-#include <cmath>
-
-#include "AccelStepper.h"
+#include "FastAccelStepper.h"
 #include "common.h"
+#include <cmath>
 
 #define DECCEL 30000.0
 
@@ -47,8 +46,8 @@ private:
   long lastStepGauche = 0;
   long lastStepDroit = 0;
 };
-
-void StopStepper(AccelStepper &moteur1, AccelStepper &moteur2, ClassMotors* instance = nullptr);
+void StopStepper(FastAccelStepper *moteur1, FastAccelStepper *moteur2,
+                 ClassMotors *instance = nullptr);
 
 extern ClassMotors mot;
 

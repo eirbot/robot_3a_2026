@@ -8,148 +8,120 @@ ClassMotors::ClassMotors() {
 void ClassMotors::vMotors(void *pvParameters) {
   ClassMotors *instance = (ClassMotors *)pvParameters;
   TaskParams taskParams;
-  int steps = 0;
 
-  // Gestion des arrets
-  const TickType_t maxIdleTime = pdMS_TO_TICKS(5000); // 5000 ms = 5 secondes
-  TickType_t stopStartTime = 0;
-  bool wasStopped = false;
+  const TickType_t maxIdleTime = pdMS_TO_TICKS(5000);
 
   while (1) {
     if (xQueueReceive(instance->xQueue, &taskParams, portMAX_DELAY) == pdPASS) {
-
       TickType_t lastOdoUpdate = xTaskGetTickCount();
 
-      float speed = (taskParams.vitesse * stepPerRev) / ((M_PI * dRoues));
-      float accel = speed * 0.6;
-      moteurGauche.setMaxSpeed(speed);
-      moteurGauche.setAcceleration(accel);
-      moteurDroit.setMaxSpeed(speed);
-      moteurDroit.setAcceleration(accel);
+      // Vitesse en Hz (pas/sec)
+      uint32_t speedHz = (taskParams.vitesse * stepPerRev) / ((M_PI * dRoues));
+      uint32_t accelHz = speedHz * 0.6;
 
-      instance->currentStep = moteurGauche.currentPosition();
+      moteurGauche->setSpeedInHz(speedHz);
+      moteurGauche->setAcceleration(accelHz);
+      moteurDroit->setSpeedInHz(speedHz);
+      moteurDroit->setAcceleration(accelHz);
+
+      instance->currentStep = moteurGauche->getCurrentPosition();
+
+      // Variables d'état réinitialisées à chaque mouvement
+      bool wasStopped = false;
+      TickType_t stopStartTime = 0;
+      bool movementFinished = false;
+      int steps = 0;
 
       if (taskParams.angle == 0 && taskParams.distance == 0) {
-
-      } else if (taskParams.angle == 0) { // Pour avancer
+        // Commande vide, on ignore
+      } else if (taskParams.angle ==
+                 0) { // === POUR AVANCER (AVEC SÉCURITÉ) ===
         steps = (int)((taskParams.distance / (M_PI * dRoues)) * stepPerRev);
         instance->stepDid = 0;
 
-        moteurGauche.move(steps); // steps negatif pour reculer
-        moteurDroit.move(steps);
+        moteurGauche->move(steps);
+        moteurDroit->move(steps);
 
-        int antiCrashCounter = 0;
+        while (!movementFinished) {
 
-        while (moteurGauche.distanceToGo() != 0 ||
-               moteurDroit.distanceToGo() != 0) { // Gooo
-
-          // Détection d'obstacle intelligente selon le sens de marche
           bool stopReq = false;
           if (LiDAR_state == 1)
             stopReq = true;
           else if (LiDAR_state == 2 && steps > 0)
-            stopReq = true; // Obstacle devant + on avance
+            stopReq = true;
           else if (LiDAR_state == 3 && steps < 0)
-            stopReq = true; // Obstacle derrière + on recule
+            stopReq = true;
 
+          // --- GESTION DE L'ARRÊT ---
           if (stopReq) {
             if (!wasStopped) {
-              // Ralentissement progressif avec mise à jour odométrie en temps
-              // réel
               StopStepper(moteurGauche, moteurDroit, instance);
-
-              // On met à jour l'odométrie juste après le freinage pour avoir la
-              // position exacte de pause
-              instance->UpdateOdometry();
-
-              stopStartTime =
-                  xTaskGetTickCount(); // Première fois qu'on détecte l'arrêt
+              stopStartTime = xTaskGetTickCount();
               wasStopped = true;
-
-              instance->stepDid =
-                  moteurGauche.currentPosition() - instance->GetCurrentStep();
-              instance->distanceDid =
-                  (instance->GetStepDid() * M_PI * dRoues) / stepPerRev;
-
-              float remainingSteps = steps - instance->stepDid;
-              moteurGauche.setAcceleration(accel);
-              moteurDroit.setAcceleration(accel);
-
-              moteurGauche.move(remainingSteps);
-              moteurDroit.move(remainingSteps);
-
             } else if ((xTaskGetTickCount() - stopStartTime) > maxIdleTime) {
-              wasStopped = false; // Remet à zéro après vidage
+              wasStopped = false;
               FLAG_STOP = true;
 
-              instance->stepDid =
-                  moteurGauche.currentPosition() - instance->GetCurrentStep();
+              instance->stepDid = moteurGauche->getCurrentPosition() -
+                                  instance->GetCurrentStep();
               instance->distanceDid =
                   (instance->GetStepDid() * M_PI * dRoues) / stepPerRev;
-
               instance->TransferQueueBuffer();
-
-              // On annule le mouvement restant pour que distanceToGo() devienne
-              // 0 Sinon WaitUntilDone() bloque indéfiniment !
-              moteurGauche.move(0);
-              moteurDroit.move(0);
-
-              break; // sort de la boucle de mouvement
+              break;
             }
-          } else {
+          }
+          // --- GESTION DE LA RELANCE ---
+          else {
             if (wasStopped) {
               wasStopped = false;
-            }
+              instance->stepDid = moteurGauche->getCurrentPosition() -
+                                  instance->GetCurrentStep();
+              int32_t remainingSteps = steps - instance->stepDid;
 
-            moteurGauche.run();
-            moteurDroit.run();
-
-            if ((xTaskGetTickCount() - lastOdoUpdate) >= odoInterval) {
-              instance->UpdateOdometry();
-              lastOdoUpdate = xTaskGetTickCount();
+              moteurGauche->move(remainingSteps);
+              moteurDroit->move(remainingSteps);
+            } else {
+              if (!moteurGauche->isRunning() && !moteurDroit->isRunning()) {
+                movementFinished = true;
+              }
             }
           }
-          antiCrashCounter++;
-          if (antiCrashCounter > 3000) {
-            taskYIELD();
-            antiCrashCounter = 0;
-          }
-        }
 
-        // S'assurer que les tout derniers pas sont comptabilisés à la fin du
-        // mouvement
-        instance->UpdateOdometry();
-
-      } else if (taskParams.distance == 0) { // Pour tourner
-        steps = (int)((std::abs(taskParams.angle) / 360.0) *
-                      (M_PI * ecartRoues) * stepPerRev / (M_PI * dRoues));
-        instance->stepDid = steps;
-
-        if (taskParams.direction == 0) { // 0 droite, 1 gauche
-          moteurGauche.move(steps);
-          moteurDroit.move(-steps);
-        } else {
-          moteurGauche.move(-steps);
-          moteurDroit.move(steps);
-        }
-
-        while (moteurGauche.distanceToGo() != 0 ||
-               moteurDroit.distanceToGo() != 0) { // Goooo
-          moteurGauche.run();
-          moteurDroit.run();
-
+          // --- ODOMÉTRIE ---
           if ((xTaskGetTickCount() - lastOdoUpdate) >= odoInterval) {
             instance->UpdateOdometry();
             lastOdoUpdate = xTaskGetTickCount();
           }
+          vTaskDelay(pdMS_TO_TICKS(5));
+        }
+        instance->UpdateOdometry();
+      } else if (taskParams.distance ==
+                 0) { // === POUR TOURNER (SANS SÉCURITÉ) ===
+        steps = (int)((std::abs(taskParams.angle) / 360.0) *
+                      (M_PI * ecartRoues) * stepPerRev / (M_PI * dRoues));
+        instance->stepDid = steps;
+
+        if (taskParams.direction == 0) {
+          moteurGauche->move(steps);
+          moteurDroit->move(-steps);
+        } else {
+          moteurGauche->move(-steps);
+          moteurDroit->move(steps);
         }
 
-        // S'assurer que les tout derniers pas de la rotation sont comptabilisés
+        // Boucle ultra-simple : il tourne jusqu'à la fin, quoi qu'il arrive
+        // autour de lui
+        while (moteurGauche->isRunning() || moteurDroit->isRunning()) {
+          if ((xTaskGetTickCount() - lastOdoUpdate) >= odoInterval) {
+            instance->UpdateOdometry();
+            lastOdoUpdate = xTaskGetTickCount();
+          }
+          vTaskDelay(pdMS_TO_TICKS(5));
+        }
         instance->UpdateOdometry();
-
-      } else {
       }
-      vTaskDelay(10);
+
+      vTaskDelay(pdMS_TO_TICKS(10));
     }
   }
 }
@@ -166,14 +138,6 @@ void ClassMotors::EnvoyerDonnees(void *Params) {
   xQueueSend(xQueue, ptaskParams, portMAX_DELAY);
 }
 
-void ClassMotors::WaitUntilDone() {
-  // On attend que la file soit vide ET que les moteurs soient à l'arrêt
-  while (uxQueueMessagesWaiting(xQueue) > 0 ||
-         moteurGauche.distanceToGo() != 0 || moteurDroit.distanceToGo() != 0) {
-    vTaskDelay(pdMS_TO_TICKS(10));
-  }
-}
-
 void ClassMotors::TransferQueueBuffer() {
   TaskParams tmp;
   while (xQueueReceive(xQueue, &tmp, 0) == pdTRUE) {
@@ -188,35 +152,32 @@ void ClassMotors::RestoreQueueBuffer() {
   }
 }
 
-void ClassMotors::Stop() {
-  // Stopper les moteurs en douceur
-  StopStepper(moteurGauche, moteurDroit, this);
+void ClassMotors::WaitUntilDone() {
+  while (uxQueueMessagesWaiting(xQueue) > 0 || moteurGauche->isRunning() ||
+         moteurDroit->isRunning()) {
+    vTaskDelay(pdMS_TO_TICKS(10));
+  }
+}
 
-  // Calculs de distance uniquement si un mouvement était actif
+void ClassMotors::Stop() {
+  StopStepper(moteurGauche, moteurDroit, this);
   if (GetCurrentStep() != 0) {
-    stepDid = moteurGauche.currentPosition() - GetCurrentStep();
+    stepDid = moteurGauche->getCurrentPosition() - GetCurrentStep();
     distanceDid = (stepDid * M_PI * dRoues) / stepPerRev;
   } else {
     stepDid = 0;
     distanceDid = 0.0;
   }
-
-  // Suspendre proprement la tâche de moteur (sécurité)
-  if (vMotorsHandle != NULL) {
+  if (vMotorsHandle != NULL)
     vTaskSuspend(vMotorsHandle);
-  }
 
-  // Vider proprement la file de commandes
   UBaseType_t nbMessages = uxQueueMessagesWaiting(xQueue);
   TaskParams tmp;
-  for (UBaseType_t i = 0; i < nbMessages; ++i) {
+  for (UBaseType_t i = 0; i < nbMessages; ++i)
     xQueueReceive(xQueue, &tmp, 0);
-  }
 
-  // Reprendre la tâche
-  if (vMotorsHandle != NULL) {
+  if (vMotorsHandle != NULL)
     vTaskResume(vMotorsHandle);
-  }
 }
 
 void ClassMotors::RestartMotors() {
@@ -225,33 +186,26 @@ void ClassMotors::RestartMotors() {
   }
 }
 
-void StopStepper(AccelStepper &moteur1, AccelStepper &moteur2,
+void StopStepper(FastAccelStepper *moteur1, FastAccelStepper *moteur2,
                  ClassMotors *instance) {
-  moteur1.setAcceleration(DECCEL); // Ralentissement
-  moteur2.setAcceleration(DECCEL); // Ralentissement
-
-  moteur1.stop(); // Arrête le moteur
-  moteur2.stop(); // Arrête le moteur
+  // Déclenche une décélération matérielle propre jusqu'à l'arrêt
+  moteur1->stopMove();
+  moteur2->stopMove();
 
   TickType_t lastOdoUpdate = xTaskGetTickCount();
 
-  while (moteur1.isRunning() || moteur2.isRunning()) {
-    // On attend que les moteurs s'arrêtent
-    moteur1.run();
-    moteur2.run();
-
+  while (moteur1->isRunning() || moteur2->isRunning()) {
     if (instance != nullptr &&
         (xTaskGetTickCount() - lastOdoUpdate) >= odoInterval) {
       instance->UpdateOdometry();
       lastOdoUpdate = xTaskGetTickCount();
     }
+    vTaskDelay(pdMS_TO_TICKS(5)); // Attente propre
   }
 
   if (instance != nullptr) {
     instance->UpdateOdometry();
   }
-
-  vTaskDelay(100);
 }
 
 void ClassMotors::GetPosition(float &x, float &y, float &angle) {
@@ -273,8 +227,8 @@ void ClassMotors::SetPosition(float x, float y, float angle) {
 }
 
 void ClassMotors::UpdateOdometry() {
-  long currentStepGauche = moteurGauche.currentPosition();
-  long currentStepDroit = moteurDroit.currentPosition();
+  long currentStepGauche = moteurGauche->getCurrentPosition();
+  long currentStepDroit = moteurDroit->getCurrentPosition();
   long deltaStepGauche = currentStepGauche - lastStepGauche;
   long deltaStepDroit = currentStepDroit - lastStepDroit;
 
@@ -290,15 +244,14 @@ void ClassMotors::UpdateOdometry() {
   float delta_s = (s_R + s_L) / 2.0;
   float delta_theta = (s_R - s_L) / ecartRoues;
 
-  // Optimisation : On fait les maths d'abord, on verrouille ensuite !
   if (xSemaphoreTake(xPositionMutex, portMAX_DELAY) == pdTRUE) {
     orientation += delta_theta;
-
     if (orientation > M_PI)
       orientation -= 2 * M_PI;
     if (orientation < -M_PI)
       orientation += 2 * M_PI;
 
+    // Utilisation du repère Mathématique Standard (X devant, Y gauche)
     x_pos += delta_s * cos(orientation);
     y_pos += delta_s * sin(orientation);
 

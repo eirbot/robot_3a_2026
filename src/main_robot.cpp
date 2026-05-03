@@ -14,13 +14,26 @@ void setup() {
   static ComWithRasp comRasp;
 
   // Config des vitesses max et accélérations
-  moteurGauche.setMaxSpeed(SPEEDMAX);
-  moteurGauche.setAcceleration(ACCELMAX);
-  moteurDroit.setCurrentPosition(0);
+  engine.init();
 
-  moteurDroit.setMaxSpeed(SPEEDMAX);
-  moteurDroit.setAcceleration(ACCELMAX);
-  moteurGauche.setCurrentPosition(0);
+  moteurGauche = engine.stepperConnectToPin(STEPG);
+  if (moteurGauche) {
+    moteurGauche->setDirectionPin(DIRG);
+    moteurGauche->setAutoEnable(
+        true); // Gère le pin Enable si tu l'as câblé un jour
+  }
+
+  moteurDroit = engine.stepperConnectToPin(STEPD);
+  if (moteurDroit) {
+    moteurDroit->setDirectionPin(DIRD);
+    moteurDroit->setAutoEnable(true);
+  }
+
+  // Config des vitesses max et accélérations par défaut
+  moteurGauche->setSpeedInHz(SPEEDMAX);
+  moteurGauche->setAcceleration(ACCELMAX);
+  moteurDroit->setSpeedInHz(SPEEDMAX);
+  moteurDroit->setAcceleration(ACCELMAX);
 
   xPositionMutex = xSemaphoreCreateMutex();
   if (xPositionMutex == NULL) {
@@ -34,10 +47,9 @@ void setup() {
   mot.StartMotors();
 
   Serial.println("Démarrage de la communication avec la Raspberry Pi...");
-  
+
   comRasp.StartCom();
   comRasp.StartTelemetry();
 }
 
-void loop() {
-}
+void loop() {}

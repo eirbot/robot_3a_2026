@@ -20,8 +20,8 @@ extern float X_POS_INIT;
 extern float Y_POS_INIT;
 extern float ANGLE_INIT;
 
-#include "AccelStepper.h"
 #include "ClassMotors.hpp"
+#include "FastAccelStepper.h"
 #include "GoToPosition.hpp"
 #include "esp_task_wdt.h"
 
@@ -33,15 +33,16 @@ typedef struct {
 } TaskParams;
 
 // Déclaration des deux moteurs (type DRIVER = step/dir)
-extern AccelStepper moteurGauche;
-extern AccelStepper moteurDroit;
+extern FastAccelStepperEngine engine;
+extern FastAccelStepper *moteurGauche;
+extern FastAccelStepper *moteurDroit;
 
 extern TaskHandle_t vMotorsHandle;
 extern TaskHandle_t handleDoStrat;
 
 extern SemaphoreHandle_t xPositionMutex;
 
-extern bool FLAG_STOP;            // Valeur initiale (1 = stop, 0 = continue)
+extern bool FLAG_STOP; // Valeur initiale (1 = stop, 0 = continue)
 
 extern volatile int LiDAR_state; // 0: Libre, 1: Stop, 2: Front, 3: Back
 #endif
