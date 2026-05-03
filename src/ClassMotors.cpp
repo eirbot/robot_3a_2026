@@ -43,10 +43,19 @@ void ClassMotors::vMotors(void *pvParameters) {
         while (moteurGauche.distanceToGo() != 0 ||
                moteurDroit.distanceToGo() != 0) { // Gooo
 
-          // Si FLAG_STOP est actif
-          if (!LiDAR_state) {
+          // Détection d'obstacle intelligente selon le sens de marche
+          bool stopReq = false;
+          if (LiDAR_state == 1)
+            stopReq = true;
+          else if (LiDAR_state == 2 && steps > 0)
+            stopReq = true; // Obstacle devant + on avance
+          else if (LiDAR_state == 3 && steps < 0)
+            stopReq = true; // Obstacle derrière + on recule
+
+          if (stopReq) {
             if (!wasStopped) {
-              // Ralentissement progressif avec mise à jour odométrie en temps réel
+              // Ralentissement progressif avec mise à jour odométrie en temps
+              // réel
               StopStepper(moteurGauche, moteurDroit, instance);
 
               // On met à jour l'odométrie juste après le freinage pour avoir la
@@ -79,9 +88,9 @@ void ClassMotors::vMotors(void *pvParameters) {
                   (instance->GetStepDid() * M_PI * dRoues) / stepPerRev;
 
               instance->TransferQueueBuffer();
-              
-              // On annule le mouvement restant pour que distanceToGo() devienne 0
-              // Sinon WaitUntilDone() bloque indéfiniment !
+
+              // On annule le mouvement restant pour que distanceToGo() devienne
+              // 0 Sinon WaitUntilDone() bloque indéfiniment !
               moteurGauche.move(0);
               moteurDroit.move(0);
 
@@ -216,30 +225,32 @@ void ClassMotors::RestartMotors() {
   }
 }
 
-void StopStepper(AccelStepper &moteur1, AccelStepper &moteur2, ClassMotors* instance) {
+void StopStepper(AccelStepper &moteur1, AccelStepper &moteur2,
+                 ClassMotors *instance) {
   moteur1.setAcceleration(DECCEL); // Ralentissement
   moteur2.setAcceleration(DECCEL); // Ralentissement
 
   moteur1.stop(); // Arrête le moteur
   moteur2.stop(); // Arrête le moteur
-  
+
   TickType_t lastOdoUpdate = xTaskGetTickCount();
-  
+
   while (moteur1.isRunning() || moteur2.isRunning()) {
     // On attend que les moteurs s'arrêtent
     moteur1.run();
     moteur2.run();
-    
-    if (instance != nullptr && (xTaskGetTickCount() - lastOdoUpdate) >= odoInterval) {
-        instance->UpdateOdometry();
-        lastOdoUpdate = xTaskGetTickCount();
+
+    if (instance != nullptr &&
+        (xTaskGetTickCount() - lastOdoUpdate) >= odoInterval) {
+      instance->UpdateOdometry();
+      lastOdoUpdate = xTaskGetTickCount();
     }
   }
-  
+
   if (instance != nullptr) {
-      instance->UpdateOdometry();
+    instance->UpdateOdometry();
   }
-  
+
   vTaskDelay(100);
 }
 

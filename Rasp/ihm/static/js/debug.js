@@ -31,23 +31,24 @@ function initDebugPage() {
 // Mise à jour Config via l'événement state_update
 window.socket.on('state_update', (state) => {
     // Si on est sur la page Debug
-    if (document.getElementById('chk-lidar')) {
-        const c = state.config || {}; // Protection si config vide
+    const lidarSel = document.getElementById('lidar-mode');
+    if (lidarSel) {
+        const c = state.config || {};
 
-        // Helper pour cocher sans erreur si l'élément manque
         const setCheck = (id, val) => {
             const el = document.getElementById(id);
             if (el) el.checked = val;
         };
 
-        setCheck('chk-lidar', c.lidar);
+        const lidarMode = c.lidar_mode || "OFF";
+        lidarSel.value = lidarMode;
+
         setCheck('chk-lidar-simu', c.lidar_simu);
         setCheck('chk-skip-homolog', c.skip_homologation);
         setCheck('chk-ekf', c.ekf_enabled);
         let camStatus = (typeof c.camera === 'object') ? c.camera.enabled : c.camera;
         setCheck('chk-cam', camStatus);
         setCheck('chk-avoid', c.avoidance);
-        setCheck('chk-side', (state.team === 'JAUNE'));
 
         // Gestion Mode Stratégie
         const stratMode = c.strat_mode || "DYNAMIC";
@@ -143,6 +144,15 @@ async function toggleConfig(key, checkbox) {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ key: key, val: checkbox.checked })
+    });
+}
+
+async function updateLidarConfig(key, val) {
+    console.log("CHANGEMENT LIDAR :", key, "VALEUR :", val);
+    await fetch('/api/config_edit', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ key: key, val: val })
     });
 }
 

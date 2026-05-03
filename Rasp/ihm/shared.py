@@ -44,7 +44,7 @@ state = {
     "timer_str": "100.0",
     "start_time": None,
     "tirette": "NON-ARMED",
-    "lidar_enabled": cfg.get("lidar_enabled", True),
+    "lidar_mode": cfg.get("lidar_mode", "MATCH"),
     "music_enabled": cfg.get("music_enabled", True),
     "leds_enabled": cfg.get("leds_enabled", True),
     "manual_score_enabled": cfg.get("manual_score_enabled", True),

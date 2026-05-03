@@ -48,32 +48,55 @@ class LidarCollisionThread(threading.Thread):
                         last_log_time = time.time()
                         
                     import ihm.shared as shared
-                    
-                    if dist > 0 and dist < self.seuil_mm:
-                        # On voit un obstacle : on remet le chronomètre à zéro !
+                    mode = shared.state.get("lidar_mode", "OFF")
+
+                    if mode == "OFF":
+                        if shared.state.get("obstacle_detected", False):
+                            print("[LIDAR] Désactivation (Mode OFF)")
+                            shared.state["obstacle_detected"] = False
+                            shared.state["obstacle_type"] = 0
+                            self.robot.set_lidar_state(0)
+                        continue
+
+                    # Détermination si le point actuel est un obstacle selon le mode
+                    this_point_obs = False
+                    this_point_type = 0 # 0: Libre, 1: 360, 2: Front, 3: Back
+
+                    if mode == "HOMOLOGATION":
+                        if 0 < dist < 500:
+                            this_point_obs = True
+                            this_point_type = 1
+                    elif mode == "MATCH":
+                        if 0 < dist < 350:
+                            # Normalisation angle en [-180, 180]
+                            a = angle
+                            if a > 180: a -= 360
+                            
+                            if -22.5 <= a <= 22.5:
+                                this_point_obs = True
+                                this_point_type = 2 # FRONT
+                            elif a <= -157.5 or a >= 157.5:
+                                this_point_obs = True
+                                this_point_type = 3 # BACK
+
+                    if this_point_obs:
                         last_obstacle_time = time.time()
                         
-                        if not shared.state.get("obstacle_detected"):
-                            print(f"[🛑 OBSTACLE] Obstacle à {dist:.0f} mm ! Pause de la trajectoire !")
+                        # Si l'obstacle change de type ou qu'on ne l'avait pas encore vu
+                        if shared.state.get("obstacle_type", 0) != this_point_type:
+                            print(f"[🛑 OBSTACLE] Type {this_point_type} à {dist:.0f} mm (Mode: {mode})")
                             shared.state["obstacle_detected"] = True
-                            
-                            if hasattr(self.robot, 'toggle_lidar'):
-                                self.robot.toggle_lidar()
-                            else:
-                                self.robot.stop()
+                            shared.state["obstacle_type"] = this_point_type
+                            self.robot.set_lidar_state(this_point_type)
                             
                     else:
-                        # Le LiDAR ne voit rien sur CE tour. 
-                        # Est-ce que le robot était en pause ?
-                        if shared.state.get("obstacle_detected"):
-                            
-                            # On vérifie si la voie est libre depuis ASSEZ LONGTEMPS (1 seconde)
+                        # Si on avait un obstacle, on attend le délai de sécurité pour libérer
+                        if shared.state.get("obstacle_detected", False):
                             if time.time() - last_obstacle_time > clear_delay:
-                                print(f"[✅ LIBRE] Voie libre confirmée (dist: {dist:.0f}mm) ! Reprise...")
+                                print(f"[✅ LIBRE] Voie libre confirmée !")
                                 shared.state["obstacle_detected"] = False
-                                
-                                if hasattr(self.robot, 'toggle_lidar'):
-                                    self.robot.toggle_lidar()
+                                shared.state["obstacle_type"] = 0
+                                self.robot.set_lidar_state(0)
                                 
                     # --- INTÉGRATION EKF & TRILATÉRATION ---
                     if num_beacons == 3:

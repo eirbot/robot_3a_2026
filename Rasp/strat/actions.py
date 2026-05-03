@@ -117,11 +117,20 @@ class RobotActions:
         else:
             print("[SIMU] STOP virtuel (Pas de com)")
 
-    def toggle_lidar(self):
-        """Envoie le signal L pour mettre en pause ou reprendre la trajectoire."""
-        print("[ACTION] TOGGLE LIDAR (PAUSE/REPRISE)")
+    def set_lidar_state(self, val):
+        """Définit l'état du LiDAR sur l'ESP32 (0: Libre, 1: Stop, 2: Front, 3: Back)"""
         if esp:
-            esp.toggle_lidar()
+            esp.set_lidar_state(val)
+        else:
+            print(f"[SIMU] SET LIDAR STATE {val} virtuel")
+
+    def toggle_lidar(self):
+        """Ancienne fonction de toggle (Legacy)"""
+        print("[ACTION] TOGGLE LIDAR")
+        if esp:
+            # On simule un toggle simple 0/1
+            new_val = 1 if shared.state.get("obstacle_detected", False) else 0
+            esp.set_lidar_state(1 - new_val)
         else:
             print("[SIMU] TOGGLE LIDAR virtuel")
 

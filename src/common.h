@@ -43,5 +43,5 @@ extern SemaphoreHandle_t xPositionMutex;
 
 extern bool FLAG_STOP;            // Valeur initiale (1 = stop, 0 = continue)
 
-extern volatile bool LiDAR_state; // Valeur initiale (1 = clear, 0 = obstacle)
+extern volatile int LiDAR_state; // 0: Libre, 1: Stop, 2: Front, 3: Back
 #endif

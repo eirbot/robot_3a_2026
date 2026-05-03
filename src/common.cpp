@@ -8,12 +8,12 @@ AccelStepper moteurDroit(AccelStepper::DRIVER, STEPD, DIRD);  // STEP, DIR
 
 ClassMotors mot;
 
-bool FLAG_STOP = false;           // Valeur initiale (1 = stop, 0 = continue)
+bool FLAG_STOP = false; // Valeur initiale (1 = stop, 0 = continue)
 
 SemaphoreHandle_t xPositionMutex;
 
 bool jaune = true;
-volatile bool LiDAR_state = true; // Valeur initiale (1 = clear, 0 = obstacle)
+volatile int LiDAR_state = 0; // 0: Libre, 1: Stop, 2: Front, 3: Back
 
 // position bleu par default
 float X_POS_INIT = 1775;

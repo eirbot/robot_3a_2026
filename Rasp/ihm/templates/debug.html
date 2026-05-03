@@ -66,7 +66,16 @@
             </div>
 
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; text-align: left;">
-                <label><input type="checkbox" id="chk-lidar" onchange="toggleConfig('lidar', this)"> LiDAR</label>
+                <div style="grid-column: span 2; margin-bottom: 10px;">
+                    <label>Mode LiDAR :</label>
+                    <select id="lidar-mode" onchange="updateLidarConfig('lidar_mode', this.value)"
+                        style="background:#333; color:white; border:1px solid #555; padding:5px; width: 100%; margin-top:5px;">
+                        <option value="OFF">Éteint</option>
+                        <option value="MATCH">Match (Cône 45°)</option>
+                        <option value="HOMOLOGATION">Homologation (360°)</option>
+                    </select>
+                </div>
+
                 <label><input type="checkbox" id="chk-lidar-simu" onchange="toggleConfig('lidar_simu', this)"> Simu
                     LiDAR</label>
 

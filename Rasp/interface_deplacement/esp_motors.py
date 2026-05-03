@@ -67,8 +67,8 @@ class ESPMotors:
     def set_pos(self, x, y, theta):
         self.send(f"S {x} {y} {theta}")
         
-    def toggle_lidar(self):
-        self.send("L")
+    def set_lidar_state(self, val):
+        self.send(f"L {val}")
 
     # --- Tâche de fond (Thread) ---
     

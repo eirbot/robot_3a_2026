@@ -138,21 +138,27 @@ void ComWithRasp::processCommand(const String &cmd,
     if (!isMoving) {
       Serial.println("GoToPosition (async)");
       isMoving = true;
-      
+
       // On alloue une structure pour passer les arguments + l'instance courante
       struct GoToArgs {
         float x, y, angle;
-        ComWithRasp* instance;
+        ComWithRasp *instance;
       };
-      
-      GoToArgs* args = new GoToArgs{(float)params[0], (float)params[1], (float)params[2], this};
+
+      GoToArgs *args = new GoToArgs{(float)params[0], (float)params[1],
+                                    (float)params[2], this};
       xTaskCreate(GoToTask, "GoToTask", 4096, args, 2, NULL);
     } else {
       Serial.println("Deplacement deja en cours");
     }
   } else if (cmd == "L") {
-    LiDAR_state = !LiDAR_state; // Toggle du LiDAR
-    Serial.println(LiDAR_state ? "LiDAR CLEAR" : "LiDAR OBSTACLE");
+    if (params.size() == 1) {
+      LiDAR_state = params[0];
+    } else {
+      LiDAR_state = (LiDAR_state == 0) ? 1 : 0; // Legacy toggle
+    }
+    Serial.print("LiDAR Mode: ");
+    Serial.println(LiDAR_state);
   } else if (cmd == "S" && params.size() == 3) {
     Serial.println("SetPos");
     serialGoto.SetPos((float)params[0], (float)params[1], (float)params[2]);
@@ -161,27 +167,27 @@ void ComWithRasp::processCommand(const String &cmd,
   }
 }
 
-void ComWithRasp::GoToTask(void* pvParameters) {
+void ComWithRasp::GoToTask(void *pvParameters) {
   // Définition locale de la structure pour décoder les arguments
   struct GoToArgs {
     float x, y, angle;
-    ComWithRasp* instance;
+    ComWithRasp *instance;
   };
 
-  GoToArgs* args = static_cast<GoToArgs*>(pvParameters);
-  
+  GoToArgs *args = static_cast<GoToArgs *>(pvParameters);
+
   // Lancement du déplacement bloquant DANS CE THREAD séparé
   bool success = serialGoto.Go(args->x, args->y, args->angle);
-  
+
   // Fin du déplacement
   if (success) {
     Serial.println("D"); // Done
   } else {
     Serial.println("A"); // Aborted
   }
-  
+
   args->instance->isMoving = false;
-  
+
   delete args;
   vTaskDelete(NULL);
 }

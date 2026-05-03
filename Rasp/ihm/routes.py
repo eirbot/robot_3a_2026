@@ -24,7 +24,7 @@ if 'config' in state:
     conf = state['config']
     # On définit les valeurs par défaut si elles n'existent pas
     defaults = {
-        'lidar': True, 'lidar_simu': False, 'skip_homologation': False,
+        'lidar_mode': 'MATCH', 'lidar_simu': False, 'skip_homologation': False,
         'ekf': True, 'camera': True, 'avoidance': True,
         'strat_mode': 'DYNAMIC', 'static_strat': ''
     }
