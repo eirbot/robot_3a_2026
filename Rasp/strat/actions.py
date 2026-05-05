@@ -16,18 +16,16 @@ except Exception as e:
     print(f"⚠️ Attention : Erreur de chargement du module Actionneur ({e}) -> Mode simulation")
     actionneurs = None
 
-# --- VISION KAPLAS (via module dédié) ---
+# --- VISION KAPLAS ---
 try:
-    # from utils.sensors.camera_libcamera import LibCamera
-    # from Vision.vision_kapla import KaplaVision
-    print("[VISION] Picamera2 désactivé temporairement.")
-    # cam = LibCamera()
-    # cam.start()
-    # vision = KaplaVision(cam)
-    vision = None
+    # On importe ta nouvelle classe cam
+    from cam import cam
+    print("[VISION] Lancement de la caméra...")
+    # On initialise avec use_camera=True
+    vision_cam = cam(use_camera=True)
 except Exception as e:
-    print(f"⚠️ Attention : Erreur de chargement du module Vision/Caméra ({e}) -> Pas de détection auto")
-    vision = None
+    print(f"  Attention : Erreur de chargement du module Vision ({e}) -> Mode aveugle")
+    vision_cam = None
 
 try:
     # On essaie d'importer la classe ESPMotors
@@ -49,6 +47,7 @@ class EndOfMatchException(Exception):
 class RobotActions:
     def __init__(self):
         self.is_returning = False
+        self.base_pos = None # (x, y, theta) stockés avant symétrie
 
     @property
     def is_yellow(self):
@@ -65,10 +64,11 @@ class RobotActions:
         self._check_time()
 
     def _apply_sym(self, x, y, theta=None):
-        """Symétrie axiale pour l'équipe JAUNE (Axe Y=0 au centre)"""
+        """Symétrie axiale pour l'équipe JAUNE (Y négatif)"""
         if self.is_yellow:
             new_x = x
             new_y = -y
+            # Pour une symétrie sur l'axe Y (miroir horizontal), l'angle s'inverse
             new_theta = (-theta) % 360 if theta is not None else None
             return new_x, new_y, new_theta
         return x, y, theta
@@ -78,6 +78,11 @@ class RobotActions:
         Définit la position du robot (Triche / Recalage).
         Met à jour l'IHM Web ET l'odométrie de l'ESP32.
         """
+        # On mémorise la première position comme étant la "Base" pour le retour fin de match
+        if self.base_pos is None:
+            self.base_pos = (x, y, theta)
+            print(f"[ACTION] Base enregistrée : ({x}, {y}, {theta}°)")
+
         # 1. Calcul de la position réelle (Symétrie équipe)
         real_x, real_y, real_theta = self._apply_sym(x, y, theta)
         
@@ -136,24 +141,106 @@ class RobotActions:
 
     def approcheKapla(self):
         self._check_abort()
-        print("[ACTION] Approche Kapla")
-        x_robot, y_robot, theta_robot = shared.robot_pos['x'], shared.robot_pos['y'], shared.robot_pos['theta']
-        # On recule par rapport à l'angle du robot pour se recaler bien devant
-        x = x_robot - cos(theta_robot) * 100
-        y = y_robot - sin(theta_robot) * 100
-        self.goto(x, y, theta_robot)
-        # TODO : recupération des coo via la camera
-        x_kapla, y_kapla, theta_kapla = 0, 0, 0
-        self.goto(x_kapla, y_kapla, theta_kapla)
+        print("[ACTION] Recalage visuel devant les Kaplas (Robot Différentiel)...")
+
+        if not vision_cam:
+            print("[VISION] Caméra indisponible, mouvement à l'aveugle.")
+            # Mouvement par défaut si pas de caméra (ton ancien code)
+            x_robot, y_robot, theta_robot = shared.robot_pos['x'], shared.robot_pos['y'], shared.robot_pos['theta']
+            x = x_robot - math.cos(math.radians(theta_robot)) * 100
+            y = y_robot - math.sin(math.radians(theta_robot)) * 100
+            self.goto(x, y, theta_robot)
+            self.goto(0, 0, 0) # Remplace par tes coo absolues par défaut
+            return
+
+        # On fait une boucle d'approche (max 3 tentatives pour ne pas perdre trop de temps)
+        for tentative in range(3):
+            self._check_abort()
+            
+            # 1. On regarde si on est déjà bien placé
+            in_position = vision_cam.check_aruco_position()
+            if in_position:
+                print(f"[VISION] Alignement parfait ! (Tentative {tentative+1}/3)")
+                break
+
+            # 2. Sinon, on récupère les erreurs
+            err_x, err_y, err_angle = vision_cam.get_errors()
+            
+            if err_x is None or err_y is None:
+                print("[VISION] Aucun code ArUco détecté. Impossible de se recaler.")
+                break
+
+            print(f"[VISION] Erreurs -> Latéral(X):{err_x:.1f}mm, Profondeur(Y):{err_y:.1f}mm, Angle:{err_angle:.1f}°")
+
+            # 3. Position actuelle de l'odomètrie
+            x_actuel = shared.robot_pos['x']
+            y_actuel = shared.robot_pos['y']
+            theta_actuel = shared.robot_pos['theta']
+            theta_rad = math.radians(theta_actuel)
+
+            # 4. Calcul de la CIBLE FINALE ABSOLUE sur la table
+            # (err_y = profondeur devant le robot, err_x = décalage latéral gauche/droite)
+            # Attention : adapte le signe de err_x et err_y si ton robot part dans le mauvais sens !
+            correction_x = (err_y * math.cos(theta_rad)) - (err_x * math.sin(theta_rad))
+            correction_y = (err_y * math.sin(theta_rad)) + (err_x * math.cos(theta_rad))
+            
+            cible_x = x_actuel + correction_x
+            cible_y = y_actuel + correction_y
+            cible_theta = (theta_actuel + err_angle) % 360
+
+            # 5. LA MANŒUVRE : On recule d'abord pour se dégager (ex: 150 mm)
+            recul = 150 
+            x_recul = x_actuel - (recul * math.cos(theta_rad))
+            y_recul = y_actuel - (recul * math.sin(theta_rad))
+            
+            print(f"[VISION] Manœuvre : Recul de {recul}mm...")
+            self.goto(x_recul, y_recul, theta_actuel)
+            
+            # 6. On fonce vers la position parfaite
+            print("[VISION] Alignement sur la cible...")
+            self.goto(cible_x, cible_y, cible_theta)
+            
+            # Petite pause pour que la caméra ne prenne pas une photo floue au prochain tour
+            time.sleep(0.5)
 
     def prendreKapla(self, hauteur=0):
         self._check_abort()
         print(f"[ACTION] Prise Kapla H={hauteur}")
         time.sleep(1)
 
-    def retournerKapla(self):
+    def prendre_kaplas_camera(self):
         self._check_abort()
-        print("[ACTION] Retourne Kapla")
+        print(f"[ACTION] Analyse couleurs pour les 4 Kaplas (Equipe JAUNE={self.is_yellow})...")
+        
+        if vision_cam:
+            # On demande l'équipe sous forme de string comme attendu par cam.py
+            equipe_str = "jaune" if self.is_yellow else "bleu"
+            
+            # On récupère le tableau de booléens (True = bonne couleur)
+            bonnes_couleurs = vision_cam.get_colors(equipe_str)
+            
+            # On traduit ça en commandes pour les actionneurs
+            # (Admettons que FLIP = prendre, nFLIP = ignorer)
+            kaplas_decision = ["FLIP" if bon else "nFLIP" for bon in bonnes_couleurs]
+            
+            # Sécurité au cas où la lecture a foiré
+            if len(kaplas_decision) != 4:
+                print("[VISION] Erreur : Pas exactement 4 Kaplas détectés, on prend tout par sécurité.")
+                kaplas_decision = ["FLIP", "FLIP", "FLIP", "FLIP"]
+                
+        else:
+            print("[VISION/SIMU] Simulation des Kaplas (Caméra non dispo).")
+            kaplas_decision = ["nFLIP", "nFLIP", "nFLIP", "nFLIP"]
+            
+        print(f"[DECISION] Actionneurs : 1={kaplas_decision[0]} | 2={kaplas_decision[1]} | 3={kaplas_decision[2]} | 4={kaplas_decision[3]}")
+        
+        # Envoi physique aux servos
+        self.cmd_actionneurs(
+            act1=kaplas_decision[0],
+            act2=kaplas_decision[1],
+            act3=kaplas_decision[2],
+            act4=kaplas_decision[3]
+        )
         time.sleep(1)
 
     def poseKapla(self, hauteur=0):
@@ -164,7 +251,18 @@ class RobotActions:
     def GoBase(self):
         self.is_returning = True
         print("⚡ RETOUR BASE")
-        self.goto(250, 0, 180)
+        if self.base_pos:
+            bx, by, bt = self.base_pos
+            # On revient aux coordonnées de départ avec un angle inversé (180°)
+            target_theta = (bt + 180)
+            # Normalisation entre -180 et 180 (optionnel mais propre)
+            while target_theta > 180: target_theta -= 360
+            while target_theta <= -180: target_theta += 360
+            
+            self.goto(bx, by, target_theta)
+        else:
+            # Fallback historique si set_pos n'a pas été appelé
+            self.goto(250, 0, 180)
         time.sleep(1)
 
     def play_animation(self, anim_name):

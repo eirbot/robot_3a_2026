@@ -100,6 +100,31 @@
         </div>
 
         <div class="card" style="grid-column: span 2;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+                <h3>📍 Position Robot (Odométrie)</h3>
+                <button onclick="setRobotPosition()" class="btn-tiny"
+                    style="background:#4CAF50; padding:8px 15px;">APPLIQUER</button>
+            </div>
+            <div style="display: flex; gap: 15px; align-items: center; justify-content: center;">
+                <div style="display:flex; flex-direction:column; gap:5px;">
+                    <label style="font-size:0.8em; color:#aaa;">X (mm)</label>
+                    <input type="number" id="pos-x" value="200"
+                        style="width: 80px; background: #333; color: white; border: 1px solid #555; padding: 5px;">
+                </div>
+                <div style="display:flex; flex-direction:column; gap:5px;">
+                    <label style="font-size:0.8em; color:#aaa;">Y (mm)</label>
+                    <input type="number" id="pos-y" value="1200"
+                        style="width: 80px; background: #333; color: white; border: 1px solid #555; padding: 5px;">
+                </div>
+                <div style="display:flex; flex-direction:column; gap:5px;">
+                    <label style="font-size:0.8em; color:#aaa;">θ (Deg)</label>
+                    <input type="number" id="pos-theta" value="0"
+                        style="width: 80px; background: #333; color: white; border: 1px solid #555; padding: 5px;">
+                </div>
+            </div>
+        </div>
+
+        <div class="card" style="grid-column: span 2;">
             <h3>⚡ Système</h3>
             <div style="margin-bottom:15px; text-align:center;">
                 <label style="display:block; margin-bottom:5px;">Luminosité LED : <span id="bright-val">20</span>

@@ -3,27 +3,31 @@ import socket
 import struct
 import time
 
+# On importe ton shared pour accéder à robot_pos et state
+import ihm.shared as shared
+from LiDAR.localise import calculer_pose_intelligente
+
 class LidarCollisionThread(threading.Thread):
     def __init__(self, robot, seuil_mm=300.0):
         """
         Initialise le thread d'écoute LiDAR.
-        :param robot: L'objet ou l'interface qui contrôle tes moteurs (ex: ClassRobot)
-        :param seuil_mm: La distance de déclenchement de l'arrêt d'urgence (en mm)
+        :param robot: L'objet ESPMotors qui contrôle tes moteurs
+        :param seuil_mm: La distance de déclenchement (en mm)
         """
         super().__init__()
         self.robot = robot
         self.seuil_mm = seuil_mm
         self.running = True
-        self.daemon = True  # Le thread s'arrêtera tout seul quand le programme principal se ferme
+        self.daemon = True
 
         # Configuration UDP
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self.sock.bind(("127.0.0.1", 8080))
-        self.sock.settimeout(2.0) # Sécurité : si le C++ plante, on s'en rend compte (2s au lieu de 0.5s pour éviter les faux positifs)
+        self.sock.settimeout(2.0) 
         
-        # Init de l'état obstacle
-        import ihm.shared as shared
+        # Init des états
         shared.state['obstacle_detected'] = False
+        shared.state['obstacle_type'] = 0
 
     def run(self):
         print(f"[LIDAR THREAD] Démarrage de la surveillance. Seuil = {self.seuil_mm} mm")
@@ -34,20 +38,20 @@ class LidarCollisionThread(threading.Thread):
         
         while self.running:
             try:
-                data, addr = self.sock.recvfrom(52)
+                # Lecture des 64 octets (format 4 balises : 3 floats + 1 int + 12 floats)
+                data, addr = self.sock.recvfrom(64)
                 
-                if len(data) == 52:
-                    unpacked = struct.unpack('<fff i fffffffff', data)
+                if len(data) == 64:
+                    unpacked = struct.unpack('<fff i ffffffffffff', data)
                     
                     angle, dist, intensity = unpacked[0:3]
                     num_beacons = unpacked[3]
                     
                     if time.time() - last_log_time > 2.0:
-                        if dist < 90000:  # 99999 is used as 'no obstacle' in CPP
+                        if dist < 90000:  
                             print(f"[LIDAR THREAD] Ping... (Obstacle à {dist:.0f} mm, Angle: {angle:.1f}°)")
                         last_log_time = time.time()
                         
-                    import ihm.shared as shared
                     mode = shared.state.get("lidar_mode", "OFF")
 
                     if mode == "OFF":
@@ -58,7 +62,9 @@ class LidarCollisionThread(threading.Thread):
                             self.robot.set_lidar_state(0)
                         continue
 
-                    # Détermination si le point actuel est un obstacle selon le mode
+                    # ====================================================
+                    # --- 1. GESTION ANTI-COLLISION (Envoi vers ESP32) ---
+                    # ====================================================
                     this_point_obs = False
                     this_point_type = 0 # 0: Libre, 1: 360, 2: Front, 3: Back
 
@@ -67,7 +73,7 @@ class LidarCollisionThread(threading.Thread):
                             this_point_obs = True
                             this_point_type = 1
                     elif mode == "MATCH":
-                        if 0 < dist < 350:
+                        if 0 < dist < self.seuil_mm:
                             # Normalisation angle en [-180, 180]
                             a = angle
                             if a > 180: a -= 360
@@ -90,7 +96,7 @@ class LidarCollisionThread(threading.Thread):
                             self.robot.set_lidar_state(this_point_type)
                             
                     else:
-                        # Si on avait un obstacle, on attend le délai de sécurité pour libérer
+                        # Délai de sécurité avant de relancer l'ESP32
                         if shared.state.get("obstacle_detected", False):
                             if time.time() - last_obstacle_time > clear_delay:
                                 print(f"[✅ LIBRE] Voie libre confirmée !")
@@ -98,28 +104,42 @@ class LidarCollisionThread(threading.Thread):
                                 shared.state["obstacle_type"] = 0
                                 self.robot.set_lidar_state(0)
                                 
-                    # --- INTÉGRATION EKF & TRILATÉRATION ---
-                    if num_beacons == 3:
-                        from LiDAR.localise import calculer_pose
-                        mesures = [(unpacked[4], unpacked[5]), (unpacked[7], unpacked[8]), (unpacked[10], unpacked[11])]
-                        result, status = calculer_pose(mesures)
-                        
-                        if status == "OK":
-                            x_lidar, y_lidar, theta_lidar, err_lidar = result
+                    # ====================================================
+                    # --- 2. LOCALISATION INTELLIGENTE (LOGS SEULS) ---
+                    # ====================================================
+                    if num_beacons >= 3:
+                        mesures = []
+                        for i in range(num_beacons):
+                            idx = 4 + (i * 3) # L'angle est à idx, la distance à idx+1
+                            mesures.append((unpacked[idx], unpacked[idx+1]))
                             
-                            ekf_filter = getattr(shared, 'ekf_filter', None)
-                            if ekf_filter is not None:
-                                # On met à jour le filtre avec les mesures absolues trouvées !
-                                ekf_filter.update_lidar(x_lidar, y_lidar, theta_lidar, err_lidar)
+                        # On récupère la position estimée par l'ESP32 !
+                        # (.get avec valeurs par défaut pour éviter un crash si l'ESP n'a pas encore répondu)
+                        est_x = shared.robot_pos.get('x', 0.0)
+                        est_y = shared.robot_pos.get('y', 0.0)
+                        est_cap = shared.robot_pos.get('theta', 0.0)
+                        
+                        result, status = calculer_pose_intelligente(mesures, est_x, est_y, est_cap)
+                        
+                        if status.startswith("OK"):
+                            x_lidar, y_lidar, theta_lidar, err_lidar = result
+                            print(f"📍 [POS LiDAR] X={x_lidar:4.0f} | Y={y_lidar:4.0f} | Cap={theta_lidar:5.1f}° (Bruit: {err_lidar:.0f}mm)")
+                        else:
+                            # --- LE PRINT MAGIQUE POUR COMPRENDRE LE PROBLÈME ---
+                            print(f"📡 [DEBUG] Vues: {num_beacons} balises | {status} | Odom ESP32: X={est_x:.0f} Y={est_y:.0f} Cap={est_cap:.0f}°")
+                    
+                    elif num_beacons > 0:
+                        # S'il voit 1 ou 2 balises, on veut le savoir aussi !
+                        print(f"📡 [DEBUG] Pas assez de balises vues ({num_beacons}/3)")
                         
             except socket.timeout:
                 print("[⚠️ ALERTE] Perte de com LiDAR. Arrêt par sécurité.")
-                # self.robot.stop()
+                # Si le C++ crash vraiment, tu pourras envisager de couper les moteurs ici
+                # self.robot.set_lidar_state(1) 
             except Exception as e:
                 if self.running:
                     print(f"[LIDAR THREAD] Erreur : {e}")
                 
     def stop(self):
-        """Permet d'arrêter le thread proprement depuis le programme principal"""
         self.running = False
         self.sock.close()

@@ -42,7 +42,7 @@ if __name__ == "__main__":
         
         # On fournit null s'il n'y pas besoin, mais l'objet RobotActions se map directement à l'IHM
         robot_instance = RobotActions()
-        collision_thread = LidarCollisionThread(robot=robot_instance, seuil_mm=300.0)
+        collision_thread = LidarCollisionThread(robot=robot_instance, seuil_mm=350.0)
         collision_thread.start()
 
         # 2. Thread STRATEGIE (IA, Décisions)

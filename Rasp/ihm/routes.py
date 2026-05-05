@@ -6,7 +6,8 @@ import glob
 import serial.tools.list_ports
 from flask import render_template, request, jsonify, redirect, url_for, Response, send_from_directory
 from werkzeug.utils import secure_filename
-from ihm.shared import app, state, cfg, audio, save_config, send_led_cmd, AUDIO_DIR, socketio
+from ihm.shared import app, state, cfg, audio, save_config, send_led_cmd, AUDIO_DIR, socketio, robot_pos
+from strat.actions import esp
 
 # --- IMPORT CAMERA ---
 LibCamera = None
@@ -142,6 +143,27 @@ def score_edit():
     socketio.emit('state_update', state)
     
     return jsonify({'status': 'ok', 'score': new_score})
+
+@app.route('/api/set_robot_pos', methods=['POST'])
+def set_robot_pos():
+    data = request.json
+    x = float(data.get('x', 0))
+    y = float(data.get('y', 0))
+    theta = float(data.get('theta', 0))
+    
+    print(f"[IHM] Force SET_POS -> ({x}, {y}, {theta}°)")
+    
+    # Mise à jour partagée (pour la carte et l'IHM)
+    robot_pos['x'] = x
+    robot_pos['y'] = y
+    robot_pos['theta'] = theta
+    
+    # Envoi physique à l'ESP32
+    if esp:
+        esp.set_pos(x, y, theta)
+    
+    socketio.emit('state_update', state) # Pour rafraîchir l'IHM si besoin
+    return jsonify({'status': 'ok'})
 
 @app.route('/api/action/<act>', methods=['POST'])
 def handle_action(act):

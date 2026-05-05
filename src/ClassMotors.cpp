@@ -251,7 +251,7 @@ void ClassMotors::UpdateOdometry() {
     if (orientation < -M_PI)
       orientation += 2 * M_PI;
 
-    // Utilisation du repère Mathématique Standard (X devant, Y gauche)
+    // Repère Direct (X devant, Y gauche, Theta Trigo)
     x_pos += delta_s * cos(orientation);
     y_pos += delta_s * sin(orientation);
 

@@ -20,7 +20,7 @@ struct LidarPoint {
 struct LidarState {
   LidarPoint closest_obstacle;
   int num_beacons;
-  LidarPoint beacons[3];
+  LidarPoint beacons[4];
 };
 #pragma pack(pop)
 
@@ -169,9 +169,9 @@ int main() {
           state.closest_obstacle =
               has_points ? LidarPoint{min_angle, min_dist, min_qual}
                          : LidarPoint{0.0f, 99999.0f, 0.0f};
-          state.num_beacons = std::min(beacon_count, 3);
+          state.num_beacons = std::min(beacon_count, 4);
 
-          for (int b = 0; b < 3; b++) {
+          for (int b = 0; b < 4; b++) {
             if (b < beacon_count)
               state.beacons[b] = detected_beacons[b];
             else

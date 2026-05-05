@@ -48,9 +48,8 @@ function drawMap() {
         const scaleY_map = w / 3000; // Echelle pour l'axe Y (qui est horizontal sur l'écran)
         const scaleX_map = h / 2000; // Echelle pour l'axe X (qui est vertical sur l'écran)
 
-        // Origine en haut au milieu : 
-        // Y va vers la DROITE sur l'écran -> px = centre + (Y * echelle)
-        // X va vers le bas -> py = X * echelle
+        // Vue "Face à Face" : Ce qui est à GAUCHE pour le robot (Y+) 
+        // se retrouve à DROITE sur l'écran quand on regarde la table.
         const px = (w / 2) + (robotPos.y * scaleY_map);
         const py = robotPos.x * scaleX_map;
         const size = 370 * scaleY_map;

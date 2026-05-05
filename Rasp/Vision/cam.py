@@ -1,6 +1,8 @@
 import sys
 import cv2
 import os
+import glob
+import math
 os.environ['QT_QPA_FONTDIR'] = '/usr/share/fonts/truetype/ubuntu'
     
 class cam:
@@ -8,7 +10,7 @@ class cam:
         self.use_camera = use_camera
         self.largeur_cible = 800 # largeur de l'image en pixels
         self.tolerance_position = 15 # pixels
-        self.tolerance_angle = 8  # degres
+        self.tolerance_angle = 13  # degres
 
         if self.use_camera:
             self.image_reduite = None
@@ -21,6 +23,17 @@ class cam:
 
         aruco_dict = cv2.aruco.getPredefinedDictionary(cv2.aruco.DICT_4X4_50)
         parameters = cv2.aruco.DetectorParameters()
+        # Enhance detection parameters
+        parameters.adaptiveThreshWinSizeMin = 3
+        parameters.adaptiveThreshWinSizeMax = 23
+        parameters.adaptiveThreshWinSizeStep = 10
+        parameters.minMarkerPerimeterRate = 0.01  # Lower to detect smaller markers
+        parameters.maxMarkerPerimeterRate = 4.0
+        parameters.polygonalApproxAccuracyRate = 0.03
+        parameters.minCornerDistanceRate = 0.05
+        parameters.minDistanceToBorder = 0  # Allow markers touching the border
+        parameters.minMarkerDistanceRate = 0.05
+        parameters.cornerRefinementMethod = cv2.aruco.CORNER_REFINE_SUBPIX  # Better corner refinement
         self.detector = cv2.aruco.ArucoDetector(aruco_dict, parameters)
 
         self.max_angle = None
@@ -34,7 +47,7 @@ class cam:
 
         self.allowed_zones = [(254, 288), (358, 288), (464, 288), (570, 288)] # toutes les valeurs sont mesurees pour 800 px de large
 
-        angles = []
+        self.angles = []
         self.aruco_center_positions = []
 
         if self.use_camera:
@@ -45,20 +58,31 @@ class cam:
         
         self.corners, self.ids, rejected = self.detector.detectMarkers(self.image_reduite)
 
+        # only keep 47 and 36 ids
         if self.ids is not None:
+            mask = (self.ids.flatten() == 47) | (self.ids.flatten() == 36)
+            self.ids = self.ids[mask]
+            self.corners = [self.corners[i] for i in range(len(self.corners)) if mask[i]]
+
+        if self.ids is not None and len(self.ids) > 0:
             for i in range(len(self.ids)):
                 aruco_center_position = (self.corners[i][0][0] + self.corners[i][0][1] + self.corners[i][0][2] + self.corners[i][0][3]) / 4
                 self.aruco_center_positions.append(aruco_center_position)
                 if not any(abs(aruco_center_position[0] - zone[0]) <= self.tolerance_position and abs(aruco_center_position[1] - zone[1]) <= self.tolerance_position for zone in self.allowed_zones):
                     self.everything_in_position = False
-                pt1 = tuple(map(int, self.corners[i][0][0]))
-                pt2 = tuple(map(int, self.corners[i][0][1]))
-                angle = cv2.fastAtan2(abs(pt2[1] - pt1[1]), abs(pt2[0] - pt1[0])) - 90
-                angles.append(angle)
+                pt1 = tuple(map(int, self.corners[i][0][1]))
+                pt2 = tuple(map(int, self.corners[i][0][0]))
+                angle = cv2.fastAtan2(pt2[0] - pt1[0], pt2[1] - pt1[1])
+                if angle > 180:
+                    angle -= 360
+                if angle > 90:
+                    angle -= 180
+                elif angle < -90:
+                    angle += 180
+                self.angles.append(angle)
 
-
-            self.max_angle = max(abs(angle) for angle in angles)
-            if (self.max_angle) > self.tolerance_angle:
+            self.max_angle = max(self.angles, key=abs)
+            if abs(self.max_angle) > self.tolerance_angle:
                 self.everything_in_position = False
 
         else:
@@ -85,21 +109,36 @@ class cam:
         
     def is_salvagable(self):
         # this function checks if the aruco codes are aligned with each other and that this alignment is roughly perpendicular to the angle of the aruco codes
-        if self.ids is None:
+        if self.ids is None or len(self.ids) < 2:
             return False
+        
         sorted_positions = sorted(self.aruco_center_positions, key=lambda pos: pos[0])
-        alignment_angle = cv2.fastAtan2(abs(sorted_positions[-1][1] - sorted_positions[0][1]), abs(sorted_positions[-1][0] - sorted_positions[0][0])) - 90
-        cv2.line(self.image_reduite, (int(sorted_positions[0][0]), int(sorted_positions[0][1])), (int(sorted_positions[-1][0]), int(sorted_positions[-1][1])), (255, 0, 0), 2)
-        marker_angle = cv2.fastAtan2(abs(self.corners[0][0][1][1] - self.corners[0][0][0][1]), abs(self.corners[0][0][1][0] - self.corners[0][0][0][0])) - 90
-        print(f"Alignment angle: {alignment_angle}")
-        print(f"Marker angle: {marker_angle}")
-        print(f"Difference: {abs(alignment_angle - marker_angle)}")
-        if abs(abs(alignment_angle - marker_angle) - 90) > 20:
+        start = sorted_positions[0]
+        end   = sorted_positions[-1]
+        alignment_angle = cv2.fastAtan2(end[0] - start[0], end[1] - start[1])
+        cv2.line(self.image_reduite, (int(start[0]), int(start[1])), (int(end[0]), int(end[1])), (255, 0, 0), 2)
+        if abs(abs(alignment_angle - self.max_angle) - 90) > 20:
             return False
+
+        dx = float(end[0] - start[0])
+        dy = float(end[1] - start[1])
+        line_length = math.hypot(dx, dy)
+        for center in sorted_positions[1:-1]:
+            px = float(center[0] - start[0])
+            py = float(center[1] - start[1])
+            distance = abs(dx * py - dy * px) / line_length
+            if distance > self.tolerance_position:
+                return False
+            
+        max_angle_diff = max(abs(angle1 - angle2) for angle1 in self.angles for angle2 in self.angles if angle1 != angle2)
+        print(max_angle_diff)
+        if max_angle_diff > self.tolerance_angle:
+             return False
+        
         return True
 
     def get_errors(self):
-        if self.ids is None:
+        if self.ids is None or len(self.ids) == 0:
             return None, None, None
         
         main_center_position = (414, 290)
@@ -111,7 +150,7 @@ class cam:
         return self.err_x, self.err_y, self.max_angle
     
     def get_image(self):
-        if self.ids is not None:
+        if self.ids is not None and len(self.ids) > 0:
             for i in range(len(self.ids)):
                 pt1 = tuple(map(int, self.corners[i][0][0]))
                 pt2 = tuple(map(int, self.corners[i][0][1]))
@@ -120,7 +159,7 @@ class cam:
             for zone in self.allowed_zones:
                 cv2.rectangle(self.image_reduite, (zone[0] - self.tolerance_position, zone[1] - self.tolerance_position), (zone[0] + self.tolerance_position, zone[1] + self.tolerance_position), (0, 255, 255), 2)
         
-        cv2.aruco.drawDetectedMarkers(self.image_reduite, self.corners, self.ids)
+            cv2.aruco.drawDetectedMarkers(self.image_reduite, self.corners, self.ids)
 
         if self.everything_in_position:
             cv2.putText(self.image_reduite, 'OK', (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 3)
@@ -137,6 +176,12 @@ class cam:
         if self.err_x is not None and self.err_y is not None:
             cv2.putText(self.image_reduite, f'Avg err : X {self.err_x:.2f}, Y {self.err_y:.2f}', (10, 90), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 0), 2)
 
+        if self.is_salvagable():
+            cv2.putText(self.image_reduite, 'pas bordel', (10, 120), cv2.FONT_HERSHEY_SIMPLEX, 0.75, (0, 255, 0), 3)
+        else:
+            cv2.putText(self.image_reduite, 'bordel', (10, 120), cv2.FONT_HERSHEY_SIMPLEX, 0.75, (0, 0, 255), 3)
+
+
         # prints a reference in the bottom right corner, x is an arrow pointing up and y is an arrow pointing left
         cv2.arrowedLine(self.image_reduite, (self.dimension[0] - 20, self.dimension[1] - 20), (self.dimension[0] - 20, self.dimension[1] - 70), (255, 255, 255), 2)
         cv2.arrowedLine(self.image_reduite, (self.dimension[0] - 20, self.dimension[1] - 20), (self.dimension[0] - 70, self.dimension[1] - 20), (255, 255, 255), 2)
@@ -145,27 +190,25 @@ class cam:
         
         return self.image_reduite
 
+if __name__ == '__main__':
+    
 
+    cam = cam('logs/oui2.jpg')
+    # cam = cam(use_camera=True)
 
+    in_position = cam.check_aruco_position()
+    if in_position:
+        colors = cam.get_colors("bleu")
+        print("Colors in order : ")
+        print(colors)
+    else:
+        # if cam.is_salvagable():
+        x_error, y_error, angle_error = cam.get_errors()
+        print("X error : ", x_error)
+        print("Y error : ", y_error)
+        print("Angle error : ", angle_error)
 
-
-
-cam = cam('logs/oui2.jpg')
-# cam = cam(use_camera=True)
-
-in_position = cam.check_aruco_position()
-if in_position:
-    colors = cam.get_colors("bleu")
-    print("Colors in order : ")
-    print(colors)
-else:
-    # if cam.is_salvagable():
-    x_error, y_error, angle_error = cam.get_errors()
-    print("X error : ", x_error)
-    print("Y error : ", y_error)
-    print("Angle error : ", angle_error)
-
-img = cam.get_image()
-cv2.imshow('Detection ArUco - Format Reduit', img)
-cv2.waitKey(0)
-cv2.destroyAllWindows()
+    img = cam.get_image()
+    cv2.imshow('Detection ArUco - Format Reduit', img)
+    cv2.waitKey(0)
+    cv2.destroyAllWindows()

@@ -6,8 +6,8 @@
 #define STEPG 22
 #define DIRG 13
 
-#define SPEEDMAX 1500
-#define ACCELMAX 3000
+#define SPEEDMAX 800
+#define ACCELMAX 2000
 
 #define dRoues 72.0
 #define stepPerRev 3200

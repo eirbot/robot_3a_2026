@@ -181,3 +181,23 @@ function updateBrightness(val) {
         body: JSON.stringify({ value: computed })
     });
 }
+async function setRobotPosition() {
+    const x = document.getElementById('pos-x').value;
+    const y = document.getElementById('pos-y').value;
+    const theta = document.getElementById('pos-theta').value;
+
+    console.log("Force SET_POS:", x, y, theta);
+    const resp = await fetch('/api/set_robot_pos', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            x: parseFloat(x),
+            y: parseFloat(y),
+            theta: parseFloat(theta)
+        })
+    });
+    const data = await resp.json();
+    if (data.status === 'ok') {
+        console.log("Position robot mise à jour avec succès");
+    }
+}
