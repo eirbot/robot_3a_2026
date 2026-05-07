@@ -88,6 +88,7 @@ document.addEventListener("DOMContentLoaded", function () {
     Blockly.Blocks['prendre_kapla'] = { init: function () { this.appendDummyInput().appendField("✊ Prendre Kapla (H:").appendField(new Blockly.FieldNumber(0), "HAUTEUR").appendField("mm)"); this.setPreviousStatement(true, null); this.setNextStatement(true, null); this.setColour(120); } };
     Blockly.Blocks['retourner_kapla'] = { init: function () { this.appendDummyInput().appendField("🤌 Retourne Kapla"); this.setPreviousStatement(true, null); this.setNextStatement(true, null); this.setColour(120); } };
     Blockly.Blocks['poser_kapla'] = { init: function () { this.appendDummyInput().appendField("🖐️ Poser Kapla (H:").appendField(new Blockly.FieldNumber(0), "HAUTEUR").appendField("mm)"); this.setPreviousStatement(true, null); this.setNextStatement(true, null); this.setColour(120); } };
+    Blockly.Blocks['pousse_kapla'] = { init: function () { this.appendDummyInput().appendField("🏎️ Pousse Kapla"); this.setPreviousStatement(true, null); this.setNextStatement(true, null); this.setColour(120); } };
     Blockly.Blocks['robot_stop'] = { init: function () { this.appendDummyInput().appendField("🛑 Arrêter le robot"); this.setPreviousStatement(true, null); this.setNextStatement(true, null); this.setColour(0); } };
 
     // --- NOUVEAUX ACTIONNEURS (BAS & HAUT NIVEAU) ---
@@ -147,6 +148,7 @@ document.addEventListener("DOMContentLoaded", function () {
     Blockly.Python.forBlock['prendre_kapla'] = function (block) { return `robot.prendreKapla(hauteur=${block.getFieldValue('HAUTEUR')})\n`; };
     Blockly.Python.forBlock['retourner_kapla'] = function (block) { return `robot.retournerKapla()\n`; };
     Blockly.Python.forBlock['poser_kapla'] = function (block) { return `robot.poseKapla(hauteur=${block.getFieldValue('HAUTEUR')})\n`; };
+    Blockly.Python.forBlock['pousse_kapla'] = function (block) { return 'robot.pousse_kapla()\n'; };
     Blockly.Python.forBlock['robot_stop'] = function (block) { return 'robot.stop()\n'; };
 
     Blockly.Python.forBlock['actionneur_unique'] = function (block) {
@@ -481,6 +483,7 @@ document.addEventListener("DOMContentLoaded", function () {
                 if (currentBlock.type === 'prendre_kapla') msg = "Prise Kapla";
                 if (currentBlock.type === 'retourner_kapla') msg = "Retourne Kapla";
                 if (currentBlock.type === 'poser_kapla') msg = "Pose Kapla";
+                if (currentBlock.type === 'pousse_kapla') msg = "Pousse Kapla";
                 if (currentBlock.type === 'robot_stop') msg = "STOP";
                 if (currentBlock.type === 'play_animation') msg = "Animation: " + currentBlock.getFieldValue('ANIM_NAME');
                 if (currentBlock.type === 'play_sound') msg = "Son: " + currentBlock.getFieldValue('SOUND_NAME');
@@ -593,6 +596,7 @@ document.addEventListener("DOMContentLoaded", function () {
         if (msg.includes("Prise")) return "✊";
         if (msg.includes("Retourne")) return "🤌";
         if (msg.includes("Pose")) return "🖐️";
+        if (msg.includes("Pousse")) return "🏎️";
         if (msg.includes("STOP")) return "🛑";
         if (msg.includes("Animation")) return "🎨";
         if (msg.includes("Son")) return "🎵";

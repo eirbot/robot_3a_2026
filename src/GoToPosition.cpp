@@ -13,7 +13,7 @@ GoToPosition::GoToPosition(const float &x_i, const float &y_i,
 
 void GoToPosition::CalculPolar() {
   float delta_x = x_final - x_initial;
-  float delta_y = y_final - y_initial;
+  float delta_y = y_final - y_initial; // Système direct
 
   r = sqrt(delta_x * delta_x + delta_y * delta_y);
   float sigma = atan2(delta_y, delta_x) * RAD_TO_DEG;
@@ -56,13 +56,13 @@ bool GoToPosition::Go(float x_f, float y_f, float cangle_f) {
 
   CalculPolar();
 
-  Params = {0, (int)(abs(pangle)), (pangle > 0) ? 1 : 0, (int)(SPEEDMAX * 0.7)};
+  Params = {0, (int)(abs(pangle)), (pangle > 0) ? 0 : 1, (int)(SPEEDMAX * 0.7)};
   mot.EnvoyerDonnees(&Params);
 
   Params = {(int)r, 0, 0, SPEEDMAX};
   mot.EnvoyerDonnees(&Params);
 
-  Params = {0, (int)(abs(pangleFin)), (pangleFin > 0) ? 1 : 0,
+  Params = {0, (int)(abs(pangleFin)), (pangleFin > 0) ? 0 : 1,
             (int)(SPEEDMAX * 0.7)};
   mot.EnvoyerDonnees(&Params);
 
@@ -74,7 +74,7 @@ bool GoToPosition::Go(float x_f, float y_f, float cangle_f) {
     float x, y, angle;
     mot.GetPosition(x, y, angle);
     FLAG_STOP = false;
-    
+
     return false; // Mouvement annulé
 
   } else {
@@ -84,7 +84,7 @@ bool GoToPosition::Go(float x_f, float y_f, float cangle_f) {
     x_initial = x;
     y_initial = y;
     cangle_initial = cangle_final;
-    
+
     return true; // Mouvement terminé
   }
 }

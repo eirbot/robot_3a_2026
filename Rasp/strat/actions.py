@@ -59,8 +59,8 @@ class RobotActions:
             if time.time() - shared.state["start_time"] >= TIME_TO_RETURN:
                 raise EndOfMatchException("Time to go home")
 
-    def _check_abort(self):
-        if not shared.state["match_running"]: raise Exception("Stop")
+    def _check_abort(self, manual=False):
+        if not manual and not shared.state["match_running"]: raise Exception("Stop")
         self._check_time()
 
     def _apply_sym(self, x, y, theta=None):
@@ -97,11 +97,11 @@ class RobotActions:
             print("[SIMU] SET_POS virtuel (Pas de com)")
 
 
-    def goto(self, x, y, theta):
+    def goto(self, x, y, theta, manual=False):
         """
         Déplacement en ligne droite + Envoi ESP32
         """
-        self._check_abort()
+        self._check_abort(manual=manual)
         
         real_x, real_y, real_theta = self._apply_sym(x, y, theta)
 
@@ -213,11 +213,8 @@ class RobotActions:
         print(f"[ACTION] Analyse couleurs pour les 4 Kaplas (Equipe JAUNE={self.is_yellow})...")
         
         if vision_cam:
-            # On demande l'équipe sous forme de string comme attendu par cam.py
-            equipe_str = "jaune" if self.is_yellow else "bleu"
-            
             # On récupère le tableau de booléens (True = bonne couleur)
-            bonnes_couleurs = vision_cam.get_colors(equipe_str)
+            bonnes_couleurs = vision_cam.get_colors(self.is_yellow)
             
             # On traduit ça en commandes pour les actionneurs
             # (Admettons que FLIP = prendre, nFLIP = ignorer)
@@ -248,6 +245,42 @@ class RobotActions:
         print(f"[ACTION] Pose Kapla H={hauteur}")
         time.sleep(1)
 
+    def pousse_kapla(self):
+        self._check_abort()
+        print("[ACTION] Pousse Kapla")
+        if vision_cam:
+            # On récupère le tableau de booléens (True = bonne couleur)
+            bonnes_couleurs = vision_cam.get_colors_pousse(self.is_yellow)
+
+        else:
+            print("[VISION/SIMU] Simulation des Kaplas (Caméra non dispo).")
+            bonnes_couleurs = [True, True, True, True]
+        
+        x_actuel = shared.robot_pos['x']
+        y_actuel = shared.robot_pos['y']
+        theta_actuel = shared.robot_pos['theta']
+        theta_rad = math.radians(theta_actuel)
+
+        avancer_mm = 25
+        if bonnes_couleurs[0] == True:
+            avancer_mm += 0
+            if bonnes_couleurs[1] == True:
+                avancer_mm += 50 # on met les 2 premier kaplas
+            else :
+                if bonnes_couleurs[2] == True:
+                    avancer_mm += 100 # on met les 3 premier kaplas
+                # pas de else on ne met que le premier kapla
+        else :
+            if bonnes_couleurs[1] == True and bonnes_couleurs[2] == True :
+                avancer_mm += 100 # on met les 3 premier kaplas
+            else :
+                avancer_mm += 250 # on met les 3 dernier kaplas
+            
+        x_kapla = x_actuel + avancer_mm * math.cos(theta_rad)
+        y_kapla = y_actuel + avancer_mm * math.sin(theta_rad)
+
+        self.goto(x_kapla, y_kapla, theta_actuel)
+        
     def GoBase(self):
         self.is_returning = True
         print("⚡ RETOUR BASE")

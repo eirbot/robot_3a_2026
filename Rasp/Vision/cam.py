@@ -100,13 +100,20 @@ class cam:
             raise RuntimeError('Unable to capture image from camera')
         return frame
     
-    def get_colors(self, equipe):
+    def get_colors(self, is_jaune):
         self.sorted_ids = [id for _, id in sorted(zip([pos[0] for pos in self.aruco_center_positions], self.ids.flatten()))]
-        if equipe == "jaune":
+        if is_jaune:
             return [id == 47 for id in self.sorted_ids]
         else:
             return [id == 36 for id in self.sorted_ids]
-        
+
+    def get_colors_pousse(self, is_jaune): 
+        self.sorted_ids = [id for _, id in sorted(zip([pos[1] for pos in self.aruco_center_positions], self.ids.flatten()))]
+        if is_jaune:
+            return [id == 47 for id in self.sorted_ids]
+        else:
+            return [id == 36 for id in self.sorted_ids]
+
     def is_salvagable(self):
         # this function checks if the aruco codes are aligned with each other and that this alignment is roughly perpendicular to the angle of the aruco codes
         if self.ids is None or len(self.ids) < 2:

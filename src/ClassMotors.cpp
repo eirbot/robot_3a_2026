@@ -17,7 +17,7 @@ void ClassMotors::vMotors(void *pvParameters) {
 
       // Vitesse en Hz (pas/sec)
       uint32_t speedHz = (taskParams.vitesse * stepPerRev) / ((M_PI * dRoues));
-      uint32_t accelHz = speedHz * 0.6;
+      uint32_t accelHz = speedHz * 0.75;
 
       moteurGauche->setSpeedInHz(speedHz);
       moteurGauche->setAcceleration(accelHz);
@@ -242,7 +242,7 @@ void ClassMotors::UpdateOdometry() {
   float s_L = deltaStepGauche * distanceParStep;
   float s_R = deltaStepDroit * distanceParStep;
   float delta_s = (s_R + s_L) / 2.0;
-  float delta_theta = (s_R - s_L) / ecartRoues;
+  float delta_theta = (s_L - s_R) / ecartRoues; // Inversion L/R
 
   if (xSemaphoreTake(xPositionMutex, portMAX_DELAY) == pdTRUE) {
     orientation += delta_theta;
@@ -251,7 +251,7 @@ void ClassMotors::UpdateOdometry() {
     if (orientation < -M_PI)
       orientation += 2 * M_PI;
 
-    // Repère Direct (X devant, Y gauche, Theta Trigo)
+    // Repère Direct : X devant, Y gauche, Theta trigo (CCW+)
     x_pos += delta_s * cos(orientation);
     y_pos += delta_s * sin(orientation);
 

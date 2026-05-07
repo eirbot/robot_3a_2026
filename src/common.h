@@ -6,7 +6,7 @@
 #define STEPG 22
 #define DIRG 13
 
-#define SPEEDMAX 800
+#define SPEEDMAX 1000
 #define ACCELMAX 2000
 
 #define dRoues 72.0

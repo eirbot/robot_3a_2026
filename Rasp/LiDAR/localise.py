@@ -1,13 +1,22 @@
 import math
 import itertools
+import ihm.shared as shared
 
-# --- RAJOUTE TA 4ÈME BALISE ICI ---
-BALISES = [
-    (50, -1550),    # Balise 1 : Haut Gauche
-    (1950, -1550),      # Balise 2 : Bas Gauche
-    (1000, 1550),   # Balise 3 : Milieu Droit
-    (-125, -225)    # Balise 4 : <--- REMPLACE PAR TES VRAIES COORDONNÉES !
+# --- BALISES PHYSIQUES DE LA TABLE (Repère BLEUE : Y+ à gauche) ---
+# Ces coordonnées correspondent à la position réelle sur la table vue depuis le côté BLEUE.
+BALISES_BASE = [
+    (50, 1550),    # Balise 1 : Haut Gauche
+    (1950, 1550),  # Balise 2 : Bas Gauche
+    (1000, -1550), # Balise 3 : Milieu Droit
+    (-125, 225)    # Balise 4 : Bord haut
 ]
+
+def get_balises():
+    """Retourne les balises en tenant compte de la symétrie de l'équipe.
+    Pour l'équipe JAUNE, Y est inversé sur la table."""
+    if shared.state.get("team") == "JAUNE":
+        return [(x, -y) for x, y in BALISES_BASE]
+    return BALISES_BASE
 
 RAYON_BALISE = 50.0 
 RAYON_BALISE_ADVERSE = 45.0 
@@ -52,7 +61,7 @@ def calculer_pose_intelligente(mesures_lidar, est_x, est_y, est_cap_deg):
         meilleure_balise = None
         min_dist = float('inf')
         
-        for bx, by in BALISES:
+        for bx, by in get_balises():
             d = math.hypot(point_x - bx, point_y - by)
             if d < min_dist:
                 min_dist = d

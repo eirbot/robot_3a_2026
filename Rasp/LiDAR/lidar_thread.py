@@ -124,6 +124,9 @@ class LidarCollisionThread(threading.Thread):
                         if status.startswith("OK"):
                             x_lidar, y_lidar, theta_lidar, err_lidar = result
                             print(f"📍 [POS LiDAR] X={x_lidar:4.0f} | Y={y_lidar:4.0f} | Cap={theta_lidar:5.1f}° (Bruit: {err_lidar:.0f}mm)")
+                            # Émission vers la carte temps réel
+                            from ihm.shared import socketio as _sio
+                            _sio.emit('lidar_pos', {'x': x_lidar, 'y': y_lidar, 'theta': theta_lidar, 'err': err_lidar})
                         else:
                             # --- LE PRINT MAGIQUE POUR COMPRENDRE LE PROBLÈME ---
                             print(f"📡 [DEBUG] Vues: {num_beacons} balises | {status} | Odom ESP32: X={est_x:.0f} Y={est_y:.0f} Cap={est_cap:.0f}°")

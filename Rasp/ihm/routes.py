@@ -165,6 +165,29 @@ def set_robot_pos():
     socketio.emit('state_update', state) # Pour rafraîchir l'IHM si besoin
     return jsonify({'status': 'ok'})
 
+@app.route('/api/goto', methods=['POST'])
+def api_goto():
+    from strat.actions import RobotActions
+    data = request.json
+    x = float(data.get('x', 0))
+    y = float(data.get('y', 0))
+    theta = float(data.get('theta', 0))
+    print(f"[IHM] GOTO Manuel -> ({x:.0f}, {y:.0f}, {theta:.1f}°)")
+    
+    # On utilise RobotActions pour que la symétrie d'équipe soit appliquée !
+    actions = RobotActions()
+    actions.goto(x, y, theta, manual=True)
+    return jsonify({'status': 'ok'})
+
+@app.route('/api/beacons')
+def api_beacons():
+    try:
+        from LiDAR.localise import BALISES_BASE
+        return jsonify(BALISES_BASE)
+    except Exception as e:
+        print(f"[IHM] Erreur import balises : {e}")
+        return jsonify([])
+
 @app.route('/api/action/<act>', methods=['POST'])
 def handle_action(act):
     print(f"[IHM] Action: {act}")
