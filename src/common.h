@@ -1,10 +1,10 @@
 #ifndef COMMON_H
 #define COMMON_H
 
-#define STEPD 27
-#define DIRD 14
-#define STEPG 22
-#define DIRG 13
+#define STEPG 16
+#define DIRG 17
+#define STEPD 19
+#define DIRD 18
 
 #define SPEEDMAX 1000
 #define ACCELMAX 2000
