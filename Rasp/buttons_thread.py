@@ -5,6 +5,7 @@ import sys
 import os
 import random
 import ihm.shared as shared
+from strat.actions import actionneurs
 
 # Try Importing GPIO (Mock if not available)
 try:
@@ -28,8 +29,8 @@ except ImportError:
 # === CONFIGURATION PINS (BOARD MODE) ===
 PIN_TEAM   = 11
 PIN_STRAT  = 13
-PIN_REBOOT = 15
-PIN_MUSIC  = 16
+# PIN_REBOOT = 15 # A ne pas utiliser, il est utilisé par launcher.py
+PIN_INIT   = 16
 PIN_BAU    = 18
 PIN_TIRETTE= 22
 
@@ -46,8 +47,8 @@ class ButtonsThread:
         self.last_states = {
             PIN_TEAM: 1,
             PIN_STRAT: 1,
-            PIN_REBOOT: 1,
-            PIN_MUSIC: 1,
+            # PIN_REBOOT: 1,
+            PIN_INIT: 1,
             PIN_BAU: 1,
             PIN_TIRETTE: 1 
         }
@@ -61,7 +62,7 @@ class ButtonsThread:
             
             # Group 1: Buttons 1-4 (Direct -> Internal Pull-UP -> Active LOW)
             # Switch connects Pin to GND. Default=1, Pressed=0.
-            pins_active_low = [PIN_TEAM, PIN_STRAT, PIN_MUSIC]
+            pins_active_low = [PIN_TEAM, PIN_STRAT, PIN_INIT]
             for p in pins_active_low:
                 GPIO.setup(p, GPIO.IN, pull_up_down=GPIO.PUD_UP)
                 
@@ -80,7 +81,7 @@ class ButtonsThread:
         # Initialize last states after setup
         # Note: If Tirette is inserted (Closed), default read is 1.
         self.last_states = {
-             PIN_TEAM: 1, PIN_STRAT: 1, PIN_REBOOT: 1, PIN_MUSIC: 1, # Pull-UP default 1
+             PIN_TEAM: 1, PIN_STRAT: 1, PIN_INIT: 1, # Pull-UP default 1
              PIN_BAU: 0, PIN_TIRETTE: 0 # Pull-DOWN default 0
         }
         if not MOCK_GPIO:
@@ -105,7 +106,7 @@ class ButtonsThread:
             self.check_button(PIN_TEAM, self.action_team, active_low=True)
             self.check_button(PIN_STRAT, self.action_strat, active_low=True)
             # PIN_REBOOT est géré par launcher.py
-            self.check_button(PIN_MUSIC, self.action_music, active_low=True)
+            self.check_button(PIN_INIT, self.action_init, active_low=True)
             
             # Special Handling for Switches (Active High)
             self.check_switch_active_high(PIN_BAU, "BAU")
@@ -254,18 +255,14 @@ class ButtonsThread:
         shared.socketio.emit('state_update', shared.state)
         # Optional: Blink LEDs?
 
-    def action_reboot(self):
-        # Désormais géré par launcher.py en tâche de fond (Service Systemd)
-        print("[BUTTONS] Bouton 3 pressé (Action gérée par launcher.py)")
-
-    def action_music(self):
-        print("[BUTTONS] Musique !")
-        # If simple audio manager:
-        if hasattr(shared.audio, 'play_random'):
-            shared.audio.play_random()
+    def action_init(self):
+        print("[BUTTONS] INIT des Actionneurs !")
+        if actionneurs:
+            # On lance l'init dans un thread pour ne pas bloquer la boucle des boutons
+            threading.Thread(target=actionneurs.init_robot, daemon=True).start()
         else:
-             # Fallback
-             pass
+            print("[BUTTONS] ⚠️ Actionneurs non connectés, impossible d'init.")
+        
 
 def run_buttons_loop():
     bt = ButtonsThread()

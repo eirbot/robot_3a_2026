@@ -10,8 +10,9 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 # --- COM ACTIONNEURS (via module dédié) ---
 try:
-    from Actionneur.interface_actionneur import InterfaceActionneur
-    actionneurs = InterfaceActionneur()
+    from interface_actionneur.esp_actionneur import ESPActionneurs
+    actionneurs = ESPActionneurs()
+    actionneurs.start()
 except Exception as e:
     print(f"⚠️ Attention : Erreur de chargement du module Actionneur ({e}) -> Mode simulation")
     actionneurs = None
