@@ -35,4 +35,4 @@ def run_ihm():
     print("[IHM] Démarrage Serveur Web...")
     socketio.start_background_task(background_loop)
     # On lance en mode bloquant (c'est le main qui gérera les threads)
-    socketio.run(app, host='0.0.0.0', port=5000, debug=False)
+    socketio.run(app, host='0.0.0.0', port=5000, debug=False, allow_unsafe_werkzeug=True)

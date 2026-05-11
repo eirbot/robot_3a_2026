@@ -1,4 +1,5 @@
 import time
+import cv2
 from threading import Thread
 
 # Import sécurisé de la librairie
@@ -68,7 +69,9 @@ class LibCamera:
                 # Capture_array retourne l'image directement en format NumPy (BGR)
                 frame = self.picam2.capture_array("main")
                 if frame is not None:
-                    self.frame = frame
+                    # Correction du swap R <-> B et rotation 180°
+                    frame_bgr = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
+                    self.frame = cv2.rotate(frame_bgr, cv2.ROTATE_180)
                     self.status = True
                 else:
                     self.status = False

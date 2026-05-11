@@ -1,0 +1,14 @@
+[Unit]
+Description=Eirbot 2026 Button Launcher
+After=network.target
+
+[Service]
+# On lance le script avec l'utilisateur actuel
+User=guig
+WorkingDirectory=/home/guig/Documents/Eirbot/robot_3a_2026/Rasp
+ExecStart=/usr/bin/python3 /home/guig/Documents/Eirbot/robot_3a_2026/Rasp/launcher.py
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

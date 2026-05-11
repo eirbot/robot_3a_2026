@@ -19,10 +19,11 @@ except Exception as e:
 # --- VISION KAPLAS ---
 try:
     # On importe ta nouvelle classe cam
-    from cam import cam
+    from Vision.cam import cam
     print("[VISION] Lancement de la caméra...")
-    # On initialise avec use_camera=True
-    vision_cam = cam(use_camera=True)
+    # On initialise avec l'état défini dans la config
+    cam_enabled = shared.cfg.get('camera', {}).get('enabled', True)
+    vision_cam = cam(use_camera=cam_enabled)
 except Exception as e:
     print(f"  Attention : Erreur de chargement du module Vision ({e}) -> Mode aveugle")
     vision_cam = None
@@ -47,6 +48,7 @@ class EndOfMatchException(Exception):
 class RobotActions:
     def __init__(self):
         self.is_returning = False
+        shared.state["is_returning"] = False
         self.base_pos = None # (x, y, theta) stockés avant symétrie
 
     @property
@@ -54,10 +56,9 @@ class RobotActions:
         return shared.state["team"] == "JAUNE"
 
     def _check_time(self):
-        if self.is_returning: return
-        if shared.state["match_running"] and shared.state["start_time"]:
-            if time.time() - shared.state["start_time"] >= TIME_TO_RETURN:
-                raise EndOfMatchException("Time to go home")
+        # On ne lève plus d'exception automatique à 90s
+        # On vérifie juste si le match est arrêté (STOP)
+        pass
 
     def _check_abort(self, manual=False):
         if not manual and not shared.state["match_running"]: raise Exception("Stop")
@@ -97,13 +98,16 @@ class RobotActions:
             print("[SIMU] SET_POS virtuel (Pas de com)")
 
 
-    def goto(self, x, y, theta, manual=False):
+    def goto(self, x, y, theta, manual=False, real=False):
         """
         Déplacement en ligne droite + Envoi ESP32
         """
         self._check_abort(manual=manual)
         
-        real_x, real_y, real_theta = self._apply_sym(x, y, theta)
+        if not real:
+            real_x, real_y, real_theta = self._apply_sym(x, y, theta)
+        else:
+            real_x, real_y, real_theta = x, y, theta
 
         if esp:
             success = esp.goto(real_x, real_y, real_theta)
@@ -194,11 +198,11 @@ class RobotActions:
             y_recul = y_actuel - (recul * math.sin(theta_rad))
             
             print(f"[VISION] Manœuvre : Recul de {recul}mm...")
-            self.goto(x_recul, y_recul, theta_actuel)
+            self.goto(x_recul, y_recul, theta_actuel, real=True)
             
             # 6. On fonce vers la position parfaite
             print("[VISION] Alignement sur la cible...")
-            self.goto(cible_x, cible_y, cible_theta)
+            self.goto(cible_x, cible_y, cible_theta, real=True)
             
             # Petite pause pour que la caméra ne prenne pas une photo floue au prochain tour
             time.sleep(0.5)
@@ -213,6 +217,10 @@ class RobotActions:
         print(f"[ACTION] Analyse couleurs pour les 4 Kaplas (Equipe JAUNE={self.is_yellow})...")
         
         if vision_cam:
+            # On déclenche une nouvelle capture et analyse
+            vision_cam.check_aruco_position()
+            vision_cam.save_debug(prefix="prise")
+            
             # On récupère le tableau de booléens (True = bonne couleur)
             bonnes_couleurs = vision_cam.get_colors(self.is_yellow)
             
@@ -250,7 +258,13 @@ class RobotActions:
         print("[ACTION] Pousse Kapla")
         if vision_cam:
             # On récupère le tableau de booléens (True = bonne couleur)
+            print(vision_cam.check_aruco_position())
+            vision_cam.save_debug(prefix="pousse")
             bonnes_couleurs = vision_cam.get_colors_pousse(self.is_yellow)
+            if len(bonnes_couleurs) < 3:
+                print(f"[VISION] Detection incomplète ({len(bonnes_couleurs)}/3), complétion par défaut.")
+                while len(bonnes_couleurs) < 4:
+                    bonnes_couleurs.append(True)
 
         else:
             print("[VISION/SIMU] Simulation des Kaplas (Caméra non dispo).")
@@ -261,28 +275,39 @@ class RobotActions:
         theta_actuel = shared.robot_pos['theta']
         theta_rad = math.radians(theta_actuel)
 
+        print("bonnes_couleurs = ", bonnes_couleurs)
+
         avancer_mm = 25
         if bonnes_couleurs[0] == True:
+            print("bonnes_couleurs[0] = True")
             avancer_mm += 0
             if bonnes_couleurs[1] == True:
+                print("bonnes_couleurs[1] = True")
                 avancer_mm += 50 # on met les 2 premier kaplas
             else :
+                print("bonnes_couleurs[1] = False")
                 if bonnes_couleurs[2] == True:
                     avancer_mm += 100 # on met les 3 premier kaplas
                 # pas de else on ne met que le premier kapla
         else :
+            print("bonnes_couleurs[0] = False")
             if bonnes_couleurs[1] == True and bonnes_couleurs[2] == True :
+                print("bonnes_couleurs[1] = True and bonnes_couleurs[2] = True")
                 avancer_mm += 100 # on met les 3 premier kaplas
             else :
+                print("bonnes_couleurs[1] = False and bonnes_couleurs[2] = False")
                 avancer_mm += 250 # on met les 3 dernier kaplas
-            
+        
+        print("avancer_mm =", avancer_mm)
+
         x_kapla = x_actuel + avancer_mm * math.cos(theta_rad)
         y_kapla = y_actuel + avancer_mm * math.sin(theta_rad)
 
-        self.goto(x_kapla, y_kapla, theta_actuel)
+        self.goto(x_kapla, y_kapla, theta_actuel, real=True)
         
     def GoBase(self):
         self.is_returning = True
+        shared.state["is_returning"] = True
         print("⚡ RETOUR BASE")
         if self.base_pos:
             bx, by, bt = self.base_pos
@@ -298,6 +323,16 @@ class RobotActions:
             self.goto(250, 0, 180)
         time.sleep(1)
 
+    def wait_until_and_return(self, target_second):
+        self._check_abort()
+        print(f"[ACTION] Attente de la seconde {target_second} pour retour base...")
+        while shared.state["match_running"]:
+            elapsed = time.time() - shared.state["start_time"]
+            if elapsed >= target_second:
+                break
+            time.sleep(0.5)
+        self.GoBase()
+
     def play_animation(self, anim_name):
         self._check_abort()
         print(f"[ACTION] Playing Animation: {anim_name}")
@@ -308,29 +343,6 @@ class RobotActions:
         print(f"[ACTION] Playing Sound: {sound_name}")
         shared.audio.play(sound_name)
 
-    def prendre_kaplas_camera(self):
-        """
-        Utilise la caméra MIPI et OpenCV ArUco pour récupérer 
-        l'orientation des 4 Kaplas et actionner avec FLIP ou nFLIP appropriés.
-        """
-        self._check_abort()
-        print(f"[ACTION] Analyse Caméra (ArUco) pour les 4 Kaplas (Equipe JAUNE={self.is_yellow})...")
-        
-        if vision:
-            kaplas_decision = vision.detect_kaplas_orientation(team_yellow=self.is_yellow)
-        else:
-            print("[VISION/SIMU] Simulation des Kaplas (Caméra non disponible).")
-            kaplas_decision = ["nFLIP", "nFLIP", "nFLIP", "nFLIP"]
-            
-        print(f"[DECISION] Actionneurs : 1={kaplas_decision[0]} | 2={kaplas_decision[1]} | 3={kaplas_decision[2]} | 4={kaplas_decision[3]}")
-        
-        self.cmd_actionneurs(
-            act1=kaplas_decision[0],
-            act2=kaplas_decision[1],
-            act3=kaplas_decision[2],
-            act4=kaplas_decision[3]
-        )
-        time.sleep(1)
 
     def cmd_actionneurs(self, command_string=None, act1=None, act2=None, act3=None, act4=None):
         """

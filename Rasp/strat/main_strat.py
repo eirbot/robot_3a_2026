@@ -95,6 +95,13 @@ def strat_loop():
                     
                     # Run
                     mod.run(robot)
+                    
+                    # --- ATTENTE FIN DE MATCH (90s) ---
+                    # Si la stratégie finit avant les 90s, on attend patiemment le rappel à la base
+                    print("[STRAT] Stratégie terminée. Attente du rappel à la base (90s)...")
+                    while shared.state["match_running"]:
+                        robot._check_time() # Lèvera EndOfMatchException à 90s
+                        time.sleep(1)
                 else:
                     print(f"[STRAT] Erreur : Stratégie '{strat_name}' inconnue ou fichier manquant !")
                 

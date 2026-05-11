@@ -60,9 +60,20 @@ class ESPMotors:
         self.cmd_done_event.clear()
         self.cmd_aborted = False
         self.send(f"G {x} {y} {theta}")
-        # Bloque l'exécution de la strat jusqu'à ce que l'ESP dise "DONE" ou "ABORT"
-        self.cmd_done_event.wait()
+        
+        # On attend la fin, mais on vérifie régulièrement si le match est fini
+        while not self.cmd_done_event.wait(0.2):
+            # Si le match est stoppé manuellement (IHM ou Bouton Stop)
+            if not shared.state.get("match_running", False):
+                print("[MOTORS] 🛑 Match arrêté pendant mouvement, envoi STOP")
+                self.stop_robot()
+                return False
+        
         return not self.cmd_aborted
+
+    def stop_robot(self):
+        """Arrête immédiatement les moteurs de l'ESP."""
+        self.send("H") # On va implémenter H (Halt) côté ESP
 
     def set_pos(self, x, y, theta):
         self.send(f"S {x} {y} {theta}")

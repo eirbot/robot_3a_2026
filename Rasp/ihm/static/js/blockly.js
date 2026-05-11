@@ -23,6 +23,8 @@ document.addEventListener("DOMContentLoaded", function () {
     const DEFAULT_START_X = 250;
     const DEFAULT_START_Y = 0;
     const DEFAULT_START_THETA = 0;
+    const ROBOT_WIDTH_MM = 320;
+    const ROBOT_LENGTH_MM = 370;
 
 
     // ============================================================
@@ -91,6 +93,19 @@ document.addEventListener("DOMContentLoaded", function () {
     Blockly.Blocks['pousse_kapla'] = { init: function () { this.appendDummyInput().appendField("🏎️ Pousse Kapla"); this.setPreviousStatement(true, null); this.setNextStatement(true, null); this.setColour(120); } };
     Blockly.Blocks['robot_stop'] = { init: function () { this.appendDummyInput().appendField("🛑 Arrêter le robot"); this.setPreviousStatement(true, null); this.setNextStatement(true, null); this.setColour(0); } };
 
+    Blockly.Blocks['robot_gobase_at'] = {
+        init: function () {
+            this.appendDummyInput()
+                .appendField("🏠 Retour Base à")
+                .appendField(new Blockly.FieldNumber(90), "SECONDS")
+                .appendField("secondes");
+            this.setPreviousStatement(true, null);
+            this.setNextStatement(true, null);
+            this.setColour(0); // Rouge
+            this.setTooltip("Attend le temps indiqué puis rentre à la base (coord. départ).");
+        }
+    };
+
     // --- NOUVEAUX ACTIONNEURS (BAS & HAUT NIVEAU) ---
     Blockly.Blocks['actionneur_unique'] = {
         init: function () {
@@ -150,6 +165,9 @@ document.addEventListener("DOMContentLoaded", function () {
     Blockly.Python.forBlock['poser_kapla'] = function (block) { return `robot.poseKapla(hauteur=${block.getFieldValue('HAUTEUR')})\n`; };
     Blockly.Python.forBlock['pousse_kapla'] = function (block) { return 'robot.pousse_kapla()\n'; };
     Blockly.Python.forBlock['robot_stop'] = function (block) { return 'robot.stop()\n'; };
+    Blockly.Python.forBlock['robot_gobase_at'] = function (block) {
+        return `robot.wait_until_and_return(${block.getFieldValue('SECONDS')})\n`;
+    };
 
     Blockly.Python.forBlock['actionneur_unique'] = function (block) {
         return `robot.cmd_actionneurs(act${block.getFieldValue('ID')}='${block.getFieldValue('CMD')}')\n`;
@@ -281,14 +299,69 @@ document.addEventListener("DOMContentLoaded", function () {
         }
     }
 
-    function drawStraightPath(bz, color, width) {
-        let p0 = worldToScreen(bz.p0.x, bz.p0.y);
-        let p3 = worldToScreen(bz.p3.x, bz.p3.y);
+    function drawStraightPath(bz, color, width, showFootprint = false) {
+        let p0_scr = worldToScreen(bz.p0.x, bz.p0.y);
+        let p3_scr = worldToScreen(bz.p3.x, bz.p3.y);
 
         ctx.beginPath();
-        ctx.moveTo(p0.x, p0.y);
-        ctx.lineTo(p3.x, p3.y);
+        ctx.moveTo(p0_scr.x, p0_scr.y);
+        ctx.lineTo(p3_scr.x, p3_scr.y);
         ctx.strokeStyle = color; ctx.lineWidth = width; ctx.stroke();
+
+        if (showFootprint) {
+            // --- TRACÉ DE L'ENCOMBREMENT (TUNNEL) ---
+            let dx = bz.p3.x - bz.p0.x;
+            let dy = bz.p3.y - bz.p0.y;
+            let dist = Math.sqrt(dx * dx + dy * dy);
+
+            if (dist > 0) {
+                let nx = dx / dist;
+                let ny = dy / dist;
+                let offsetX = -ny * (ROBOT_WIDTH_MM / 2);
+                let offsetY = nx * (ROBOT_WIDTH_MM / 2);
+
+                // Points des bords
+                let p0L = worldToScreen(bz.p0.x + offsetX, bz.p0.y + offsetY);
+                let p0R = worldToScreen(bz.p0.x - offsetX, bz.p0.y - offsetY);
+                let p3L = worldToScreen(bz.p3.x + offsetX, bz.p3.y + offsetY);
+                let p3R = worldToScreen(bz.p3.x - offsetX, bz.p3.y - offsetY);
+
+                ctx.beginPath();
+                ctx.moveTo(p0L.x, p0L.y); ctx.lineTo(p3L.x, p3L.y);
+                ctx.moveTo(p0R.x, p0R.y); ctx.lineTo(p3R.x, p3R.y);
+                ctx.strokeStyle = "rgba(255, 0, 0, 0.4)";
+                ctx.setLineDash([5, 5]); // Lignes pointillées pour le tunnel
+                ctx.lineWidth = 1;
+                ctx.stroke();
+                ctx.setLineDash([]); // Reset
+
+                // Remplissage léger du tunnel
+                ctx.beginPath();
+                ctx.moveTo(p0L.x, p0L.y); ctx.lineTo(p3L.x, p3L.y);
+                ctx.lineTo(p3R.x, p3R.y); ctx.lineTo(p0R.x, p0R.y);
+                ctx.closePath();
+                ctx.fillStyle = "rgba(255, 0, 0, 0.1)";
+                ctx.fill();
+            }
+        }
+    }
+
+    function drawRobotFootprint(x_mm, y_mm, theta, color) {
+        let screenPos = worldToScreen(x_mm, y_mm);
+        const scaleX = canvas.width / TABLE_WIDTH;
+        const w = ROBOT_WIDTH_MM * scaleX;
+        const l = ROBOT_LENGTH_MM * scaleX;
+
+        ctx.save();
+        ctx.translate(screenPos.x, screenPos.y);
+        let rotationRad = -theta * (Math.PI / 180) + Math.PI / 2;
+        ctx.rotate(rotationRad);
+        ctx.fillStyle = color;
+        ctx.fillRect(-w / 2, -l / 2, w, l);
+        ctx.strokeStyle = "rgba(255, 0, 0, 0.3)";
+        ctx.lineWidth = 1;
+        ctx.strokeRect(-w / 2, -l / 2, w, l);
+        ctx.restore();
     }
 
     // BOUCLE DE RENDU PRINCIPALE
@@ -307,22 +380,22 @@ document.addEventListener("DOMContentLoaded", function () {
             previewPath.forEach(bz => {
                 let mid = getSegmentPoint(0.5, bz.p0, bz.p3);
                 if (isOutOfBounds(bz.p3) || isOutOfBounds(mid)) {
-                    drawStraightPath(bz, "rgba(255, 140, 0, 0.8)", 3); // Orange Alerte
+                    drawStraightPath(bz, "rgba(255, 140, 0, 0.8)", 3, true); // Orange Alerte
                 } else {
-                    drawStraightPath(bz, "rgba(0, 255, 255, 0.6)", 2); // Cyan OK
+                    drawStraightPath(bz, "rgba(0, 255, 255, 0.6)", 2, true); // Cyan OK
                 }
             });
         }
 
         // 4. Mouvement Actif (Trait Rouge)
         if (robot.isMoving && robot.bezier) {
-            robot.bezier.t += 0.015; // Vitesse animation
+            robot.bezier.t += 0.02; // Vitesse animation
 
             if (robot.bezier.t >= 1) {
                 // Fin du segment
                 robot.x = robot.bezier.p3.x;
                 robot.y = robot.bezier.p3.y;
-                robot.theta = robot.bezier.targetTheta;
+                // On garde l'angle actuel (sera mis à jour par la rotation finale si besoin)
                 robot.isMoving = false;
                 processNextAction();
             } else {
@@ -332,13 +405,34 @@ document.addEventListener("DOMContentLoaded", function () {
                 // Calcul orientation (Tangente)
                 let dx = robot.bezier.p3.x - robot.bezier.p0.x;
                 let dy = robot.bezier.p3.y - robot.bezier.p0.y;
+
                 if (dx !== 0 || dy !== 0) {
-                    robot.theta = Math.atan2(dy, dx) * (180 / Math.PI);
+                    let moveAngle = Math.atan2(dy, dx) * (180 / Math.PI);
+
+                    // --- GESTION MARCHE ARRIERE ---
+                    // Si l'angle de mouvement est opposé à l'orientation actuelle (>90°), on ne change pas robot.theta
+                    // Le robot recule.
+                    let diff = Math.abs(((moveAngle - robot.theta + 180 + 360) % 360) - 180);
+                    if (diff < 90) {
+                        robot.theta = moveAngle;
+                    }
                 }
 
                 robot.x = pos.x;
                 robot.y = pos.y;
                 drawStraightPath(robot.bezier, "rgba(255, 0, 0, 0.8)", 4);
+            }
+        }
+
+        // 4.5 Rotation Active
+        if (robot.isRotating && robot.rotateTarget !== undefined) {
+            let diff = ((robot.rotateTarget - robot.theta + 180 + 360) % 360) - 180;
+            if (Math.abs(diff) < 2) {
+                robot.theta = robot.rotateTarget;
+                robot.isRotating = false;
+                processNextAction();
+            } else {
+                robot.theta += (diff > 0 ? 2 : -2); // 2 degrés par frame
             }
         }
 
@@ -460,7 +554,7 @@ document.addEventListener("DOMContentLoaded", function () {
                 let p3 = { x: targetX, y: targetY };
 
                 queue.push({ type: 'goto', x: targetX, y: targetY, theta: targetTheta, blockId: blockId });
-                pPath.push({ p0, p3, blockId: blockId });
+                pPath.push({ p0, p3, targetTheta: targetTheta, blockId: blockId });
 
                 simX = targetX; simY = targetY; simTheta = targetTheta;
             }
@@ -477,6 +571,20 @@ document.addEventListener("DOMContentLoaded", function () {
                     pPath = pPath.concat(subResult.path);
                     simX = subResult.endX; simY = subResult.endY; simTheta = subResult.endTheta;
                 }
+            }
+            else if (currentBlock.type === 'robot_gobase_at') {
+                let targetX = DEFAULT_START_X;
+                let targetY = DEFAULT_START_Y;
+                let targetTheta = DEFAULT_START_THETA + 180;
+
+                let p0 = { x: simX, y: simY };
+                let p3 = { x: targetX, y: targetY };
+
+                queue.push({ type: 'action', msg: "Attente fin match...", blockId: blockId });
+                queue.push({ type: 'goto', x: targetX, y: targetY, theta: targetTheta, blockId: blockId });
+                pPath.push({ p0, p3, targetTheta: targetTheta, blockId: blockId });
+
+                simX = targetX; simY = targetY; simTheta = targetTheta;
             }
             else if (currentBlock.type.includes('kapla') || currentBlock.type.includes('stop') || currentBlock.type.includes('play_') || currentBlock.type.includes('actionneur')) {
                 let msg = "Action";
@@ -529,7 +637,7 @@ document.addEventListener("DOMContentLoaded", function () {
         previewPath = [];
         consoleDiv.innerHTML = "";
         logSim("🚀 Simulation...");
-        robot.isMoving = false; robot.bezier = null; robot.currentIcon = null; robot.currentBlockId = null;
+        robot.isMoving = false; robot.isRotating = false; robot.bezier = null; robot.currentIcon = null; robot.currentBlockId = null;
 
         let result = parseBlocks(false);
         actionQueue = result.queue;
@@ -559,8 +667,40 @@ document.addEventListener("DOMContentLoaded", function () {
                 let p0 = { x: robot.x, y: robot.y };
                 let p3 = { x: action.x, y: action.y };
 
+                // Étape 1 : Rotation vers le point (si pas en marche arrière)
+                let dx = p3.x - p0.x;
+                let dy = p3.y - p0.y;
+                let moveAngle = Math.atan2(dy, dx) * (180 / Math.PI);
+                let diff = Math.abs(((moveAngle - robot.theta + 180 + 360) % 360) - 180);
+
+                if (diff > 5 && diff < 175) {
+                    // On ajoute une rotation AVANT le mouvement
+                    actionQueue.unshift({ ...action, type: 'goto_move' }); // On remettra le mouvement après
+                    actionQueue.unshift({ type: 'rotate', theta: moveAngle, blockId: action.blockId });
+                    processNextAction();
+                    return;
+                }
+
                 robot.bezier = { p0, p3, targetTheta: action.theta, t: 0 };
                 robot.isMoving = true;
+
+                // On ajoute la rotation finale APRÈS le mouvement
+                actionQueue.unshift({ type: 'rotate', theta: action.theta, blockId: action.blockId });
+            }
+            else if (action.type === 'goto_move') {
+                let p0 = { x: robot.x, y: robot.y };
+                let p3 = { x: action.x, y: action.y };
+                robot.bezier = { p0, p3, targetTheta: action.theta, t: 0 };
+                robot.isMoving = true;
+                actionQueue.unshift({ type: 'rotate', theta: action.theta, blockId: action.blockId });
+            }
+            else if (action.type === 'rotate') {
+                if (Math.abs(((action.theta - robot.theta + 180 + 360) % 360) - 180) < 1) {
+                    processNextAction();
+                    return;
+                }
+                robot.rotateTarget = action.theta;
+                robot.isRotating = true;
             }
             else if (action.type === 'action') {
                 robot.currentIcon = getIcon(action.msg);

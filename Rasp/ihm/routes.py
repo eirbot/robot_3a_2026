@@ -6,15 +6,8 @@ import glob
 import serial.tools.list_ports
 from flask import render_template, request, jsonify, redirect, url_for, Response, send_from_directory
 from werkzeug.utils import secure_filename
-from ihm.shared import app, state, cfg, audio, save_config, send_led_cmd, AUDIO_DIR, socketio, robot_pos
+from ihm.shared import app, state, cfg, audio, save_config, send_led_cmd, AUDIO_DIR, socketio, robot_pos, camera
 from strat.actions import esp
-
-# --- IMPORT CAMERA ---
-LibCamera = None
-try:
-    from utils.sensors.camera_libcamera import LibCamera
-except ImportError:
-    pass
 
 STRAT_DIR = os.path.join(os.getcwd(), 'strat', 'strategies')
 STRAT_DIR = os.path.join(os.getcwd(), 'strat', 'strategies')
@@ -38,13 +31,6 @@ if 'config' in state:
     if updated:
         state['config'] = conf # Force update du Manager
 
-# --- CAMERA ---
-cam_cfg = cfg.get("camera", {})
-camera = None
-if cam_cfg.get("enabled", False) and LibCamera:
-    try:
-        camera = LibCamera(resolution=(320, 240), framerate=15).start()
-    except: camera = None
 
 def generate_frames():
     # Compteur de sécurité pour éviter le chargement infini

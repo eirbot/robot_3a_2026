@@ -7,10 +7,10 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='css/common.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/blockly.css') }}">
 
-    <script src="https://unpkg.com/blockly/blockly_compressed.js"></script>
-    <script src="https://unpkg.com/blockly/blocks_compressed.js"></script>
-    <script src="https://unpkg.com/blockly/python_compressed.js"></script>
-    <script src="https://unpkg.com/blockly/msg/fr.js"></script>
+    <script src="{{ url_for('static', filename='js/vendor/blockly_compressed.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/vendor/blocks_compressed.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/vendor/python_compressed.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/vendor/fr.js') }}"></script>
 </head>
 
 <body>
@@ -66,6 +66,7 @@
         <category name="Mouvements" colour="#5C81A6">
             <block type="robot_goto"></block>
             <block type="robot_stop"></block>
+            <block type="robot_gobase_at"></block>
         </category>
         <category name="Actionneurs" colour="#5CA65C">
             <block type="prendre_kapla"></block>

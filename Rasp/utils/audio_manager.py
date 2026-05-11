@@ -60,7 +60,8 @@ class AudioManager:
 
         print(f"[AUDIO] Lecture : {abs_path}") # Debug
 
-        cmd = ["mpg123", "-q"]
+        # On force la sortie vers ALSA pour éviter les erreurs JACK
+        cmd = ["mpg123", "-q", "-o", "alsa"]
         if loop:
             cmd.append("--loop")
             cmd.append("-1")

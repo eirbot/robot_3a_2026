@@ -31,8 +31,20 @@ app.config['SECRET_KEY'] = 'secret_robot_2026'
 socketio = SocketIO(app, cors_allowed_origins="*", async_mode='threading')
 
 # Hardware
+from utils.sensors.camera_libcamera import LibCamera
 leds = LedStrip(enabled=cfg.get("leds_enabled", True))
 audio = AudioManager(cfg.get("audio", {}))
+
+# Caméra partagée
+camera = None
+cam_cfg = cfg.get("camera", {})
+if cam_cfg.get("enabled", True):
+    try:
+        # On initialise la caméra une seule fois pour tout le robot
+        camera = LibCamera(resolution=(1640, 1232), framerate=10).start()
+    except Exception as e:
+        print(f"[CAM] Erreur initialisation globale : {e}")
+        camera = None
 
 # Etat Global Partagé
 state = {

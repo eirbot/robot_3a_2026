@@ -2,7 +2,7 @@
 #define COMMON_H
 
 #define STEPG 16
-#define DIRG 17
+#define DIRG 4
 #define STEPD 19
 #define DIRD 18
 

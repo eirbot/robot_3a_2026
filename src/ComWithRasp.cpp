@@ -162,6 +162,10 @@ void ComWithRasp::processCommand(const String &cmd,
   } else if (cmd == "S" && params.size() == 3) {
     Serial.println("SetPos");
     serialGoto.SetPos((float)params[0], (float)params[1], (float)params[2]);
+  } else if (cmd == "H") {
+    Serial.println("Halt");
+    mot.Stop();
+    FLAG_STOP = true;
   } else {
     Serial.println("Commande inconnue");
   }

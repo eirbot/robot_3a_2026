@@ -1,8 +1,8 @@
 #!/bin/bash
 set -e
 
-USER_NAME="eirbot"
-PROJECT_DIR="/home/$USER_NAME/Documents/robot_3a_2026"
+USER_NAME=$(whoami)
+PROJECT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
 IHM_DIR="$PROJECT_DIR/ihm"
 VENV_DIR="$PROJECT_DIR/.venv"
 
@@ -11,7 +11,7 @@ sudo apt update -y
 sudo apt install -y python3-pip python3-venv python3-tk git
 
 echo "[2/9] Vérification de la structure du projet..."
-sudo mkdir -p "$IHM_DIR/systemd"
+sudo mkdir -p "$PROJECT_DIR/systemd"
 sudo mkdir -p "$IHM_DIR/audio"
 sudo chown -R $USER_NAME:$USER_NAME "$PROJECT_DIR"
 
@@ -30,13 +30,10 @@ source "$VENV_DIR/bin/activate"
 
 echo "[4/9] Installation des dépendances Python..."
 if [ -f "$PROJECT_DIR/requirements.txt" ]; then
-    # On utilise le chemin complet vers le python de la venv
-    # Cela garantit qu'on installe au bon endroit sans erreur PEP 668
     "$VENV_DIR/bin/python3" -m pip install --upgrade pip
     "$VENV_DIR/bin/python3" -m pip install -r "$PROJECT_DIR/requirements.txt"
 else
     echo "Fichier requirements.txt introuvable dans $PROJECT_DIR."
-    exit 1
 fi
 
 echo "[5/9] Configuration des permissions série..."
@@ -45,28 +42,36 @@ sudo usermod -a -G dialout $USER_NAME
 echo "[6/9] Installation des dépendances pour l'affichage Web local (pywebview)"
 sudo apt-get update && sudo apt-get install -y python3-gi python3-gi-cairo gir1.2-gtk-3.0 gir1.2-webkit2-4.1
 
-echo "[7/9] Copie des service systemd..."
-if [ -f "$PROJECT_DIR/systemd/robot.service" ]; then
-    sudo cp "$PROJECT_DIR/systemd/robot.service" /etc/systemd/system/robot.service
-else
-    echo "Aucun service trouvé dans le dossier systemd."
-    exit 1
-fi
-    
+echo "[7/9] Configuration des services Systemd..."
+# On génère le service dynamiquement pour s'adapter aux chemins réels
+cat <<EOF | sudo tee /etc/systemd/system/robot_launcher.service
+[Unit]
+Description=Eirbot 2026 Button Launcher
+After=network.target
+
+[Service]
+User=$USER_NAME
+WorkingDirectory=$PROJECT_DIR
+Environment=DISPLAY=:0
+Environment=XAUTHORITY=/home/$USER_NAME/.Xauthority
+ExecStart=$VENV_DIR/bin/python3 $PROJECT_DIR/launcher.py
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
 sudo systemctl daemon-reload
-sudo systemctl enable robot.service
+sudo systemctl enable robot_launcher.service
+sudo systemctl restart robot_launcher.service
+echo " -> Service robot_launcher installé et redémarré."
 
 echo "[8/9] Activation du son sur jack..."
 sudo raspi-config nonint do_audio 1
-# Tente de mettre le volume à 100% sur la sortie 'Headphone' ou 'PCM' (plus robuste que numid)
-sudo amixer sset 'Headphone' 100% 2>/dev/null || sudo amixer sset 'PCM' 100% 2>/dev/null || echo "Info: Impossible de régler le volume via amixer (normal sur certains OS récents)"
+sudo amixer sset 'Headphone' 100% 2>/dev/null || sudo amixer sset 'PCM' 100% 2>/dev/null || echo "Info: Impossible de régler le volume"
 
-
-echo "[9/9] Démarrage des service systemd..."
-# sudo systemctl start ihm.service
-# sudo systemctl start led_service.service
-
+echo "[9/9] Finalisation..."
 echo "Installation terminée !"
-echo "→ Service : robot.service"
+echo "→ Utilisateur : $USER_NAME"
 echo "→ Dossier Projet : $PROJECT_DIR"
-echo "→ Environnement virtuel : $VENV_DIR"

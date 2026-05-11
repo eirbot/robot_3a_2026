@@ -61,7 +61,7 @@ class ButtonsThread:
             
             # Group 1: Buttons 1-4 (Direct -> Internal Pull-UP -> Active LOW)
             # Switch connects Pin to GND. Default=1, Pressed=0.
-            pins_active_low = [PIN_TEAM, PIN_STRAT, PIN_REBOOT, PIN_MUSIC]
+            pins_active_low = [PIN_TEAM, PIN_STRAT, PIN_MUSIC]
             for p in pins_active_low:
                 GPIO.setup(p, GPIO.IN, pull_up_down=GPIO.PUD_UP)
                 
@@ -104,7 +104,7 @@ class ButtonsThread:
             # Check Inputs (Active Low Buttons)
             self.check_button(PIN_TEAM, self.action_team, active_low=True)
             self.check_button(PIN_STRAT, self.action_strat, active_low=True)
-            self.check_button(PIN_REBOOT, self.action_reboot, active_low=True)
+            # PIN_REBOOT est géré par launcher.py
             self.check_button(PIN_MUSIC, self.action_music, active_low=True)
             
             # Special Handling for Switches (Active High)
@@ -255,10 +255,8 @@ class ButtonsThread:
         # Optional: Blink LEDs?
 
     def action_reboot(self):
-        print("[BUTTONS] REBOOT DEMANDÉ...")
-        shared.send_led_cmd("COLOR:255,0,255") # Violet warning
-        time.sleep(1)
-        os.system("sudo reboot")
+        # Désormais géré par launcher.py en tâche de fond (Service Systemd)
+        print("[BUTTONS] Bouton 3 pressé (Action gérée par launcher.py)")
 
     def action_music(self):
         print("[BUTTONS] Musique !")

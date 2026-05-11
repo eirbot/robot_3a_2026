@@ -17,53 +17,72 @@ if __name__ == "__main__":
     
     led_process = None
     try:
-        # 0. Start LED Service (Subprocess)
+        # 0. Thread IHM (Serveur Web) - PRIORITAIRE pour le debug
+        print("[MAIN] 1. Lancement de l'IHM...")
+        from ihm import run_ihm
+        ihm_thread = threading.Thread(target=run_ihm, daemon=True)
+        ihm_thread.start()
+
+        # 1. Service LED
         led_script = os.path.join(os.path.dirname(__file__), 'utils', 'led_service.py')
         if os.path.exists(led_script):
-            print(f"[MAIN] Lancement du service LED : {led_script}")
+            print(f"[MAIN] 2. Lancement du service LED : {led_script}")
             led_process = subprocess.Popen([sys.executable, led_script])
-        else:
-            print(f"[MAIN] ERREUR: led_service.py introuvable à {led_script}")
-
-        # 1. Compilation et Lancement du driver LiDAR C++ (Subprocess)
+        
+        # 2. Driver LiDAR C++
         lidar_cpp = os.path.join(os.path.dirname(__file__), 'LiDAR', 'lidar_udp.cpp')
         lidar_bin = os.path.join(os.path.dirname(__file__), 'LiDAR', 'lidar_udp')
-        
         if not os.path.exists(lidar_bin):
-            print("[MAIN] Compilation du driver LiDAR C++ (-O3)...")
+            print("[MAIN] 3. Compilation du driver LiDAR C++...")
             subprocess.run(["g++", "-O3", lidar_cpp, "-o", lidar_bin], check=True)
             
-        print("[MAIN] Lancement du service LiDAR UDP en C++...")
+        print("[MAIN] 4. Lancement du service LiDAR UDP...")
         lidar_process = subprocess.Popen([lidar_bin])
         
-        # 1.5 Thread Anti-Collision (Ecoute de l'UDP)
+        # 3. Hardware & Collision
+        print("[MAIN] 5. Initialisation RobotActions & Collision Thread...")
         from strat.actions import RobotActions
         from LiDAR.lidar_thread import LidarCollisionThread
-        
-        # On fournit null s'il n'y pas besoin, mais l'objet RobotActions se map directement à l'IHM
         robot_instance = RobotActions()
         collision_thread = LidarCollisionThread(robot=robot_instance, seuil_mm=350.0)
         collision_thread.start()
 
-        # 2. Thread STRATEGIE (IA, Décisions)
+        # 4. Stratégie
+        print("[MAIN] 6. Lancement Thread Stratégie...")
         strat_thread = threading.Thread(target=strat_loop, daemon=True)
         strat_thread.start()
         
-        # 3. Thread IHM (Serveur Web)
-        ihm_thread = threading.Thread(target=run_ihm, daemon=True)
-        ihm_thread.start()
-
-        # 3.5 Thread BOUTONS (GPIO)
+        # 5. Boutons
+        print("[MAIN] 7. Lancement Thread Boutons...")
         from buttons_thread import run_buttons_loop
         btn_thread = threading.Thread(target=run_buttons_loop, daemon=True)
         btn_thread.start()
 
-        # 3.6 Thread TIMER (Décompte + Sync IHM)
+        # 6. Timer
+        print("[MAIN] 8. Lancement Thread Timer...")
         from timer_thread import start_timer_thread
         start_timer_thread()
         
         # Petit délai pour laisser le temps à Flask/SocketIO de démarrer
-        time.sleep(2)
+        time.sleep(3)
+
+        # --- ATTENTE DU SERVEUR WEB ---
+        import socket
+        def wait_for_port(port, host='127.0.0.1', timeout=30):
+            start_time = time.time()
+            while time.time() - start_time < timeout:
+                try:
+                    with socket.create_connection((host, port), timeout=1):
+                        return True
+                except (ConnectionRefusedError, OSError):
+                    time.sleep(0.5)
+            return False
+
+        print("[MAIN] Attente du serveur Flask sur le port 5000...")
+        if wait_for_port(5000):
+            print("[MAIN] Serveur prêt !")
+        else:
+            print("[MAIN] ⚠️ Timeout : Le serveur Flask n'a pas démarré à temps.")
 
         # --- UPDATE LED INITIALE (Couleur Equipe) ---
         # Ne pas écraser si on a une alerte tirette en cours
@@ -78,9 +97,7 @@ if __name__ == "__main__":
              # On renvoie la commande car le service LED n'était peut-être pas prêt lors du thread boutons
              shared.send_led_cmd("ANIM:BLINK:255,100,0,350")
 
-        # 4. Interface Graphique (Bloquant le Main) 
-        # On lance la fenêtre qui affiche le site local
-        # fullscreen=True est recommandé pour l'écran 7" du robot
+        # 4. Interface Graphique (RÉACTIVÉE)
         print("[MAIN] Lancement de l'affichage local...")
         webview.create_window('Robot 2026', 'http://127.0.0.1:5000', fullscreen=True)
         webview.start()

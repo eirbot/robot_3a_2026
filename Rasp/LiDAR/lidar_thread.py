@@ -84,6 +84,17 @@ class LidarCollisionThread(threading.Thread):
                             elif a <= -157.5 or a >= 157.5:
                                 this_point_obs = True
                                 this_point_type = 3 # BACK
+                            elif -45 <= a <= 45:
+                                if dist < self.seuil_mm * 0.7:
+                                    this_point_obs = True
+                                    this_point_type = 2
+                            elif a <= -45 and a >= -135 or a >= 45 and a <= 135:
+                                if dist < self.seuil_mm * 0.7:
+                                    this_point_obs = True
+                                    this_point_type = 3
+                            if dist < 230: # on regarde autour du robot si jamais il y a un obstacle trop proche
+                                this_point_obs = True
+                                this_point_type = 1
 
                     if this_point_obs:
                         last_obstacle_time = time.time()
@@ -129,11 +140,13 @@ class LidarCollisionThread(threading.Thread):
                             _sio.emit('lidar_pos', {'x': x_lidar, 'y': y_lidar, 'theta': theta_lidar, 'err': err_lidar})
                         else:
                             # --- LE PRINT MAGIQUE POUR COMPRENDRE LE PROBLÈME ---
-                            print(f"📡 [DEBUG] Vues: {num_beacons} balises | {status} | Odom ESP32: X={est_x:.0f} Y={est_y:.0f} Cap={est_cap:.0f}°")
+                            # print(f"📡 [DEBUG] Vues: {num_beacons} balises | {status} | Odom ESP32: X={est_x:.0f} Y={est_y:.0f} Cap={est_cap:.0f}°")
+                            pass
                     
                     elif num_beacons > 0:
                         # S'il voit 1 ou 2 balises, on veut le savoir aussi !
-                        print(f"📡 [DEBUG] Pas assez de balises vues ({num_beacons}/3)")
+                        # print(f"📡 [DEBUG] Pas assez de balises vues ({num_beacons}/3)")
+                        pass
                         
             except socket.timeout:
                 print("[⚠️ ALERTE] Perte de com LiDAR. Arrêt par sécurité.")

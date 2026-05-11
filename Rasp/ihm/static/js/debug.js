@@ -162,12 +162,6 @@ function flashESP(target) {
     }
 }
 
-function reloadCam() {
-    const img = document.getElementById('cam-feed');
-    if (img) img.src = "/video_feed?" + new Date().getTime();
-}
-
-
 function updateBrightness(val) {
     // Le slider est de 0 à 100
     // On veut que 100% = 0.5 (Max)

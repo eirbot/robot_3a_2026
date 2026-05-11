@@ -36,6 +36,20 @@ class cam:
         parameters.cornerRefinementMethod = cv2.aruco.CORNER_REFINE_SUBPIX  # Better corner refinement
         self.detector = cv2.aruco.ArucoDetector(aruco_dict, parameters)
 
+        # Test d'ouverture pour basculer en simu si besoin
+        if self.use_camera:
+            import ihm.shared as shared
+            # Si on a déjà une caméra partagée qui tourne, c'est OK
+            if shared.camera and shared.camera.running:
+                print("[CAM] Utilisation de la caméra partagée détectée.")
+            else:
+                # Sinon on teste l'ouverture locale (cas hors robot complet)
+                cap = cv2.VideoCapture(0)
+                if not cap.isOpened():
+                    print("⚠️ [CAM] Impossible d'ouvrir la caméra physique. Passage en mode simulation.")
+                    self.use_camera = False
+                cap.release()
+
         self.max_angle = None
         self.err_x = None
         self.err_y = None
@@ -91,16 +105,32 @@ class cam:
         return self.everything_in_position
 
     def capture_image(self):
+        import ihm.shared as shared
+        import numpy as np
+
+        # Priorité à la caméra partagée (LibCamera)
+        if shared.camera and shared.camera.running:
+            success, frame = shared.camera.read()
+            if success and frame is not None:
+                return frame
+            print("⚠️ [CAM] Échec lecture shared.camera, tentative fallback...")
+
+        # Fallback VideoCapture(0)
         cap = cv2.VideoCapture(0)
         if not cap.isOpened():
-            raise RuntimeError('Unable to open camera')
+            print("⚠️ [CAM] Erreur d'ouverture VideoCapture(0)")
+            return np.zeros((480, 640, 3), dtype=np.uint8)
+            
         ret, frame = cap.read()
         cap.release()
         if not ret:
-            raise RuntimeError('Unable to capture image from camera')
+            print("⚠️ [CAM] Échec de la capture d'image via VideoCapture(0)")
+            return np.zeros((480, 640, 3), dtype=np.uint8)
         return frame
     
     def get_colors(self, is_jaune):
+        if self.ids is None or len(self.ids) == 0:
+            return []
         self.sorted_ids = [id for _, id in sorted(zip([pos[0] for pos in self.aruco_center_positions], self.ids.flatten()))]
         if is_jaune:
             return [id == 47 for id in self.sorted_ids]
@@ -108,6 +138,8 @@ class cam:
             return [id == 36 for id in self.sorted_ids]
 
     def get_colors_pousse(self, is_jaune): 
+        if self.ids is None or len(self.ids) == 0:
+            return []
         self.sorted_ids = [id for _, id in sorted(zip([pos[1] for pos in self.aruco_center_positions], self.ids.flatten()))]
         if is_jaune:
             return [id == 47 for id in self.sorted_ids]
@@ -196,6 +228,30 @@ class cam:
         cv2.putText(self.image_reduite, 'Y', (self.dimension[0] - 80, self.dimension[1] - 30), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2)
         
         return self.image_reduite
+
+    def save_debug(self, prefix="debug"):
+        import os
+        import time
+        try:
+            # Création du dossier de logs si inexistant
+            log_dir = os.path.join(os.getcwd(), "logs", "vision")
+            if not os.path.exists(log_dir):
+                os.makedirs(log_dir, exist_ok=True)
+            
+            # Récupération de l'image annotée
+            img = self.get_image()
+            
+            # Nom de fichier avec timestamp
+            fname = f"{prefix}_{int(time.time())}.jpg"
+            fpath = os.path.join(log_dir, fname)
+            
+            import cv2
+            cv2.imwrite(fpath, img)
+            print(f"📸 [VISION] Debug sauvegardé : {fpath}")
+            return fpath
+        except Exception as e:
+            print(f"⚠️ [VISION] Erreur sauvegarde debug : {e}")
+            return None
 
 if __name__ == '__main__':
     
