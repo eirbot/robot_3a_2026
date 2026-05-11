@@ -7,9 +7,11 @@ PCF8575 pcf(0x20, &Wire);
 
 struct Actionneur {
   uint8_t p9G, p17G, v1, v2, stp, dir, sns;
+  bool dir_elevator;
   Servo servo9G, servo17G;
   bool canMove;
   int sns_status;
+  int p17G_status;
 
   void initialiser() {
     pcf.setButtonMask(bit(sns));
@@ -20,6 +22,7 @@ struct Actionneur {
     
     canMove = true;
     sns_status = 0;
+    p17G_status = 89;
   }
 
   void sns_read(){
@@ -45,13 +48,22 @@ struct Actionneur {
     }
   }
 
+  void soft_servo(int objectif){
+    while((objectif-p17G_status)>=1){
+      p17G_status += 1;
+      servo17G.write(p17G_status);
+      delay(50);
+    }
+  }
+
   void homming(){
-    pcf.write(dir, LOW);
+    pcf.write(dir, dir_elevator ? HIGH : LOW);
     unsigned long hommingBegging = micros();
     unsigned long hommingTimer = hommingBegging;
     unsigned long snsTimer = hommingBegging;
     unsigned long now = hommingBegging;
-    while(now - hommingBegging <=5000000){
+    soft_servo(90);
+    while(now - hommingBegging <=5000000 && sns_status== LOW){
       if(now - hommingTimer >= 500){
         this->fairePas();
         hommingTimer = micros();
@@ -61,10 +73,19 @@ struct Actionneur {
         snsTimer = micros();
       }
       now = micros();
+    }
+    pcf.write(dir, dir_elevator ? LOW : HIGH);
 
-      if(sns_status){
-        break;
+    hommingBegging = micros();
+    hommingTimer = hommingBegging;
+    now = hommingBegging;
+    canMove = true;
+    while(now - hommingBegging <=500000){
+      if(now - hommingTimer >= 500){
+        this->fairePas();
+        hommingTimer = micros();
       }
+      now = micros();
     }
   }
 
@@ -75,10 +96,10 @@ struct Actionneur {
   }
 };
 
-Actionneur act1 = {ServoE, ServoF, Verin31EXT, Verin32EXT, asc1_stp, asc1_dirEXT, sns_asc_1EXT};
-Actionneur act2 = {ServoA, ServoB, Verin11EXT, Verin12EXT, asc2_stp, asc2_dirEXT, sns_asc_2EXT};
-Actionneur act3 = {ServoC, ServoD, Verin21EXT, Verin22EXT, asc3_stp, asc3_dirEXT, sns_asc_3EXT};
-Actionneur act4 = {ServoG, ServoH, Verin41EXT, Verin42EXT, asc4_stp, asc4_dirEXT, sns_asc_4EXT};
+Actionneur act1 = {ServoE, ServoF, Verin31EXT, Verin32EXT, asc1_stp, asc1_dirEXT, sns_asc_1EXT, true};
+Actionneur act2 = {ServoA, ServoB, Verin11EXT, Verin12EXT, asc2_stp, asc2_dirEXT, sns_asc_2EXT, false};
+Actionneur act3 = {ServoC, ServoD, Verin21EXT, Verin22EXT, asc3_stp, asc3_dirEXT, sns_asc_3EXT, false};
+Actionneur act4 = {ServoG, ServoH, Verin41EXT, Verin42EXT, asc4_stp, asc4_dirEXT, sns_asc_4EXT, false};
 
 void setup() {
   Serial.begin(115200);
@@ -98,6 +119,9 @@ void setup() {
 
   Serial.println("Systeme pret.");
 
+  act1.homming();
+  act2.homming();
+  act3.homming();
   act4.homming();
 }
 
