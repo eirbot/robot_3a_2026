@@ -91,6 +91,28 @@ struct Actionneur {
     pcf.write(v1, LOW);
     pcf.write(v2, HIGH);
   }
+
+  void goUp(int steps){
+    pcf.write(dir, dir_elevator ? LOW : HIGH);
+    canMove = true;
+    for(int k =0; k<steps; k++){
+        this->fairePas();
+        delayMicroseconds(500);
+      }
+  }
+
+  void goDown(int steps){
+    pcf.write(dir, dir_elevator ? HIGH : LOW);
+    canMove = true;
+    for(int k =0; k<steps; k++){
+        this->fairePas();
+        delayMicroseconds(500);
+        this->sns_read();
+        if(sns_status==HIGH){
+          break;
+        }
+      }
+  }
 };
 
 Actionneur act1 = {ServoE, ServoF, Verin31EXT, Verin32EXT, asc1_stp, asc1_dirEXT, sns_asc_1EXT, true};
@@ -142,6 +164,9 @@ void setup() {
   act2.closePiston();
   act3.closePiston();
   act4.closePiston();
+
+  act1.goUp(10000);
+  act1.goDown(10000);
 }
 
 unsigned long SlowLoopTime = 0;
