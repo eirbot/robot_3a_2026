@@ -30,6 +30,10 @@ struct Actionneur {
     canMove = (sns_status == LOW); 
   }
 
+  void servo_9G(int angle){
+    servo9G.write(angle);
+  }
+
   void soft_servo(int objectif){
     while(abs(objectif-p17G_status)>=1){
       if(objectif-p17G_status >= 0 ){
@@ -74,7 +78,7 @@ struct Actionneur {
     canMove = true;
     for(int k =0; k<steps; k++){
         this->fairePas();
-        delayMicroseconds(500);
+        delayMicroseconds(100);
       }
   }
 
@@ -83,12 +87,21 @@ struct Actionneur {
     canMove = true;
     for(int k =0; k<steps; k++){
         this->fairePas();
-        delayMicroseconds(500);
+        delayMicroseconds(50);
         this->sns_read();
         if(sns_status==HIGH){
           break;
         }
       }
+  }
+
+  void grab(){
+    this->openPiston();
+    this->goDown(10000);
+    this->closePiston();
+    delay(2000);
+    this->goUp(3000);
+
   }
 };
 
@@ -140,7 +153,21 @@ void setup() {
   act3.goUp(5000);
   act4.goUp(5000);
 
-  act1.goDown(10000);
+  act1.grab();
+  act2.grab();
+  act3.grab();
+  act4.grab();
+
+  act1.soft_servo(40);
+  act4.soft_servo(140);
+  act2.soft_servo(60);
+  act3.soft_servo(120);
+
+  act1.servo_9G(180);
+  act2.servo_9G(180);
+  act3.servo_9G(180);
+  act4.servo_9G(180);
+
 }
 
 unsigned long SlowLoopTime = 0;
