@@ -30,29 +30,16 @@ struct Actionneur {
     canMove = (sns_status == LOW); 
   }
 
-  void commander(bool On) {
-    if(sns_status == HIGH) { 
-      pcf.write(v1, LOW);
-      pcf.write(v2, LOW);
-      pcf.write(dir, LOW);
-      servo9G.write(0);
-      servo17G.write(90);
-      canMove = false;
-    } else {
-      canMove = true;
-      pcf.write(v1, On ? HIGH : LOW);
-      pcf.write(v2, On ? LOW : HIGH);
-      pcf.write(dir, On ? LOW : HIGH);
-      servo9G.write(On ? 0 : 180);
-      servo17G.write(On ? 90 : 90);
-    }
-  }
-
   void soft_servo(int objectif){
-    while((objectif-p17G_status)>=1){
-      p17G_status += 1;
+    while(abs(objectif-p17G_status)>=1){
+      if(objectif-p17G_status >= 0 ){
+        p17G_status += 1;
+      }
+      else{
+        p17G_status -= 1;
+      }
       servo17G.write(p17G_status);
-      delay(50);
+      delay(10);
     }
   }
 
@@ -123,6 +110,11 @@ void setup() {
   act2.homming();
   act3.homming();
   act4.homming();
+
+  act1.soft_servo(40);
+  act4.soft_servo(140);
+  act2.soft_servo(60);
+  act3.soft_servo(120);
 }
 
 unsigned long SlowLoopTime = 0;
