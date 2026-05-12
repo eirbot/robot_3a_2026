@@ -81,6 +81,16 @@ struct Actionneur {
       digitalWrite(stp, !digitalRead(stp));
     }
   }
+
+  void closePiston(){
+    pcf.write(v1, HIGH);
+    pcf.write(v2, LOW);
+  }
+
+  void openPiston(){
+    pcf.write(v1, LOW);
+    pcf.write(v2, HIGH);
+  }
 };
 
 Actionneur act1 = {ServoE, ServoF, Verin31EXT, Verin32EXT, asc1_stp, asc1_dirEXT, sns_asc_1EXT, true};
@@ -115,6 +125,23 @@ void setup() {
   act4.soft_servo(140);
   act2.soft_servo(60);
   act3.soft_servo(120);
+
+  act2.soft_servo(90);
+  act3.soft_servo(90);
+  act1.soft_servo(90);
+  act4.soft_servo(90);
+
+  act1.openPiston();
+  act2.openPiston();
+  act3.openPiston();
+  act4.openPiston();
+
+  delay(3000);
+
+  act1.closePiston();
+  act2.closePiston();
+  act3.closePiston();
+  act4.closePiston();
 }
 
 unsigned long SlowLoopTime = 0;
