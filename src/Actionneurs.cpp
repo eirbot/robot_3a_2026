@@ -45,35 +45,12 @@ struct Actionneur {
 
   void homming(){
     pcf.write(dir, dir_elevator ? HIGH : LOW);
-    unsigned long hommingBegging = micros();
-    unsigned long hommingTimer = hommingBegging;
-    unsigned long snsTimer = hommingBegging;
-    unsigned long now = hommingBegging;
     soft_servo(90);
-    while(now - hommingBegging <=5000000 && sns_status== LOW){
-      if(now - hommingTimer >= 500){
-        this->fairePas();
-        hommingTimer = micros();
-      }
-      if(now - snsTimer >= 110000){
-        this->sns_read();
-        snsTimer = micros();
-      }
-      now = micros();
-    }
-    pcf.write(dir, dir_elevator ? LOW : HIGH);
+    this->goDown(10000);
 
-    hommingBegging = micros();
-    hommingTimer = hommingBegging;
-    now = hommingBegging;
+    pcf.write(dir, dir_elevator ? LOW : HIGH);
     canMove = true;
-    while(now - hommingBegging <=500000){
-      if(now - hommingTimer >= 500){
-        this->fairePas();
-        hommingTimer = micros();
-      }
-      now = micros();
-    }
+    this->goUp(1000);
   }
 
   void fairePas() {
@@ -153,19 +130,16 @@ void setup() {
   act1.soft_servo(90);
   act4.soft_servo(90);
 
-  act1.openPiston();
-  act2.openPiston();
-  act3.openPiston();
-  act4.openPiston();
-
-  delay(3000);
-
   act1.closePiston();
   act2.closePiston();
   act3.closePiston();
   act4.closePiston();
 
-  act1.goUp(10000);
+  act1.goUp(5000);
+  act2.goUp(5000);
+  act3.goUp(5000);
+  act4.goUp(5000);
+
   act1.goDown(10000);
 }
 
