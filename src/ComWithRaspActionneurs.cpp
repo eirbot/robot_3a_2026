@@ -111,24 +111,27 @@ void ComWithRasp::processLine() {
 
 void ComWithRasp::processCommand(const String &cmd,
                                  const std::vector<int> &params) {
-  if (cmd == "G" && params.size() == 3) {
-    if (!isMoving) {
-      Serial.println("GoToPosition (async)");
-      isMoving = true;
-
-      // On alloue une structure pour passer les arguments + l'instance courante
-      struct GoToArgs {
-        float x, y, angle;
-        ComWithRasp *instance;
-      };
-
-      GoToArgs *args = new GoToArgs{(float)params[0], (float)params[1],
-                                    (float)params[2], this};
-      xTaskCreate(GoToTask, "GoToTask", 4096, args, 2, NULL);
-    } else {
-      Serial.println("Deplacement deja en cours");
+  if (cmd == "G" && params.size() == 1) {
+    if((int)params[0]==1){
+      act1.closePiston();
+    } else if((int)params[0]==2) {
+      act2.closePiston();
+    } else if((int)params[0]==3) {
+      act3.closePiston();
+    } else if((int)params[0]==4) {
+      act4.closePiston();
     }
-  } else if (cmd == "P") {
+  } else if (cmd == "R" && params.size() == 1) {
+    if((int)params[0]==1){
+      act1.openPiston();
+    } else if((int)params[0]==2) {
+      act2.openPiston();
+    } else if((int)params[0]==3) {
+      act3.openPiston();
+    } else if((int)params[0]==4) {
+      act4.openPiston();
+    }
+  } else if (cmd == "P" && params.size() == 2) {
     if((int)params[0]==1){
       int angle = 90;
       if((int)params[1] == 1){
