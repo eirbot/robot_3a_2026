@@ -65,8 +65,10 @@ class LedServer:
     def stop_current_anim(self):
         self.stop_anim_flag = True
         if self.current_anim_thread and self.current_anim_thread.is_alive():
-            self.current_anim_thread.join(timeout=0.2)
-        self.stop_anim_flag = False
+            # On attend que le thread se termine (0.5s max)
+            self.current_anim_thread.join(timeout=0.5)
+        # On ne remet pas le flag à False ici, 
+        # car cela permettrait à une animation "mourante" de survivre.
 
     def start_anim_thread(self, target, args=()):
         self.stop_current_anim()

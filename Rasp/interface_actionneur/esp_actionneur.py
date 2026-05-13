@@ -96,10 +96,10 @@ class ESPActionneurs:
         time.sleep(1)
         
     def pose_camera(self):
-        self.ascenseur(1, 200)
-        self.ascenseur(2, 180)
-        self.ascenseur(3, 180)
-        self.ascenseur(4, 200)
+        self.ascenseur(1, 170)
+        self.ascenseur(2, 170)
+        self.ascenseur(3, 170)
+        self.ascenseur(4, 170)
 
         self.pivoter(1, 1)
         self.pivoter(4, 1)
