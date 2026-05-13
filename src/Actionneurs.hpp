@@ -123,11 +123,12 @@ struct Actionneur {
   }
 };
 
-
 extern Actionneur act1;
 extern Actionneur act2;
 extern Actionneur act3;
 extern Actionneur act4;
+
+void startActionneurTask();
 
 void ARDUINO_ISR_ATTR IntEXTfct();
 
