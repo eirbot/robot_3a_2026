@@ -146,67 +146,105 @@ class RobotActions:
 
     def approcheKapla(self):
         self._check_abort()
-        print("[ACTION] Recalage visuel devant les Kaplas (Robot Différentiel)...")
+        print("[ACTION] Recalage visuel : Latéral (Y) puis Profondeur (X)...")
 
         if not vision_cam:
             print("[VISION] Caméra indisponible, mouvement à l'aveugle.")
-            # Mouvement par défaut si pas de caméra (ton ancien code)
             x_robot, y_robot, theta_robot = shared.robot_pos['x'], shared.robot_pos['y'], shared.robot_pos['theta']
             x = x_robot - math.cos(math.radians(theta_robot)) * 100
             y = y_robot - math.sin(math.radians(theta_robot)) * 100
             self.goto(x, y, theta_robot)
-            self.goto(0, 0, 0) # Remplace par tes coo absolues par défaut
+            self.goto(0, 0, 0)
             return
 
-        # On fait une boucle d'approche (max 3 tentatives pour ne pas perdre trop de temps)
-        for tentative in range(3):
-            self._check_abort()
-            
-            # 1. On regarde si on est déjà bien placé
-            in_position = vision_cam.check_aruco_position()
-            if in_position:
-                print(f"[VISION] Alignement parfait ! (Tentative {tentative+1}/3)")
-                break
-
-            # 2. Sinon, on récupère les erreurs
-            err_x, err_y, err_angle = vision_cam.get_errors()
-            
-            if err_x is None or err_y is None:
-                print("[VISION] Aucun code ArUco détecté. Impossible de se recaler.")
-                break
-
-            print(f"[VISION] Erreurs -> Latéral(X):{err_x:.1f}mm, Profondeur(Y):{err_y:.1f}mm, Angle:{err_angle:.1f}°")
-
-            # 3. Position actuelle de l'odomètrie
-            x_actuel = shared.robot_pos['x']
-            y_actuel = shared.robot_pos['y']
-            theta_actuel = shared.robot_pos['theta']
+        # 1. LECTURE INITIALE (Au plus près des Kaplas pour une meilleure visibilité)
+        print("[VISION] 1. Stabilisation et Lecture initiale...")
+        time.sleep(0.5) # On laisse le robot s'arrêter complètement pour éviter le flou
+        vision_cam.check_aruco_position()
+        vision_cam.save_debug(prefix="init_approche")
+        init_err_x, init_err_y, init_err_angle = vision_cam.get_errors()
+        
+        # On sauvegarde la position absolue des Kaplas au cas où on les perd de vue après le recul
+        target_fallback = None
+        deja_aligne = False
+        if init_err_x is not None:
+            x_actuel, y_actuel, theta_actuel = shared.robot_pos['x'], shared.robot_pos['y'], shared.robot_pos['theta']
             theta_rad = math.radians(theta_actuel)
+            tx = x_actuel + (init_err_x * math.cos(theta_rad)) - (init_err_y * math.sin(theta_rad))
+            ty = y_actuel + (init_err_x * math.sin(theta_rad)) + (init_err_y * math.cos(theta_rad))
+            tt = (theta_actuel + init_err_angle) % 360
+            target_fallback = (tx, ty, tt)
+            print(f"[VISION] Kaplas repérés ! Prof:{init_err_x:.1f}mm, Lat:{init_err_y:.1f}mm, Angle:{init_err_angle:.1f}°")
+            
+            # Si on est déjà bien en face, on s'épargne le recul et le recalage !
+            if abs(init_err_y) < 5 and abs(init_err_angle) < 2:
+                print("[VISION] Robot déjà parfaitement aligné ! On passe direct à l'approche.")
+                deja_aligne = True
+        else:
+            print("[VISION] ArUco non vus de près, on tente quand même le recul...")
 
-            # 4. Calcul de la CIBLE FINALE ABSOLUE sur la table
-            # (err_y = profondeur devant le robot, err_x = décalage latéral gauche/droite)
-            # Attention : adapte le signe de err_x et err_y si ton robot part dans le mauvais sens !
-            correction_x = (err_y * math.cos(theta_rad)) - (err_x * math.sin(theta_rad))
-            correction_y = (err_y * math.sin(theta_rad)) + (err_x * math.cos(theta_rad))
-            
-            cible_x = x_actuel + correction_x
-            cible_y = y_actuel + correction_y
-            cible_theta = (theta_actuel + err_angle) % 360
-
-            # 5. LA MANŒUVRE : On recule d'abord pour se dégager (ex: 150 mm)
-            recul = 150 
-            x_recul = x_actuel - (recul * math.cos(theta_rad))
-            y_recul = y_actuel - (recul * math.sin(theta_rad))
-            
-            print(f"[VISION] Manœuvre : Recul de {recul}mm...")
-            self.goto(x_recul, y_recul, theta_actuel, real=True)
-            
-            # 6. On fonce vers la position parfaite
-            print("[VISION] Alignement sur la cible...")
-            self.goto(cible_x, cible_y, cible_theta, real=True)
-            
-            # Petite pause pour que la caméra ne prenne pas une photo floue au prochain tour
+        if not deja_aligne:
+            # 2. RECUL INITIAL (pour avoir la place de manœuvrer latéralement)
+            x_actuel, y_actuel, theta_actuel = shared.robot_pos['x'], shared.robot_pos['y'], shared.robot_pos['theta']
+            theta_rad = math.radians(theta_actuel)
+            recul = 150
+            print(f"[VISION] 2. Manœuvre de dégagement (Recul de {recul}mm)...")
+            self.goto(x_actuel - recul * math.cos(theta_rad), y_actuel - recul * math.sin(theta_rad), theta_actuel, real=True)
             time.sleep(0.5)
+    
+            # 3. BOUCLE D'ALIGNEMENT LATÉRAL (Erreur Y)
+            print("[VISION] 3. Alignement Latéral (Gauche/Droite)...")
+            for tentative in range(3):
+                self._check_abort()
+                vision_cam.check_aruco_position()
+                vision_cam.save_debug(prefix="approche")
+                err_x, err_y, err_angle = vision_cam.get_errors()
+                
+                if err_x is None:
+                    print("[VISION] ArUco perdu, arrêt de l'alignement.")
+                    break
+    
+                print(f"[VISION] Latéral T{tentative+1} -> X(Prof):{err_x:.1f}mm, Y(Lat):{err_y:.1f}mm, Angle:{err_angle:.1f}°")
+    
+                # Si l'erreur Y (latérale) et l'angle sont faibles, on est bien en face
+                if abs(err_y) < 5 and abs(err_angle) < 2:
+                    print("[VISION] Alignement Y parfait !")
+                    break
+    
+                # Correction uniquement sur l'axe Y (latéral) et l'Angle
+                # On conserve la profondeur actuelle (on ne corrige pas err_x ici)
+                x_actuel, y_actuel, theta_actuel = shared.robot_pos['x'], shared.robot_pos['y'], shared.robot_pos['theta']
+                theta_rad = math.radians(theta_actuel)
+                
+                # Correction de Y (gauche/droite par rapport au robot)
+                cible_x = x_actuel - (err_y * math.sin(theta_rad))
+                cible_y = y_actuel + (err_y * math.cos(theta_rad))
+                cible_theta = (theta_actuel + err_angle) % 360
+    
+                self.goto(cible_x, cible_y, cible_theta, real=True)
+                time.sleep(0.5) # Pause pour stabiliser la caméra
+
+        # 4. APPROCHE FINALE (Erreur X - Profondeur)
+        self._check_abort()
+        vision_cam.check_aruco_position()
+        vision_cam.save_debug(prefix="approche")
+        err_x, err_y, err_angle = vision_cam.get_errors()
+        
+        if err_x is not None:
+            print(f"[VISION] 4. Approche Finale (Profondeur) de {err_x:.1f}mm...")
+            x_actuel, y_actuel, theta_actuel = shared.robot_pos['x'], shared.robot_pos['y'], shared.robot_pos['theta']
+            theta_rad = math.radians(theta_actuel)
+            
+            # On avance tout droit pour corriger err_x
+            final_x = x_actuel + (err_x * math.cos(theta_rad))
+            final_y = y_actuel + (err_x * math.sin(theta_rad))
+            
+            self.goto(final_x, final_y, theta_actuel, real=True)
+        elif target_fallback is not None:
+            print("[VISION] ArUco perdu. Utilisation de la position de secours (sauvegardée au début) !")
+            self.goto(target_fallback[0], target_fallback[1], target_fallback[2], real=True)
+        else:
+            print("[VISION] ÉCHEC : ArUco introuvable, abandon de l'approche !")
 
     def prendreKapla(self, hauteur=0):
         self._check_abort()

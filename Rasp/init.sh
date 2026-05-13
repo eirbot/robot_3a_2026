@@ -54,6 +54,7 @@ User=$USER_NAME
 WorkingDirectory=$PROJECT_DIR
 Environment=DISPLAY=:0
 Environment=XAUTHORITY=/home/$USER_NAME/.Xauthority
+Environment=XDG_RUNTIME_DIR=/run/user/$(id -u $USER_NAME)
 ExecStart=$VENV_DIR/bin/python3 $PROJECT_DIR/launcher.py
 Restart=always
 RestartSec=5
@@ -67,9 +68,9 @@ sudo systemctl enable robot_launcher.service
 sudo systemctl restart robot_launcher.service
 echo " -> Service robot_launcher installé et redémarré."
 
-echo "[8/9] Activation du son sur jack..."
-sudo raspi-config nonint do_audio 1
-sudo amixer sset 'Headphone' 100% 2>/dev/null || sudo amixer sset 'PCM' 100% 2>/dev/null || echo "Info: Impossible de régler le volume"
+echo "[8/9] Activation du son (PulseAudio/PipeWire)..."
+# Plus besoin de forcer raspi-config pour le jack, PipeWire gère automatiquement.
+pactl set-sink-volume @DEFAULT_SINK@ 100% 2>/dev/null || echo "Info: Impossible de régler le volume par défaut"
 
 echo "[9/9] Finalisation..."
 echo "Installation terminée !"

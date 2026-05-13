@@ -106,6 +106,17 @@ document.addEventListener("DOMContentLoaded", function () {
         }
     };
 
+    Blockly.Blocks['robot_approche_kapla'] = {
+        init: function () {
+            this.appendDummyInput()
+                .appendField("👁️ Approche Kapla (Vision)");
+            this.setPreviousStatement(true, null);
+            this.setNextStatement(true, null);
+            this.setColour(40); // Orange/Jaune
+            this.setTooltip("Se positionne devant un Kapla détecté par la caméra.");
+        }
+    };
+
     // --- NOUVEAUX ACTIONNEURS (BAS & HAUT NIVEAU) ---
     Blockly.Blocks['actionneur_unique'] = {
         init: function () {
@@ -168,6 +179,7 @@ document.addEventListener("DOMContentLoaded", function () {
     Blockly.Python.forBlock['robot_gobase_at'] = function (block) {
         return `robot.wait_until_and_return(${block.getFieldValue('SECONDS')})\n`;
     };
+    Blockly.Python.forBlock['robot_approche_kapla'] = function (block) { return 'robot.approcheKapla()\n'; };
 
     Blockly.Python.forBlock['actionneur_unique'] = function (block) {
         return `robot.cmd_actionneurs(act${block.getFieldValue('ID')}='${block.getFieldValue('CMD')}')\n`;
@@ -355,7 +367,6 @@ document.addEventListener("DOMContentLoaded", function () {
         ctx.save();
         ctx.translate(screenPos.x, screenPos.y);
         let rotationRad = -theta * (Math.PI / 180) + Math.PI / 2;
-        ctx.rotate(rotationRad);
         ctx.fillStyle = color;
         ctx.fillRect(-w / 2, -l / 2, w, l);
         ctx.strokeStyle = "rgba(255, 0, 0, 0.3)";

@@ -60,8 +60,8 @@ class AudioManager:
 
         print(f"[AUDIO] Lecture : {abs_path}") # Debug
 
-        # On force la sortie vers ALSA pour éviter les erreurs JACK
-        cmd = ["mpg123", "-q", "-o", "alsa"]
+        # On force la sortie vers PulseAudio (PipeWire gère PulseAudio)
+        cmd = ["mpg123", "-q", "-o", "pulse"]
         if loop:
             cmd.append("--loop")
             cmd.append("-1")
@@ -81,9 +81,8 @@ class AudioManager:
         """Change le volume système immédiatement via amixer"""
         self.volume_percent = int(volume_percent)
         try:
-            # On règle le Master ou PCM (dépend de la carte son de la Rasp)
-            # Utilise 'PCM' ou 'Master' selon ce qui marche chez toi avec `alsamixer`
-            subprocess.run(["amixer", "sset", "Master", f"{self.volume_percent}%"], 
+            # pactl fonctionne nativement avec PipeWire / PulseAudio
+            subprocess.run(["pactl", "set-sink-volume", "@DEFAULT_SINK@", f"{self.volume_percent}%"], 
                            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         except Exception as e:
             print(f"[AUDIO] Erreur volume : {e}")

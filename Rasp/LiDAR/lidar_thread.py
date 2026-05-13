@@ -92,7 +92,7 @@ class LidarCollisionThread(threading.Thread):
                                 if dist < self.seuil_mm * 0.7:
                                     this_point_obs = True
                                     this_point_type = 3
-                            if dist < 230: # on regarde autour du robot si jamais il y a un obstacle trop proche
+                            if dist < 130: # on regarde autour du robot si jamais il y a un obstacle trop proche
                                 this_point_obs = True
                                 this_point_type = 1
 
