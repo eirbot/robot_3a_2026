@@ -138,8 +138,9 @@ void ComWithRasp::processCommand(const String &cmd,
     // Serial.println(LiDAR_state);
   } else if (cmd == "A" && params.size() == 2) {
     Serial.println("SetPos");
+    int mmToStep =80;
+    int asked_height = (int)params[1]* mmToStep;
     if((int)params[0]==1){
-      int asked_height = (int)params[1];
       if(asked_height - act1.asc_height >=0){
         act1.goUp(asked_height - act1.asc_height);
       }
@@ -148,6 +149,34 @@ void ComWithRasp::processCommand(const String &cmd,
       }
       act1.asc_height = asked_height;
     }
+    else if((int)params[0]==2){
+      if(asked_height - act1.asc_height >=0){
+        act2.goUp(asked_height - act1.asc_height);
+      }
+      else{
+        act2.goDown(act1.asc_height - asked_height);
+      }
+      act2.asc_height = asked_height;
+    }
+    else if((int)params[0]==3){
+      if(asked_height - act1.asc_height >=0){
+        act3.goUp(asked_height - act1.asc_height);
+      }
+      else{
+        act3.goDown(act1.asc_height - asked_height);
+      }
+      act3.asc_height = asked_height;
+    }
+    else if((int)params[0]==4){
+      if(asked_height - act1.asc_height >=0){
+        act4.goUp(asked_height - act1.asc_height);
+      }
+      else{
+        act4.goDown(act1.asc_height - asked_height);
+      }
+      act4.asc_height = asked_height;
+    }
+    
   } else if (cmd == "I") {
     Serial.println("init_robot");
     act1.homming();
