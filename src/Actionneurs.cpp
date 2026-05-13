@@ -8,6 +8,8 @@ PCF8575 pcf(0x20, &Wire);
 
 volatile bool IntDetected = false; 
 
+static ComWithRasp comRasp;
+
 struct Actionneur {
   uint8_t p9G, p17G, v1, v2, stp, dir, sns;
   bool dir_elevator;
@@ -181,7 +183,6 @@ void readAllSns(){
 }
 
 void setup() {
-  static ComWithRasp comRasp;
 
   Serial.begin(115200);
   
@@ -211,36 +212,13 @@ void setup() {
   act4.homming();
 }
 
-unsigned long SlowLoopTime = 0;
-bool SlowLoopPhase = true;
-unsigned long stepperTimer = 0;
-unsigned long snsTimer = 0;
-
 void loop() {
-  // if (IntDetected) {
-  //   Serial.println("Signal détecté !");
-  //   IntDetected = false;
-  // }
-  
-
-//   // Changement d'état toutes les secondes
-//   if(millis() - SlowLoopTime >= 1000){
-//     act2.commander(SlowLoopPhase);
-//     act1.commander(SlowLoopPhase);
-//     SlowLoopPhase = !SlowLoopPhase;
-//     SlowLoopTime = millis();
-//   }
-  
-//   // Génération des pas (Square wave)
-//   if(micros() - stepperTimer >= 500) {
-//     act2.fairePas();
-//     act1.fairePas();
-//     stepperTimer = micros();
-//   }
-
-//   if(millis() - snsTimer >= 15) {
-//     act2.sns_read();
-//     act1.sns_read();
-//     snsTimer = millis();
-//   }
+  if(comRasp.flagInit){
+    Serial.println("flag recieved");
+    act1.homming();
+    act2.homming();
+    act3.homming();
+    act4.homming();
+    comRasp.flagInit=false;
+  }
 }
