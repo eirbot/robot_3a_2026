@@ -2,10 +2,10 @@
 #define ACTIONNEURS_HPP
 
 #include "Arduino.h"
-#include "PCF8575.h"  // Bibliothèque de Rob Tillaart
-#include "GpioActionneurs.hpp"
-#include <ESP32Servo.h>
 #include "ComWithRaspActionneurs.hpp"
+#include "GpioActionneurs.hpp"
+#include "PCF8575.h" // Bibliothèque de Rob Tillaart
+#include <ESP32Servo.h>
 
 extern PCF8575 pcf;
 extern volatile bool IntDetected;
@@ -22,11 +22,11 @@ struct Actionneur {
 
   void initialiser() {
     pcf.setButtonMask(bit(sns));
-    
+
     pinMode(stp, OUTPUT);
     servo9G.attach(p9G);
     servo17G.attach(p17G);
-    
+
     canMove = true;
     sns_status = 0;
     p17G_status = 89;
@@ -34,21 +34,18 @@ struct Actionneur {
     asc_height = 0;
   }
 
-  void sns_read(){
+  void sns_read() {
     sns_status = pcf.read(sns);
-    canMove = (sns_status == LOW); 
+    canMove = (sns_status == LOW);
   }
 
-  void servo_9G(int angle){
-    servo9G.write(angle);
-  }
+  void servo_9G(int angle) { servo9G.write(angle); }
 
-  void soft_servo(int objectif){
-    while(abs(objectif-p17G_status)>=1){
-      if(objectif-p17G_status >= 0 ){
+  void soft_servo(int objectif) {
+    while (abs(objectif - p17G_status) >= 1) {
+      if (objectif - p17G_status >= 0) {
         p17G_status += 1;
-      }
-      else{
+      } else {
         p17G_status -= 1;
       }
       servo17G.write(p17G_status);
@@ -56,16 +53,16 @@ struct Actionneur {
     }
   }
 
-  void homming(){
+  void homming() {
     pcf.write(dir, dir_elevator ? HIGH : LOW);
     soft_servo(90);
     servo_9G(0);
-    this->goDown(10000);
+    this->goDown(20000);
 
     pcf.write(dir, dir_elevator ? LOW : HIGH);
     canMove = true;
     this->goUp(200);
-    
+
     asc_height = 0;
   }
 
@@ -75,45 +72,45 @@ struct Actionneur {
     }
   }
 
-  void closePiston(){
+  void closePiston() {
     pcf.write(v1, HIGH);
     pcf.write(v2, LOW);
   }
 
-  void openPiston(){
+  void openPiston() {
     pcf.write(v1, LOW);
     pcf.write(v2, HIGH);
   }
 
-  void goUp(int steps){
+  void goUp(int steps) {
     pcf.write(dir, dir_elevator ? LOW : HIGH);
     canMove = true;
-    for(int k =0; k<steps; k++){
-        this->fairePas();
-        delayMicroseconds(100);
-      }
+    for (int k = 0; k < steps; k++) {
+      this->fairePas();
+      delayMicroseconds(100);
+    }
   }
 
-  void goDown(int steps){
+  void goDown(int steps) {
     pcf.write(dir, dir_elevator ? HIGH : LOW);
     canMove = true;
     sns_read();
-    if(sns_status==LOW){
-      for(int k =0; k<steps; k++){
+    if (sns_status == LOW) {
+      for (int k = 0; k < steps; k++) {
         this->fairePas();
         delayMicroseconds(50);
-        if(IntDetected){
+        if (IntDetected) {
           sns_read();
           IntDetected = false;
         }
-        if(sns_status==HIGH){
+        if (sns_status == HIGH) {
           break;
         }
       }
     }
   }
 
-  void grab(){
+  void grab() {
     this->openPiston();
     delay(1000);
     this->goDown(10000);

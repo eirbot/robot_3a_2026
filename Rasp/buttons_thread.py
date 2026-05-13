@@ -172,24 +172,21 @@ class ButtonsThread:
                     current_state = shared.state.get('tirette', 'WAIT')
                     
                     if current_state == "WAIT" or current_state == "NON-ARMED":
-                        # Logic: Must be INSERTED to ARM.
-                        # But if already inserted at boot, we might want to wait for removal first?
-                        # User: "-si la tirette est deja dans le robot alors que le programme n'etait pas lancé il dit qu'il faut la retirer"
-                        # This implies we start in a state checking if inserted.
-                        
                         if is_inserted:
                              # Warn user to remove
                              if shared.state.get('tirette_msg') != "REMOVE_TO_RESET":
-                                 print("[BUTTONS] ⚠️ Veuillez RETIRER la tirette pour réinitialiser !")
+                                 print("[BUTTONS] ⚠️ Sécurité : Veuillez RETIRER la tirette !")
                                  shared.state['tirette_msg'] = "REMOVE_TO_RESET"
-                                 # Optional: LED Orange Blink warning (0.35s)
                                  shared.send_led_cmd("ANIM:BLINK:255,100,0,350")
+                                 shared.socketio.emit('state_update', shared.state)
                         else:
                              # Tirette is Removed. Ready to ARM.
-                             print("[BUTTONS] ⏳ En attente d'insertion tirette (ARMEMENT)...")
+                             print("[BUTTONS] ⏳ Tirette ABSENTE -> Prêt à armer (Bleu)")
                              shared.state['tirette'] = "WAIT_INSERT"
                              shared.state['tirette_msg'] = "WAITING"
-                             shared.send_led_cmd("COLOR:0,0,255") # Blue waiting
+                             shared.send_led_cmd("COLOR:0,0,255") # On arrête le clignotement par un bleu fixe
+                             shared.socketio.emit('state_update', shared.state)
+
 
                     elif current_state == "WAIT_INSERT":
                         if is_inserted:
