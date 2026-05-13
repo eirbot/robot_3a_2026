@@ -69,10 +69,12 @@ class ESPActionneurs:
     def tourner(self, actionneur_id):
         cmd = "T" + str(actionneur_id)
         self.send(cmd)
+        time.sleep(1)
 
     def ascenseur(self, actionneur_id, hauteur):
         cmd = "A" + str(actionneur_id) + " " + str(hauteur)
         self.send(cmd)
+        time.sleep(1)
 
     def poser(self, actionneur_id):
         self.ascenseur(actionneur_id, 0)
@@ -81,14 +83,17 @@ class ESPActionneurs:
     def grab(self, actionneur_id):
         cmd = "G" + str(actionneur_id)
         self.send(cmd)
+        time.sleep(1)
     
     def release(self, actionneur_id):
         cmd = "R" + str(actionneur_id)
         self.send(cmd)
+        time.sleep(1)
 
     def pivoter(self, actionneur_id, sens):
-        cmd = "P" + str(actionneur_id) + " " + sens
+        cmd = "P" + str(actionneur_id) + " " + str(sens)
         self.send(cmd)
+        time.sleep(1)
         
     def pose_camera(self):
         self.ascenseur(1, 200)
@@ -96,26 +101,26 @@ class ESPActionneurs:
         self.ascenseur(3, 180)
         self.ascenseur(4, 200)
 
-        self.pivoter(1, "G")
-        self.pivoter(2, "G")
-        self.pivoter(3, "D")
-        self.pivoter(4, "D")
+        self.pivoter(1, 1)
+        self.pivoter(4, 1)
+        self.pivoter(2, 1)
+        self.pivoter(3, 1)
 
-        self.release(1)
-        self.release(2)
-        self.release(3)
-        self.release(4)
+        self.grab(1)
+        self.grab(2)
+        self.grab(3)
+        self.grab(4)
 
-        self.send("C")
+        # self.send("C")
         
-        self.cmd_done_event.wait(timeout=5.0)
-        if not self.cmd_done_event.is_set():
-             print("[ACTIONNEURS] ❌ Timeout - L'ESP n'a pas répondu à temps.")
-             return False
+        # self.cmd_done_event.wait(timeout=5.0)
+        # if not self.cmd_done_event.is_set():
+        #      print("[ACTIONNEURS] ❌ Timeout - L'ESP n'a pas répondu à temps.")
+        #      return False
 
-        # On reset le flag pour la prochaine commande
-        self.cmd_done_event.clear()
-        return True
+        # # On reset le flag pour la prochaine commande
+        # self.cmd_done_event.clear()
+        # return True
 
     def pose_ranger(self):
         self.ascenseur(1, 0)
@@ -123,16 +128,132 @@ class ESPActionneurs:
         self.ascenseur(3, 0)
         self.ascenseur(4, 0)
 
-        self.pivoter(1, "D")
-        self.pivoter(2, "D")
-        self.pivoter(3, "G")
-        self.pivoter(4, "G")
+        self.pivoter(1, 1)
+        self.pivoter(4, 1)
+        self.pivoter(2, 1)
+        self.pivoter(3, 1)
 
         self.grab(1)
         self.grab(2)
         self.grab(3)
         self.grab(4)
 
+        # self.send("C")
+
+        # self.cmd_done_event.wait(timeout=5.0)
+        # if not self.cmd_done_event.is_set():
+        #      print("[ACTIONNEURS] ❌ Timeout - L'ESP n'a pas répondu à temps.")
+        #      return False
+
+        # # On reset le flag pour la prochaine commande
+        # self.cmd_done_event.clear()
+        # return True
+
+    def pose_deploy(self):
+        self.ascenseur(1, 100)
+        self.ascenseur(2, 100)
+        self.ascenseur(3, 100)
+        self.ascenseur(4, 100)
+
+        self.pivoter(1, 0)
+        self.pivoter(4, 0)
+        self.pivoter(2, 0)
+        self.pivoter(3, 0)
+
+        self.release(1)
+        self.release(2)
+        self.release(3)
+        self.release(4)
+        
+        # self.send("C")
+
+        # self.cmd_done_event.wait(timeout=5.0)
+        # if not self.cmd_done_event.is_set():
+        #      print("[ACTIONNEURS] ❌ Timeout - L'ESP n'a pas répondu à temps.")
+        #      return False
+
+        # # On reset le flag pour la prochaine commande
+        # self.cmd_done_event.clear()
+        # return True
+    
+    def pose_grab(self):
+        self.ascenseur(1, 0)
+        self.ascenseur(2, 0)
+        self.ascenseur(3, 0)
+        self.ascenseur(4, 0)
+
+        self.pivoter(1, 0)
+        self.pivoter(4, 0)
+        self.pivoter(2, 0)
+        self.pivoter(3, 0)
+
+        self.grab(1)
+        self.grab(2)
+        self.grab(3)
+        self.grab(4)
+        
+        # self.send("C")
+
+        # self.cmd_done_event.wait(timeout=5.0)
+        # if not self.cmd_done_event.is_set():
+        #      print("[ACTIONNEURS] ❌ Timeout - L'ESP n'a pas répondu à temps.")
+        #      return False
+
+        # # On reset le flag pour la prochaine commande
+        # self.cmd_done_event.clear()
+        # return True
+    
+    def pose_retourne(self, actionneur_ids):
+        self.ascenseur(1, 100)
+        self.ascenseur(2, 100)
+        self.ascenseur(3, 100)
+        self.ascenseur(4, 100)
+
+        self.pivoter(1, 1)
+        self.pivoter(4, 1)
+        self.pivoter(2, 1)
+        self.pivoter(3, 1)
+
+        for actionneur_id in actionneur_ids:
+            self.tourner(actionneur_id)
+
+        self.pivoter(1, 0)
+        self.pivoter(4, 0)
+        self.pivoter(2, 0)
+        self.pivoter(3, 0)
+
+        # self.send("C")
+
+        # self.cmd_done_event.wait(timeout=5.0)
+        # if not self.cmd_done_event.is_set():
+        #      print("[ACTIONNEURS] ❌ Timeout - L'ESP n'a pas répondu à temps.")
+        #      return False
+
+        # # On reset le flag pour la prochaine commande
+        # self.cmd_done_event.clear()
+        # return True
+        
+    def pose_poser(self):
+        self.ascenseur(1, 0)
+        self.ascenseur(2, 0)
+        self.ascenseur(3, 0)
+        self.ascenseur(4, 0)
+
+        self.release(1)
+        self.release(2)
+        self.release(3)
+        self.release(4)
+        
+        # self.send("C")
+
+        # self.cmd_done_event.wait(timeout=5.0)
+        # if not self.cmd_done_event.is_set():
+        #      print("[ACTIONNEURS] ❌ Timeout - L'ESP n'a pas répondu à temps.")
+        #      return False
+
+        # # On reset le flag pour la prochaine commande
+        # self.cmd_done_event.clear()
+        # return True
     # --- Tâche de fond (Thread) ---
     
     def _receive_loop(self):

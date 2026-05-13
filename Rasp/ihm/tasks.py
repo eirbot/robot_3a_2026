@@ -31,15 +31,28 @@ def background_loop():
         }
         
         volts = get_voltage_float()
+
+        # --- Détection Batterie Faible (Seuil 18V pour batterie 20V) ---
+        if 3.0 <= volts < 18.0:
+             now = time.time()
+             last_alert = state.get("last_bat_alert", 0)
+             
+             # On renvoie la commande toutes les 2 secondes pour être PRIORITAIRE sur les autres anims
+             if not state.get("bat_low", False) or (now - last_alert > 2.0):
+                 if not state.get("bat_low", False):
+                     print(f"[TASKS] ⚠️ BATTERIE FAIBLE ({volts}V) ! Alerte Prioritaire.")
+                     state["bat_low"] = True
+                 
+                 state["last_bat_alert"] = now
+                 send_led_cmd("ANIM:BLINK:255,0,0,300") # Clignotement rapide rouge
         
-        # --- BAU Virtuel (INA226) ---
-        if volts < 3.0 and state.get("fsm_state") != "STOPPED":
-             print("[TASKS] 🚨 ARRET D'URGENCE (BAU) VIA INA226 (Tension < 3V) !")
-             state['match_running'] = False
-             state['fsm_state'] = "STOPPED"
-             state['tirette'] = "WAIT"
-             send_led_cmd("COLOR:255,0,0") 
-             socketio.emit('state_update', state)
+        # Hystérésis pour le rétablissement
+        elif volts > 19.5:
+             if state.get("bat_low", False):
+                 print(f"[TASKS] Batterie rétablie ({volts}V).")
+                 state["bat_low"] = False
+                 send_led_cmd("COLOR:0,255,0") # Retour au vert
+
 
         socketio.emit('sys_info', {
             'cpu': f"{psutil.cpu_percent()}%", 
