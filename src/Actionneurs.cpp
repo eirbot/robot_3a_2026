@@ -2,8 +2,11 @@
 #include "PCF8575.h"  // Bibliothèque de Rob Tillaart
 #include "GpioActionneurs.hpp"
 #include <ESP32Servo.h>
+#include "ComWithRaspActionneurs.hpp"
 
-PCF8575 pcf(0x20, &Wire); 
+PCF8575 pcf(0x20, &Wire);
+
+volatile bool IntDetected = false; 
 
 struct Actionneur {
   uint8_t p9G, p17G, v1, v2, stp, dir, sns;
@@ -78,30 +81,36 @@ struct Actionneur {
     canMove = true;
     for(int k =0; k<steps; k++){
         this->fairePas();
-        delayMicroseconds(100);
+        delayMicroseconds(80);
       }
   }
 
   void goDown(int steps){
     pcf.write(dir, dir_elevator ? HIGH : LOW);
     canMove = true;
-    for(int k =0; k<steps; k++){
+    sns_read();
+    if(sns_status==LOW){
+      for(int k =0; k<steps; k++){
         this->fairePas();
         delayMicroseconds(50);
-        this->sns_read();
+        if(IntDetected){
+          sns_read();
+          IntDetected = false;
+        }
         if(sns_status==HIGH){
           break;
         }
       }
+    }
   }
 
   void grab(){
     this->openPiston();
+    delay(1000);
     this->goDown(10000);
     this->closePiston();
     delay(2000);
     this->goUp(3000);
-
   }
 };
 
@@ -109,6 +118,19 @@ Actionneur act1 = {ServoE, ServoF, Verin31EXT, Verin32EXT, asc1_stp, asc1_dirEXT
 Actionneur act2 = {ServoA, ServoB, Verin11EXT, Verin12EXT, asc2_stp, asc2_dirEXT, sns_asc_2EXT, false};
 Actionneur act3 = {ServoC, ServoD, Verin21EXT, Verin22EXT, asc3_stp, asc3_dirEXT, sns_asc_3EXT, false};
 Actionneur act4 = {ServoG, ServoH, Verin41EXT, Verin42EXT, asc4_stp, asc4_dirEXT, sns_asc_4EXT, false};
+
+
+void ARDUINO_ISR_ATTR IntEXTfct() {
+  IntDetected = true;
+}
+
+void readAllSns(){
+  act1.sns_read();
+  act2.sns_read();
+  act3.sns_read();
+  act4.sns_read();
+  IntDetected = false;
+}
 
 void setup() {
   Serial.begin(115200);
@@ -127,6 +149,9 @@ void setup() {
   act4.initialiser();
 
   Serial.println("Systeme pret.");
+
+  pinMode(IntEXT, INPUT_PULLUP);
+  attachInterrupt(digitalPinToInterrupt(IntEXT), IntEXTfct, FALLING);
 
   act1.homming();
   act2.homming();
@@ -168,6 +193,18 @@ void setup() {
   act3.servo_9G(180);
   act4.servo_9G(180);
 
+  delay(1000);
+
+  act1.servo_9G(0);
+  act2.servo_9G(0);
+  act3.servo_9G(0);
+  act4.servo_9G(0);
+
+  act2.soft_servo(90);
+  act3.soft_servo(90);
+  act1.soft_servo(90);
+  act4.soft_servo(90);
+
 }
 
 unsigned long SlowLoopTime = 0;
@@ -176,6 +213,12 @@ unsigned long stepperTimer = 0;
 unsigned long snsTimer = 0;
 
 void loop() {
+  // if (IntDetected) {
+  //   Serial.println("Signal détecté !");
+  //   IntDetected = false;
+  // }
+  
+
 //   // Changement d'état toutes les secondes
 //   if(millis() - SlowLoopTime >= 1000){
 //     act2.commander(SlowLoopPhase);

@@ -41,7 +41,6 @@
 //     #define P15     15
 // #endif
 
-
 //Actionneur 4
 #define ServoG 16 // Servo 17G
 #define ServoH 4 // Servo 9G
@@ -80,3 +79,4 @@
 #define asc1_dirEXT 11 // P13
 #define sns_asc_1EXT 4 //P04
 
+#define IntEXT 35
