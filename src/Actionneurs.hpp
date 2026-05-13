@@ -1,3 +1,6 @@
+#ifndef ACTIONNEURS_HPP
+#define ACTIONNEURS_HPP
+
 #include "Arduino.h"
 #include "PCF8575.h"  // Bibliothèque de Rob Tillaart
 #include "GpioActionneurs.hpp"
@@ -5,7 +8,7 @@
 #include "ComWithRaspActionneurs.hpp"
 
 extern PCF8575 pcf;
-extern volatile bool IntDetected; 
+extern volatile bool IntDetected;
 
 struct Actionneur {
   uint8_t p9G, p17G, v1, v2, stp, dir, sns;
@@ -113,4 +116,12 @@ struct Actionneur {
   }
 };
 
+
+extern Actionneur act1;
+extern Actionneur act2;
+extern Actionneur act3;
+extern Actionneur act4;
+
 void ARDUINO_ISR_ATTR IntEXTfct();
+
+#endif

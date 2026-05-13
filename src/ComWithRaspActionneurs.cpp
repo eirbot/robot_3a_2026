@@ -1,4 +1,5 @@
 #include "ComWithRaspActionneurs.hpp"
+#include "Actionneurs.hpp"
 
 ComWithRasp::ComWithRasp() { Serial.begin(115200); }
 
@@ -140,6 +141,10 @@ void ComWithRasp::processCommand(const String &cmd,
     // serialGoto.SetPos((float)params[0], (float)params[1], (float)params[2]);
   } else if (cmd == "I") {
     Serial.println("init_robot");
+    act1.homming();
+    act2.homming();
+    act3.homming();
+    act4.homming();
     flagInit=true;
   } else {
     Serial.println("Commande inconnue");

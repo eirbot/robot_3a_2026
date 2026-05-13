@@ -1,11 +1,6 @@
 #include "Actionneurs.hpp"
 #include "ComWithRaspActionneurs.hpp"
 
-Actionneur act1 = {ServoE, ServoF, Verin31EXT, Verin32EXT, asc1_stp, asc1_dirEXT, sns_asc_1EXT, true};
-Actionneur act2 = {ServoA, ServoB, Verin11EXT, Verin12EXT, asc2_stp, asc2_dirEXT, sns_asc_2EXT, false};
-Actionneur act3 = {ServoC, ServoD, Verin21EXT, Verin22EXT, asc3_stp, asc3_dirEXT, sns_asc_3EXT, false};
-Actionneur act4 = {ServoG, ServoH, Verin41EXT, Verin42EXT, asc4_stp, asc4_dirEXT, sns_asc_4EXT, false};
-
 static ComWithRasp comRasp;
 
 void readAllSns(){
@@ -96,12 +91,12 @@ void setup() {
 }
 
 void loop() {
-  if(comRasp.flagInit){
-    Serial.println("flag recieved");
-    act1.homming();
-    act2.homming();
-    act3.homming();
-    act4.homming();
-    comRasp.flagInit=false;
-  }
+//   if(comRasp.flagInit){
+//     Serial.println("flag recieved");
+//     act1.homming();
+//     act2.homming();
+//     act3.homming();
+//     act4.homming();
+//     comRasp.flagInit=false;
+//   }
 }
