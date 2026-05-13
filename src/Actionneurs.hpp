@@ -17,6 +17,7 @@ struct Actionneur {
   bool canMove;
   int sns_status;
   int p17G_status;
+  int p9G_status;
   int asc_height;
 
   void initialiser() {
@@ -29,6 +30,7 @@ struct Actionneur {
     canMove = true;
     sns_status = 0;
     p17G_status = 89;
+    p9G_status = 0;
     asc_height = 0;
   }
 
@@ -57,11 +59,12 @@ struct Actionneur {
   void homming(){
     pcf.write(dir, dir_elevator ? HIGH : LOW);
     soft_servo(90);
+    servo_9G(0);
     this->goDown(10000);
 
     pcf.write(dir, dir_elevator ? LOW : HIGH);
     canMove = true;
-    this->goUp(1000);
+    this->goUp(200);
     
     asc_height = 0;
   }
@@ -87,7 +90,7 @@ struct Actionneur {
     canMove = true;
     for(int k =0; k<steps; k++){
         this->fairePas();
-        delayMicroseconds(60);
+        delayMicroseconds(100);
       }
   }
 

@@ -111,6 +111,7 @@ void ComWithRasp::processLine() {
 
 void ComWithRasp::processCommand(const String &cmd,
                                  const std::vector<int> &params) {
+  int actioStatus = 0;
   if (cmd == "G" && params.size() == 1) {
     if((int)params[0]==1){
       act1.closePiston();
@@ -130,6 +131,44 @@ void ComWithRasp::processCommand(const String &cmd,
       act3.openPiston();
     } else if((int)params[0]==4) {
       act4.openPiston();
+    }
+  } else if (cmd == "T" && params.size() == 1) {
+    if((int)params[0]==1){
+      if(act1.p9G_status == 0){
+        act1.servo_9G(180);
+        act1.p9G_status = 180;
+      }
+      else{
+        act1.servo_9G(0);
+        act1.p9G_status = 0;
+      }
+    } else if((int)params[0]==2) {
+      if(act2.p9G_status == 0){
+        act2.servo_9G(180);
+        act2.p9G_status = 180;
+      }
+      else{
+        act2.servo_9G(0);
+        act2.p9G_status = 0;
+      }
+    } else if((int)params[0]==3) {
+      if(act3.p9G_status == 0){
+        act3.servo_9G(180);
+        act3.p9G_status = 180;
+      }
+      else{
+        act3.servo_9G(0);
+        act3.p9G_status = 0;
+      }
+    } else if((int)params[0]==4) {
+      if(act4.p9G_status == 0){
+        act4.servo_9G(180);
+        act4.p9G_status = 180;
+      }
+      else{
+        act4.servo_9G(0);
+        act4.p9G_status = 0;
+      }
     }
   } else if (cmd == "P" && params.size() == 2) {
     if((int)params[0]==1){
@@ -208,8 +247,8 @@ void ComWithRasp::processCommand(const String &cmd,
     act1.homming();
     act4.homming();
     flagInit=true;
+
   } else {
-    Serial.println("Commande inconnue");
   }
 }
 
