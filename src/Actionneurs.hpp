@@ -17,6 +17,7 @@ struct Actionneur {
   bool canMove;
   int sns_status;
   int p17G_status;
+  int asc_height;
 
   void initialiser() {
     pcf.setButtonMask(bit(sns));
@@ -28,6 +29,7 @@ struct Actionneur {
     canMove = true;
     sns_status = 0;
     p17G_status = 89;
+    asc_height = 0;
   }
 
   void sns_read(){
@@ -60,6 +62,8 @@ struct Actionneur {
     pcf.write(dir, dir_elevator ? LOW : HIGH);
     canMove = true;
     this->goUp(1000);
+    
+    asc_height = 0;
   }
 
   void fairePas() {

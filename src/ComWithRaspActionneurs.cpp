@@ -136,9 +136,18 @@ void ComWithRasp::processCommand(const String &cmd,
     }
     Serial.print("LiDAR Mode: ");
     // Serial.println(LiDAR_state);
-  } else if (cmd == "S" && params.size() == 3) {
+  } else if (cmd == "A" && params.size() == 2) {
     Serial.println("SetPos");
-    // serialGoto.SetPos((float)params[0], (float)params[1], (float)params[2]);
+    if((int)params[0]==1){
+      int asked_height = (int)params[1];
+      if(asked_height - act1.asc_height >=0){
+        act1.goUp(asked_height - act1.asc_height);
+      }
+      else{
+        act1.goDown(act1.asc_height - asked_height);
+      }
+      act1.asc_height = asked_height;
+    }
   } else if (cmd == "I") {
     Serial.println("init_robot");
     act1.homming();
