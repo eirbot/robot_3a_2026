@@ -128,14 +128,35 @@ void ComWithRasp::processCommand(const String &cmd,
     } else {
       Serial.println("Deplacement deja en cours");
     }
-  } else if (cmd == "L") {
-    if (params.size() == 1) {
-      // LiDAR_state = params[0];
-    } else {
-      // LiDAR_state = (LiDAR_state == 0) ? 1 : 0; // Legacy toggle
+  } else if (cmd == "P") {
+    if((int)params[0]==1){
+      int angle = 90;
+      if((int)params[1] == 1){
+        angle = 40;
+      }
+      act1.soft_servo(angle);
     }
-    Serial.print("LiDAR Mode: ");
-    // Serial.println(LiDAR_state);
+    if((int)params[0]==2){
+      int angle = 90;
+      if((int)params[1] == 1){
+        angle = 60;
+      }
+      act2.soft_servo(angle);
+    }
+    if((int)params[0]==3){
+      int angle = 90;
+      if((int)params[1] == 1){
+        angle = 120;
+      }
+      act3.soft_servo(angle);
+    }
+    if((int)params[0]==4){
+      int angle = 90;
+      if((int)params[1] == 1){
+        angle = 140;
+      }
+      act4.soft_servo(angle);
+    }
   } else if (cmd == "A" && params.size() == 2) {
     Serial.println("SetPos");
     int mmToStep =80;
@@ -150,38 +171,38 @@ void ComWithRasp::processCommand(const String &cmd,
       act1.asc_height = asked_height;
     }
     else if((int)params[0]==2){
-      if(asked_height - act1.asc_height >=0){
-        act2.goUp(asked_height - act1.asc_height);
+      if(asked_height - act2.asc_height >=0){
+        act2.goUp(asked_height - act2.asc_height);
       }
       else{
-        act2.goDown(act1.asc_height - asked_height);
+        act2.goDown(act2.asc_height - asked_height);
       }
       act2.asc_height = asked_height;
     }
     else if((int)params[0]==3){
-      if(asked_height - act1.asc_height >=0){
-        act3.goUp(asked_height - act1.asc_height);
+      if(asked_height - act3.asc_height >=0){
+        act3.goUp(asked_height - act3.asc_height);
       }
       else{
-        act3.goDown(act1.asc_height - asked_height);
+        act3.goDown(act3.asc_height - asked_height);
       }
       act3.asc_height = asked_height;
     }
     else if((int)params[0]==4){
-      if(asked_height - act1.asc_height >=0){
-        act4.goUp(asked_height - act1.asc_height);
+      if(asked_height - act4.asc_height >=0){
+        act4.goUp(asked_height - act4.asc_height);
       }
       else{
-        act4.goDown(act1.asc_height - asked_height);
+        act4.goDown(act4.asc_height - asked_height);
       }
       act4.asc_height = asked_height;
     }
     
   } else if (cmd == "I") {
     Serial.println("init_robot");
-    act1.homming();
     act2.homming();
     act3.homming();
+    act1.homming();
     act4.homming();
     flagInit=true;
   } else {

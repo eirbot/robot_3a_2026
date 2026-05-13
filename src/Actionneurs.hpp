@@ -87,7 +87,7 @@ struct Actionneur {
     canMove = true;
     for(int k =0; k<steps; k++){
         this->fairePas();
-        delayMicroseconds(80);
+        delayMicroseconds(60);
       }
   }
 

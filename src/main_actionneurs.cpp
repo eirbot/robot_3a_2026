@@ -84,10 +84,6 @@ void setup() {
 
   comRasp.StartCom();
 
-  act1.homming();
-  act2.homming();
-  act3.homming();
-  act4.homming();
 }
 
 void loop() {
