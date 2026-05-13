@@ -263,28 +263,6 @@ class RobotActions:
             # On récupère le tableau de booléens (True = bonne couleur)
             bonnes_couleurs = vision_cam.get_colors(self.is_yellow)
             
-            # On traduit ça en commandes pour les actionneurs
-            # (Admettons que FLIP = prendre, nFLIP = ignorer)
-            kaplas_decision = ["FLIP" if bon else "nFLIP" for bon in bonnes_couleurs]
-            
-            # Sécurité au cas où la lecture a foiré
-            if len(kaplas_decision) != 4:
-                print("[VISION] Erreur : Pas exactement 4 Kaplas détectés, on prend tout par sécurité.")
-                kaplas_decision = ["FLIP", "FLIP", "FLIP", "FLIP"]
-                
-        else:
-            print("[VISION/SIMU] Simulation des Kaplas (Caméra non dispo).")
-            kaplas_decision = ["nFLIP", "nFLIP", "nFLIP", "nFLIP"]
-            
-        print(f"[DECISION] Actionneurs : 1={kaplas_decision[0]} | 2={kaplas_decision[1]} | 3={kaplas_decision[2]} | 4={kaplas_decision[3]}")
-        
-        # Envoi physique aux servos
-        self.cmd_actionneurs(
-            act1=kaplas_decision[0],
-            act2=kaplas_decision[1],
-            act3=kaplas_decision[2],
-            act4=kaplas_decision[3]
-        )
         time.sleep(1)
 
     def poseKapla(self, hauteur=0):
@@ -356,6 +334,7 @@ class RobotActions:
             while target_theta > 180: target_theta -= 360
             while target_theta <= -180: target_theta += 360
             
+            self.goto(bx + 550, by, target_theta)
             self.goto(bx, by, target_theta)
         else:
             # Fallback historique si set_pos n'a pas été appelé
