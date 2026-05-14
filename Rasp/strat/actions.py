@@ -334,8 +334,8 @@ class RobotActions:
             while target_theta > 180: target_theta -= 360
             while target_theta <= -180: target_theta += 360
             
-            self.goto(bx + 600, by + 100, target_theta)
-            self.goto(bx, by + 80, target_theta)
+            self.goto(bx + 650, by + 100, target_theta)
+            self.goto(bx, by + 100, target_theta)
         else:
             # Fallback historique si set_pos n'a pas été appelé
             self.goto(250, 0, 180)
