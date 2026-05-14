@@ -14,19 +14,22 @@ No VSCode, Platformio CLI only.
 
 ## Instructions
 
-1. At the root of this repository, setup the PlatformIO project for an external
-   IDE:
-
-   ```sh
-   # Even if you are not in vim, this will work
-   pio init --ide vim
-   ```
-
-2. Generate the `clangd` helper files:
+1. At the root of this repository, run this python script.
 
    ```sh
    python3 conv.py
+   # You will be asked to enter the PlatformIO environment ID you are currently
+   # working on (for instance, "Actionneurs")
    ```
 
-3. Be sure your IDE's LSP client run `clangd` in background with the
+   This will, init LSP helper files for a usage by agnostic editors. So,
+
+   - A `.ccls` file
+   - A `compile_commands.json` file
+
+2. Be sure your IDE's LSP client run `clangd` in background with the
    `--background-index` option
+
+3. If you have edited the deps of the PlatformIO environment or you want to
+   develop code for another PlatformIO environment, rerun the `conv.py` script
+   to resetup the `clangd` helper files.
