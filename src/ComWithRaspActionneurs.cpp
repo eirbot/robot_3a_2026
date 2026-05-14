@@ -1,14 +1,15 @@
 #include "ComWithRaspActionneurs.hpp"
 #include "ActionneurVTask.hpp"
 #include "Actionneurs.hpp"
+#include <cstdint>
 
 ComWithRasp::ComWithRasp() { Serial.begin(115200); }
 
 void ComWithRasp::StartWorkers() {
-  xTaskCreate(ActVTaskRunner, "TaskWorkerAct1", 4000, actVtask1, 1, NULL);
-  xTaskCreate(ActVTaskRunner, "TaskWorkerAct2", 4000, actVtask2, 1, NULL);
-  xTaskCreate(ActVTaskRunner, "TaskWorkerAct3", 4000, actVtask3, 1, NULL);
-  xTaskCreate(ActVTaskRunner, "TaskWorkerAct4", 4000, actVtask4, 1, NULL);
+  xTaskCreate(ActVTaskRunner, "TaskWorkerAct1", 4000, &actVtask1, 1, NULL);
+  xTaskCreate(ActVTaskRunner, "TaskWorkerAct2", 4000, &actVtask2, 1, NULL);
+  xTaskCreate(ActVTaskRunner, "TaskWorkerAct3", 4000, &actVtask3, 1, NULL);
+  xTaskCreate(ActVTaskRunner, "TaskWorkerAct4", 4000, &actVtask4, 1, NULL);
 }
 
 void ComWithRasp::StartCom() {
@@ -121,13 +122,15 @@ void ComWithRasp::processCommand(const String &cmd,
                                  const std::vector<int> &params) {
   int actioStatus = 0;
   int actId = (int) params[0];
-
-  TaskParams taskParams = TaskParams(cmd, 0, 0);
+  int A_param1 = 0;
+  uint8_t P_angleFlag = 0;
   if (cmd == "P") {
-    taskParams._P_angleFlag = params[1];
+    P_angleFlag = params[1];
   } else if (cmd == "A") {
-    taskParams._A_param1 = params[1];
+    A_param1 = params[1];
   }
+
+  TaskParams taskParams = TaskParams(cmd.charAt(0), P_angleFlag, A_param1);
   
   switch (actId) {
     case 1:
@@ -321,8 +324,4 @@ void ComWithRasp::GoToTask(void *pvParameters) {
 
   delete args;
   vTaskDelete(NULL);
-}
-
-enum ActionneurCmd {
-  
 }
