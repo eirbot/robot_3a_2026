@@ -95,6 +95,11 @@ class ESPActionneurs:
         self.send(cmd)
         time.sleep(1)
         
+    def pose_match(self):
+        self.init_robot()
+        time.sleep(1)
+        self.pose_camera()
+
     def pose_camera(self):
         self.ascenseur(1, 170)
         self.ascenseur(2, 170)

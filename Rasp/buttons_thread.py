@@ -256,7 +256,7 @@ class ButtonsThread:
         print("[BUTTONS] INIT des Actionneurs !")
         if actionneurs:
             # On lance l'init dans un thread pour ne pas bloquer la boucle des boutons
-            threading.Thread(target=actionneurs.init_robot, daemon=True).start()
+            threading.Thread(target=actionneurs.pose_match, daemon=True).start()
         else:
             print("[BUTTONS] ⚠️ Actionneurs non connectés, impossible d'init.")
         
