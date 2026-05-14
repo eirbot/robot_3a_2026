@@ -154,10 +154,10 @@ class ESPActionneurs:
         self.ascenseur(3, 100)
         self.ascenseur(4, 100)
 
-        self.pivoter(1, 0)
-        self.pivoter(4, 0)
         self.pivoter(2, 0)
         self.pivoter(3, 0)
+        self.pivoter(1, 0)
+        self.pivoter(4, 0)
 
         self.release(1)
         self.release(2)
@@ -180,11 +180,6 @@ class ESPActionneurs:
         self.ascenseur(2, 0)
         self.ascenseur(3, 0)
         self.ascenseur(4, 0)
-
-        self.pivoter(1, 0)
-        self.pivoter(4, 0)
-        self.pivoter(2, 0)
-        self.pivoter(3, 0)
 
         self.grab(1)
         self.grab(2)
@@ -216,10 +211,10 @@ class ESPActionneurs:
         for actionneur_id in actionneur_ids:
             self.tourner(actionneur_id)
 
-        self.pivoter(1, 0)
-        self.pivoter(4, 0)
         self.pivoter(2, 0)
         self.pivoter(3, 0)
+        self.pivoter(1, 0)
+        self.pivoter(4, 0)
 
         # self.send("C")
 
@@ -253,6 +248,20 @@ class ESPActionneurs:
         # # On reset le flag pour la prochaine commande
         # self.cmd_done_event.clear()
         # return True
+
+    def pose_temperature(self, is_yellow):
+        if is_yellow:
+            self.ascenseur(4, 170)
+            self.pivoter(4, 1)
+            self.release(4)
+            self.ascenseur(4, 100)
+        else:
+            self.ascenseur(1, 170)
+            self.pivoter(1, 1)
+            self.release(1)
+            self.ascenseur(1, 100)
+        
+        
     # --- Tâche de fond (Thread) ---
     
     def _receive_loop(self):

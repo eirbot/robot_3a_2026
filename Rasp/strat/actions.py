@@ -144,9 +144,11 @@ class RobotActions:
         else:
             print("[SIMU] TOGGLE LIDAR virtuel")
 
-    def approcheKapla(self):
+    def approcheKapla(self) -> bool:
+        """Approche visuelle des Kaplas. Retourne True si l'alignement a réussi, False sinon."""
         self._check_abort()
         print("[ACTION] Recalage visuel : Latéral (Y) puis Profondeur (X)...")
+        self.approche_reussie = False
 
         if not vision_cam:
             print("[VISION] Caméra indisponible, mouvement à l'aveugle.")
@@ -155,120 +157,114 @@ class RobotActions:
             y = y_robot - math.sin(math.radians(theta_robot)) * 100
             self.goto(x, y, theta_robot)
             self.goto(0, 0, 0)
-            return
+            return False
 
-        # 1. LECTURE INITIALE (Au plus près des Kaplas pour une meilleure visibilité)
-        print("[VISION] 1. Stabilisation et Lecture initiale...")
-        time.sleep(0.5) # On laisse le robot s'arrêter complètement pour éviter le flou
-        vision_cam.check_aruco_position()
-        vision_cam.save_debug(prefix="init_approche")
-        init_err_x, init_err_y, init_err_angle = vision_cam.get_errors()
-        
-        # On sauvegarde la position absolue des Kaplas au cas où on les perd de vue après le recul
-        target_fallback = None
-        deja_aligne = False
-        if init_err_x is not None:
-            x_actuel, y_actuel, theta_actuel = shared.robot_pos['x'], shared.robot_pos['y'], shared.robot_pos['theta']
-            theta_rad = math.radians(theta_actuel)
-            tx = x_actuel + (init_err_x * math.cos(theta_rad)) - (init_err_y * math.sin(theta_rad))
-            ty = y_actuel + (init_err_x * math.sin(theta_rad)) + (init_err_y * math.cos(theta_rad))
-            tt = (theta_actuel + init_err_angle) % 360
-            target_fallback = (tx, ty, tt)
-            print(f"[VISION] Kaplas repérés ! Prof:{init_err_x:.1f}mm, Lat:{init_err_y:.1f}mm, Angle:{init_err_angle:.1f}°")
+        MAX_TENTATIVES = 3
+        x_garde, y_garde, theta_garde = shared.robot_pos['x'], shared.robot_pos['y'], shared.robot_pos['theta']
+
+        for tentative_globale in range(MAX_TENTATIVES):
+            self._check_abort()
+            print(f"\n[VISION] === Tentative globale {tentative_globale + 1}/{MAX_TENTATIVES} ===")
+                
+            # ----- ÉTAPE 2 : LECTURE POSITION DEPUIS LA GARDE -----
+            if vision_cam.check_aruco_position():
+                print("[VISION] ✅ Alignement parfait depuis la garde ! Approche finale...")
+                self.approche_reussie = True
+                return True
+
+            if not vision_cam.is_salvagable():
+                print("[VISION] ArUco non visible depuis la garde, on abandonne cette tentative.")
+                return False
+
+            err_x, err_y, err_angle = vision_cam.get_errors()
+
+            if err_x is None:
+                print("[VISION] ArUco non visible depuis la garde, on abandonne cette tentative.")
+                return False
+
+            vision_cam.save_debug(prefix=f"garde_T{tentative_globale+1}")
+            print(f"[VISION] ❌ Non aligné (Y={err_y:.1f}mm, A={err_angle:.1f}°). Recul + Recalage...")
             
-            # Si on est déjà bien en face, on s'épargne le recul et le recalage !
-            if abs(init_err_y) < 5 and abs(init_err_angle) < 2:
-                print("[VISION] Robot déjà parfaitement aligné ! On passe direct à l'approche.")
-                deja_aligne = True
-        else:
-            print("[VISION] ArUco non vus de près, on tente quand même le recul...")
-
-        if not deja_aligne:
-            # 2. RECUL INITIAL (pour avoir la place de manœuvrer latéralement)
+            # Recul de 180mm
             x_actuel, y_actuel, theta_actuel = shared.robot_pos['x'], shared.robot_pos['y'], shared.robot_pos['theta']
             theta_rad = math.radians(theta_actuel)
-            recul = 150
-            print(f"[VISION] 2. Manœuvre de dégagement (Recul de {recul}mm)...")
+            recul = 180
             self.goto(x_actuel - recul * math.cos(theta_rad), y_actuel - recul * math.sin(theta_rad), theta_actuel, real=True)
             time.sleep(0.5)
-    
-            # 3. BOUCLE D'ALIGNEMENT LATÉRAL (Erreur Y)
-            print("[VISION] 3. Alignement Latéral (Gauche/Droite)...")
-            for tentative in range(3):
-                self._check_abort()
-                vision_cam.check_aruco_position()
-                vision_cam.save_debug(prefix="approche")
-                err_x, err_y, err_angle = vision_cam.get_errors()
-                
-                if err_x is None:
-                    print("[VISION] ArUco perdu, arrêt de l'alignement.")
-                    break
-    
-                print(f"[VISION] Latéral T{tentative+1} -> X(Prof):{err_x:.1f}mm, Y(Lat):{err_y:.1f}mm, Angle:{err_angle:.1f}°")
-    
-                # Si l'erreur Y (latérale) et l'angle sont faibles, on est bien en face
-                if abs(err_y) < 5 and abs(err_angle) < 2:
-                    print("[VISION] Alignement Y parfait !")
-                    break
-    
-                # Correction uniquement sur l'axe Y (latéral) et l'Angle
-                # On conserve la profondeur actuelle (on ne corrige pas err_x ici)
-                x_actuel, y_actuel, theta_actuel = shared.robot_pos['x'], shared.robot_pos['y'], shared.robot_pos['theta']
-                theta_rad = math.radians(theta_actuel)
-                
-                # Correction de Y (gauche/droite par rapport au robot)
-                cible_x = x_actuel - (err_y * math.sin(theta_rad))
-                cible_y = y_actuel + (err_y * math.cos(theta_rad))
-                cible_theta = (theta_actuel + err_angle) % 360
-    
-                self.goto(cible_x, cible_y, cible_theta, real=True)
-                time.sleep(0.5) # Pause pour stabiliser la caméra
 
-        # 4. APPROCHE FINALE (Erreur X - Profondeur)
-        self._check_abort()
-        vision_cam.check_aruco_position()
-        vision_cam.save_debug(prefix="approche")
-        err_x, err_y, err_angle = vision_cam.get_errors()
-        
-        if err_x is not None:
-            print(f"[VISION] 4. Approche Finale (Profondeur) de {err_x:.1f}mm...")
+            # Correction Y et angle uniquement
             x_actuel, y_actuel, theta_actuel = shared.robot_pos['x'], shared.robot_pos['y'], shared.robot_pos['theta']
             theta_rad = math.radians(theta_actuel)
-            
-            # On avance tout droit pour corriger err_x
-            final_x = x_actuel + (err_x * math.cos(theta_rad))
-            final_y = y_actuel + (err_x * math.sin(theta_rad))
-            
-            self.goto(final_x, final_y, theta_actuel, real=True)
-        elif target_fallback is not None:
-            print("[VISION] ArUco perdu. Utilisation de la position de secours (sauvegardée au début) !")
-            self.goto(target_fallback[0], target_fallback[1], target_fallback[2], real=True)
-        else:
-            print("[VISION] ÉCHEC : ArUco introuvable, abandon de l'approche !")
+            cible_x = x_actuel - (err_y*0.9) * math.sin(theta_rad)
+            cible_y = y_actuel + (err_y*0.9) * math.cos(theta_rad)
+            self.goto(cible_x, cible_y, theta_actuel, real=True)
+            time.sleep(0.5)
 
-    def prendreKapla(self, hauteur=0):
+            # Avance de 180mm
+            x_actuel, y_actuel, theta_actuel = shared.robot_pos['x'], shared.robot_pos['y'], shared.robot_pos['theta']
+            theta_rad = math.radians(theta_actuel)
+            avance = 180
+            self.goto(x_actuel + (avance+err_x*0.9) * math.cos(theta_rad), y_actuel + (avance+err_x*0.9) * math.sin(theta_rad), theta_actuel+err_angle*0.9, real=True)
+            time.sleep(0.5)
+
+            # On reboucle : on va ré-avancer à la garde et re-vérifier
+
+        print("[VISION] ❌ ÉCHEC : Impossible de s'aligner après toutes les tentatives !")
+        self.approche_reussie = False
+        return False
+
+    def thermometre(self):
+        """Déploie le thermomètre (actionneur selon la couleur d'équipe)."""
         self._check_abort()
-        print(f"[ACTION] Prise Kapla H={hauteur}")
-        time.sleep(1)
+        print(f"[ACTION] Déploiement Thermomètre (Équipe {'JAUNE' if self.is_yellow else 'BLEUE'})...")
+        if actionneurs:
+            actionneurs.pose_temperature(self.is_yellow)
+        else:
+            print("[SIMU] Thermomètre (pas d'actionneurs)")
 
-    def prendre_kaplas_camera(self):
+        self.attendre(1)
+        x_actuel, y_actuel, theta_actuel = shared.robot_pos['x'], shared.robot_pos['y'], shared.robot_pos['theta']
+
+        self.goto(x_actuel, 1025, -90, real=False)
+
+        if actionneurs:
+            actionneurs.pose_camera()
+        else:
+            print("Feur")
+
+    def attendre(self, secondes: float):
+        """Attend un nombre de secondes (interruptible par abort)."""
+        self._check_abort()
+        print(f"[ACTION] Attente de {secondes}s...")
+        fin = time.time() + secondes
+        while time.time() < fin:
+            self._check_abort()
+            time.sleep(0.05)
+
+    def prendreKapla(self):
         self._check_abort()
         print(f"[ACTION] Analyse couleurs pour les 4 Kaplas (Equipe JAUNE={self.is_yellow})...")
         
         if vision_cam:
             # On déclenche une nouvelle capture et analyse
+            actionneurs.pose_deploy()
+
             vision_cam.check_aruco_position()
             vision_cam.save_debug(prefix="prise")
             
+            actionneurs.pose_grab()
+
             # On récupère le tableau de booléens (True = bonne couleur)
             bonnes_couleurs = vision_cam.get_colors(self.is_yellow)
+            actionneurs_ids = [i+1 for i in range(len(bonnes_couleurs)) if not bonnes_couleurs[i]]
+            actionneurs.pose_retourne(actionneurs_ids)
             
         time.sleep(1)
 
-    def poseKapla(self, hauteur=0):
+    def poseKapla(self):
         self._check_abort()
-        print(f"[ACTION] Pose Kapla H={hauteur}")
-        time.sleep(1)
+        actionneurs.pose_poser()
+        actionneurs.pose_camera()
 
     def pousse_kapla(self):
         self._check_abort()

@@ -87,9 +87,9 @@ document.addEventListener("DOMContentLoaded", function () {
     };
 
     // --- ACTIONNEURS ---
-    Blockly.Blocks['prendre_kapla'] = { init: function () { this.appendDummyInput().appendField("✊ Prendre Kapla (H:").appendField(new Blockly.FieldNumber(0), "HAUTEUR").appendField("mm)"); this.setPreviousStatement(true, null); this.setNextStatement(true, null); this.setColour(120); } };
+    Blockly.Blocks['prendre_kapla'] = { init: function () { this.appendDummyInput().appendField("✊ Prendre Kapla"); this.setPreviousStatement(true, null); this.setNextStatement(true, null); this.setColour(120); } };
     Blockly.Blocks['retourner_kapla'] = { init: function () { this.appendDummyInput().appendField("🤌 Retourne Kapla"); this.setPreviousStatement(true, null); this.setNextStatement(true, null); this.setColour(120); } };
-    Blockly.Blocks['poser_kapla'] = { init: function () { this.appendDummyInput().appendField("🖐️ Poser Kapla (H:").appendField(new Blockly.FieldNumber(0), "HAUTEUR").appendField("mm)"); this.setPreviousStatement(true, null); this.setNextStatement(true, null); this.setColour(120); } };
+    Blockly.Blocks['poser_kapla'] = { init: function () { this.appendDummyInput().appendField("🖐️ Poser Kapla"); this.setPreviousStatement(true, null); this.setNextStatement(true, null); this.setColour(120); } };
     Blockly.Blocks['pousse_kapla'] = { init: function () { this.appendDummyInput().appendField("🏎️ Pousse Kapla"); this.setPreviousStatement(true, null); this.setNextStatement(true, null); this.setColour(120); } };
     Blockly.Blocks['robot_stop'] = { init: function () { this.appendDummyInput().appendField("🛑 Arrêter le robot"); this.setPreviousStatement(true, null); this.setNextStatement(true, null); this.setColour(0); } };
 
@@ -112,8 +112,49 @@ document.addEventListener("DOMContentLoaded", function () {
                 .appendField("👁️ Approche Kapla (Vision)");
             this.setPreviousStatement(true, null);
             this.setNextStatement(true, null);
-            this.setColour(40); // Orange/Jaune
+            this.setColour(40);
             this.setTooltip("Se positionne devant un Kapla détecté par la caméra.");
+        }
+    };
+
+    Blockly.Blocks['robot_thermometre'] = {
+        init: function () {
+            this.appendDummyInput()
+                .appendField("🌡️ Déployer Thermomètre");
+            this.setPreviousStatement(true, null);
+            this.setNextStatement(true, null);
+            this.setColour(200); // Bleu-cyan
+            this.setTooltip("Déploie le thermomètre selon la couleur de l'équipe.");
+        }
+    };
+
+    Blockly.Blocks['robot_attendre'] = {
+        init: function () {
+            this.appendDummyInput()
+                .appendField("⏱️ Attendre")
+                .appendField(new Blockly.FieldNumber(1, 0, 100, 0.1), "SECONDES")
+                .appendField("secondes");
+            this.setPreviousStatement(true, null);
+            this.setNextStatement(true, null);
+            this.setColour(65);
+            this.setTooltip("Attend un nombre de secondes (interruptible par l'arrêt d'urgence).");
+        }
+    };
+
+    Blockly.Blocks['robot_si_approche_reussie'] = {
+        init: function () {
+            this.appendDummyInput()
+                .appendField("✅ Si l'approche a réussi");
+            this.appendStatementInput("DO")
+                .setCheck(null)
+                .appendField("Faire");
+            this.appendStatementInput("ELSE")
+                .setCheck(null)
+                .appendField("Sinon");
+            this.setPreviousStatement(true, null);
+            this.setNextStatement(true, null);
+            this.setColour(40);
+            this.setTooltip("Exécute le bloc 'Faire' si approcheKapla() a réussi, 'Sinon' autrement.");
         }
     };
 
@@ -171,15 +212,30 @@ document.addEventListener("DOMContentLoaded", function () {
     // --- GÉNÉRATEURS PYTHON ---
     Blockly.Python.forBlock['robot_start'] = function (block) { return `robot.set_pos(${block.getFieldValue('X')}, ${block.getFieldValue('Y')}, ${block.getFieldValue('THETA')})\n`; };
     Blockly.Python.forBlock['robot_goto'] = function (block) { return `robot.goto(${block.getFieldValue('X')}, ${block.getFieldValue('Y')}, ${block.getFieldValue('THETA')})\n`; };
-    Blockly.Python.forBlock['prendre_kapla'] = function (block) { return `robot.prendreKapla(hauteur=${block.getFieldValue('HAUTEUR')})\n`; };
+    Blockly.Python.forBlock['prendre_kapla'] = function (block) { return `robot.prendreKapla()\n`; };
     Blockly.Python.forBlock['retourner_kapla'] = function (block) { return `robot.retournerKapla()\n`; };
-    Blockly.Python.forBlock['poser_kapla'] = function (block) { return `robot.poseKapla(hauteur=${block.getFieldValue('HAUTEUR')})\n`; };
+    Blockly.Python.forBlock['poser_kapla'] = function (block) { return `robot.poseKapla()\n`; };
     Blockly.Python.forBlock['pousse_kapla'] = function (block) { return 'robot.pousse_kapla()\n'; };
     Blockly.Python.forBlock['robot_stop'] = function (block) { return 'robot.stop()\n'; };
     Blockly.Python.forBlock['robot_gobase_at'] = function (block) {
         return `robot.wait_until_and_return(${block.getFieldValue('SECONDS')})\n`;
     };
     Blockly.Python.forBlock['robot_approche_kapla'] = function (block) { return 'robot.approcheKapla()\n'; };
+    Blockly.Python.forBlock['robot_thermometre'] = function (block) { return 'robot.thermometre()\n'; };
+    Blockly.Python.forBlock['robot_attendre'] = function (block) {
+        return `robot.attendre(${block.getFieldValue('SECONDES')})\n`;
+    };
+    Blockly.Python.forBlock['robot_si_approche_reussie'] = function (block) {
+        var do_branch = Blockly.Python.statementToCode(block, 'DO');
+        var else_branch = Blockly.Python.statementToCode(block, 'ELSE');
+        var code = 'if robot.approche_reussie:\n';
+        code += do_branch || '  pass\n';
+        if (else_branch) {
+            code += 'else:\n';
+            code += else_branch;
+        }
+        return code;
+    };
 
     Blockly.Python.forBlock['actionneur_unique'] = function (block) {
         return `robot.cmd_actionneurs(act${block.getFieldValue('ID')}='${block.getFieldValue('CMD')}')\n`;

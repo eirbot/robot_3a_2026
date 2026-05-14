@@ -9,7 +9,8 @@ class cam:
     def __init__(self, image_path=None, use_camera=False):
         self.use_camera = use_camera
         self.largeur_cible = 800 # largeur de l'image en pixels
-        self.tolerance_position = 15 # pixels
+        self.tolerance_position_x = 30 # pixels
+        self.tolerance_position_y = 20 # pixels
         self.tolerance_angle = 13  # degres
 
         if self.use_camera:
@@ -82,7 +83,7 @@ class cam:
             for i in range(len(self.ids)):
                 aruco_center_position = (self.corners[i][0][0] + self.corners[i][0][1] + self.corners[i][0][2] + self.corners[i][0][3]) / 4
                 self.aruco_center_positions.append(aruco_center_position)
-                if not any(abs(aruco_center_position[0] - zone[0]) <= self.tolerance_position and abs(aruco_center_position[1] - zone[1]) <= self.tolerance_position for zone in self.allowed_zones):
+                if not any(abs(aruco_center_position[0] - zone[0]) <= self.tolerance_position_y and abs(aruco_center_position[1] - zone[1]) <= self.tolerance_position_x for zone in self.allowed_zones):
                     self.everything_in_position = False
                 pt1 = tuple(map(int, self.corners[i][0][1]))
                 pt2 = tuple(map(int, self.corners[i][0][0]))
@@ -166,7 +167,7 @@ class cam:
             px = float(center[0] - start[0])
             py = float(center[1] - start[1])
             distance = abs(dx * py - dy * px) / line_length
-            if distance > self.tolerance_position:
+            if distance > self.tolerance_position_y:
                 return False
             
         max_angle_diff = max(abs(angle1 - angle2) for angle1 in self.angles for angle2 in self.angles if angle1 != angle2)
@@ -196,7 +197,7 @@ class cam:
                 cv2.line(self.image_reduite, pt1, pt2, (0, 255, 0), 3)
                 cv2.circle(self.image_reduite, (int(self.aruco_center_positions[i][0]), int(self.aruco_center_positions[i][1])), 5, (0, 255, 0), -1)
             for zone in self.allowed_zones:
-                cv2.rectangle(self.image_reduite, (zone[0] - self.tolerance_position, zone[1] - self.tolerance_position), (zone[0] + self.tolerance_position, zone[1] + self.tolerance_position), (0, 255, 255), 2)
+                cv2.rectangle(self.image_reduite, (zone[0] - self.tolerance_position_y, zone[1] - self.tolerance_position_x), (zone[0] + self.tolerance_position_y, zone[1] + self.tolerance_position_x), (0, 255, 255), 2)
         
             cv2.aruco.drawDetectedMarkers(self.image_reduite, self.corners, self.ids)
 
