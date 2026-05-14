@@ -18,10 +18,11 @@ void setup() {
   Wire.begin(21, 22); 
   Wire.setClock(100000);
 
-  if (!pcf.begin()) {
-    Serial.println("PCF8575 introuvable");
-    while (1);
-  }
+  // TODO: uncomment before match
+  // if (!pcf.begin()) {
+  //   Serial.println("PCF8575 introuvable");
+  //   while (1);
+  // }
 
   pinMode(IntEXT, INPUT_PULLUP);
   attachInterrupt(digitalPinToInterrupt(IntEXT), IntEXTfct, FALLING);
