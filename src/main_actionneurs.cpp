@@ -88,8 +88,8 @@ void setup() {
 }
 
 void loop() {
-  if(iReadBuffer<iWriteBuffer){
-    Serial.println(BufferCommands[iReadBuffer].cmd);
+  if(iReadBuffer< iWriteBuffer){
+    Serial.println(BufferCommands[iReadBuffer%BufferSize].cmd);
     delay(1000);
     iReadBuffer+=1;
   }
