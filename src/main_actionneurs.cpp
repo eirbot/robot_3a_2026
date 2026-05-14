@@ -33,7 +33,7 @@ void setup() {
   // startActionneurTask();
 
   comRasp.StartCom();
-  //comRasp.StartWorkers(); 
+  comRasp.StartWorkers(); 
   vTaskStartScheduler();
 }
 

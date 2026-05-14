@@ -17,19 +17,23 @@ ActionneurVTask actVTask4 = ActionneurVTask{act4, 4, qActVtask4};
 void ActionneurVTask::processCommand(TaskParams params) {
     switch (params._cmd) {
         case 'G':
+            Serial.println("Closing piston !");
             this->_act.closePiston();
             break;
         case 'R':
+            Serial.println("Opening piston !");
             this->_act.openPiston();
             break;
         case 'T':
             {
+                Serial.println("Command T inversing");
                 int angle = this->_act.p9G_status == 0 ? 180 : 0;
                 this->_act.servo_9G(angle);
                 this->_act.p9G_status = angle;
             }
             break;
         case 'P':
+            Serial.println("Command P soft servo");
             this->_act.soft_servo(params._P_angleFlag ? this->pAngle0 : 90);
             break;
         case 'A':
@@ -46,6 +50,7 @@ void ActionneurVTask::processCommand(TaskParams params) {
             }
             break;
         case 'I':
+            Serial.println("Homming");
             this->_act.homming();
         default:
             break;
@@ -71,6 +76,7 @@ void ActVTaskRunner(void *pvParameter) {
         // TODO: enable INCLUDE_vTaskSuspend to enable blocking call on time portMAX_DELAY
         auto ret = xQueueReceive(myObject->_queue, (void *) &params, 0);
         if (ret == pdFALSE) {
+            vTaskDelay(10 / portTICK_PERIOD_MS);
             continue;
         }
 
@@ -78,6 +84,7 @@ void ActVTaskRunner(void *pvParameter) {
             Serial.println("Warning: invalid value parsed from queue");
         }
         myObject->processCommand(params);
+        vTaskDelay(10 / portTICK_PERIOD_MS);
     }
     vTaskDelete(NULL);
 }

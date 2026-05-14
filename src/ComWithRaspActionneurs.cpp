@@ -16,13 +16,15 @@ void ComWithRasp::StartWorkers() {
 void ComWithRasp::StartCom() {
   // Crée une tâche FreeRTOS qui appelle this->Receive()
   xTaskCreate([](void *obj) { static_cast<ComWithRasp *>(obj)->Receive(); },
-              "ComWithRasp", 4000, this, 1, NULL);
+              "ComWithRasp", 4000, this, 2, NULL);
 }
 
 void ComWithRasp::Receive() {
   // On crée un tableau fixe de 64 cases en mémoire (ultra rapide et sûr)
   char rx_buffer[64];
   int rx_index = 0;
+  Serial.println("Booting up...");
+  
 
   while (1) {
     while (Serial.available()) {
@@ -123,14 +125,14 @@ void ComWithRasp::processLine() {
 
 void ComWithRasp::processCommand(const String &cmd,const std::vector<int> &params) {
   // wait for all inits
-  if (cmd == "I" && !flagInit) {
-    while (!actVTask1.flagInit) {};
+  if (cmd == "I" && !this->flagInit) {
+    while (!actVTask1.flagInit) { Serial.println("waiting for flag init"); vTaskDelay(500 / portTICK_PERIOD_MS); };
     Serial.println("Init Act1 terminé");
-    while (!actVTask2.flagInit) {};
+    while (!actVTask2.flagInit) { Serial.println("waiting for flag init"); vTaskDelay(500 / portTICK_PERIOD_MS); };
     Serial.println("Init Act2 terminé"); 
-    while(!actVTask3.flagInit) {};
+    while(!actVTask3.flagInit) { Serial.println("waiting for flag init"); vTaskDelay(500 / portTICK_PERIOD_MS); };
     Serial.println("Init Act3 terminé");
-    while(!actVTask4.flagInit) {};
+    while(!actVTask4.flagInit) { Serial.println("waiting for flag init"); vTaskDelay(500 / portTICK_PERIOD_MS); };
     Serial.println("Init Act4 terminé");
     flagInit = true;
     return;
@@ -153,12 +155,14 @@ void ComWithRasp::processCommand(const String &cmd,const std::vector<int> &param
     P_angleFlag = params[1];
   } else if (cmd == "A") {
     if (params.size() != 2) {
-      Serial.println("Invalid number of parameters for command P");
+      Serial.println("Invalid number of parameters for command A");
       return;
     }
     A_param1 = params[1];
   }
-
+  char buf[8];
+  Serial.print(itoa(actId, buf, 10));
+  Serial.println(" id");
   TaskParams taskParams = TaskParams(cmd.charAt(0), P_angleFlag, A_param1);
   
   switch (actId) {

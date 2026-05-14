@@ -52,7 +52,8 @@ struct Actionneur {
         p17G_status -= 1;
       }
       servo17G.write(p17G_status);
-      delay(10);
+      // delay(10)
+      vTaskDelay(10 / portTICK_PERIOD_MS);
     }
   }
 
@@ -90,7 +91,8 @@ struct Actionneur {
     canMove = true;
     for(int k =0; k<steps; k++){
         this->fairePas();
-        delayMicroseconds(100);
+        vTaskDelay(1 / portTICK_PERIOD_MS);
+        //delayMicroseconds(100);
       }
   }
 
