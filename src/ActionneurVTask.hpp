@@ -33,22 +33,9 @@ private:
     uint16_t pAngle0, pAngle1;
 };
 
-extern ActionneurVTask actVtask1;
-extern ActionneurVTask actVtask2;
-extern ActionneurVTask actVtask3;
-extern ActionneurVTask actVtask4;
+extern ActionneurVTask actVTask1;
+extern ActionneurVTask actVTask2;
+extern ActionneurVTask actVTask3;
+extern ActionneurVTask actVTask4;
 
-void ActVTaskRunner(void *pvParameter) {
-    ActionneurVTask* myObject = static_cast<ActionneurVTask*>(pvParameter);
-
-    for (;;) {
-        void* recvBuffer = NULL;
-        // temporary shit polling
-        // TODO: enable INCLUDE_vTaskSuspend to enable blocking call on time portMAX_DELAY
-        xQueueReceive(myObject->_queue, recvBuffer, 0);
-        if (recvBuffer == NULL) continue;
-
-        TaskParams* params = (TaskParams*) recvBuffer;
-        myObject->processCommand(*params);
-    }
-}
+void ActVTaskRunner(void *pvParameter);

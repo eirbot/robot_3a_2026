@@ -6,10 +6,10 @@
 ComWithRasp::ComWithRasp() { Serial.begin(115200); }
 
 void ComWithRasp::StartWorkers() {
-  xTaskCreate(ActVTaskRunner, "TaskWorkerAct1", 4000, &actVtask1, 1, NULL);
-  xTaskCreate(ActVTaskRunner, "TaskWorkerAct2", 4000, &actVtask2, 1, NULL);
-  xTaskCreate(ActVTaskRunner, "TaskWorkerAct3", 4000, &actVtask3, 1, NULL);
-  xTaskCreate(ActVTaskRunner, "TaskWorkerAct4", 4000, &actVtask4, 1, NULL);
+  xTaskCreate(ActVTaskRunner, "TaskWorkerAct1", 4000, &actVTask1, 1, NULL);
+  xTaskCreate(ActVTaskRunner, "TaskWorkerAct2", 4000, &actVTask2, 1, NULL);
+  xTaskCreate(ActVTaskRunner, "TaskWorkerAct3", 4000, &actVTask3, 1, NULL);
+  xTaskCreate(ActVTaskRunner, "TaskWorkerAct4", 4000, &actVTask4, 1, NULL);
 }
 
 void ComWithRasp::StartCom() {
@@ -134,28 +134,28 @@ void ComWithRasp::processCommand(const String &cmd,
   
   switch (actId) {
     case 1:
-      xQueueSendToBack(actVtask1._queue, &taskParams, 0);
+      xQueueSendToBack(actVTask1._queue, &taskParams, 0);
       break;
     case 2:
-      xQueueSendToBack(actVtask2._queue, &taskParams, 0);
+      xQueueSendToBack(actVTask2._queue, &taskParams, 0);
       break;
     case 3:
-      xQueueSendToBack(actVtask3._queue, &taskParams, 0);
+      xQueueSendToBack(actVTask3._queue, &taskParams, 0);
       break;
     case 4:
-      xQueueSendToBack(actVtask4._queue, &taskParams, 0);
+      xQueueSendToBack(actVTask4._queue, &taskParams, 0);
       break;
   }
 
   // wait for all inits
   if (cmd == "I" && !flagInit) {
-    while (!actVtask1.flagInit) {};
+    while (!actVTask1.flagInit) {};
     Serial.println("Init Act1 terminé");
-    while (!actVtask2.flagInit) {};
+    while (!actVTask2.flagInit) {};
     Serial.println("Init Act2 terminé"); 
-    while(!actVtask3.flagInit) {};
+    while(!actVTask3.flagInit) {};
     Serial.println("Init Act3 terminé");
-    while(!actVtask4.flagInit) {};
+    while(!actVTask4.flagInit) {};
     Serial.println("Init Act4 terminé");
     flagInit = true;
   }
