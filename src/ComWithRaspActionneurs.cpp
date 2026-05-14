@@ -1,7 +1,12 @@
 #include "ComWithRaspActionneurs.hpp"
+#include "ActionneurVTask.hpp"
 #include "Actionneurs.hpp"
 
 ComWithRasp::ComWithRasp() { Serial.begin(115200); }
+
+void ComWithRasp::StartWorker() {
+  xTaskCreate([](void *obj) { static_cast<ComWithRasp *>(obj)->Receive() })
+}
 
 void ComWithRasp::StartCom() {
   // Crée une tâche FreeRTOS qui appelle this->Receive()
@@ -112,6 +117,12 @@ void ComWithRasp::processLine() {
 void ComWithRasp::processCommand(const String &cmd,
                                  const std::vector<int> &params) {
   int actioStatus = 0;
+  int actId = (int) params[0];
+  // switch (actId) {
+  //   case 0:
+  //     actV
+  // }
+
   if (cmd == "G" && params.size() == 1) {
     if((int)params[0]==1){
       act1.closePiston();

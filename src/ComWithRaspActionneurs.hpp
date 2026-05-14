@@ -9,6 +9,7 @@ class ComWithRasp {
 public:
   ComWithRasp();
   void StartCom(); // Lance la tâche FreeRTOS
+  void StartWorker(); // Lance la tâche qui exécute les actions
   void Send();     // Envoie la commande (debug/test)
 
   volatile bool flagInit = false;
