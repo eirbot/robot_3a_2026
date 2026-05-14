@@ -2,6 +2,8 @@
 #include "Actionneurs.hpp"
 #include <stdint.h>
 
+extern QueueHandle_t qActVtask1, qActVtask2, qActVtask3, qActVtask4;
+
  /**
  * G: None
  * R: None
@@ -17,14 +19,15 @@ class TaskParams {
         const uint8_t _P_angleFlag;
         const int _A_param1;
     private:
-
 };
 
 class ActionneurVTask {
 public:
-    ActionneurVTask(Actionneur& act, uint8_t actId);
+    ActionneurVTask(Actionneur& act, uint8_t actId, QueueHandle_t& queue);
     void vTaskRun(void *pvParameters);
     void processCommand(TaskParams params);
+    QueueHandle_t& _queue;
+    bool flagInit;
 private:
     Actionneur& _act;
     uint16_t pAngle0, pAngle1;
