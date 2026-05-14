@@ -5,7 +5,7 @@
 #include <Arduino.h>
 #include <vector>
 
-#define BufferSize 3
+#define BufferSize 100
 
 extern int iReadBuffer;
 extern int iWriteBuffer; 
