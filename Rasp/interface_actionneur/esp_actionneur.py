@@ -81,10 +81,12 @@ class ESPActionneurs:
     def grab(self, actionneur_id):
         cmd = "G" + " " + str(actionneur_id)
         self.send(cmd)
+        time.sleep(1)
     
     def release(self, actionneur_id):
         cmd = "R" + " " + str(actionneur_id)
         self.send(cmd)
+        time.sleep(1)
 
     def pivoter(self, actionneur_id, sens):
         cmd = "P" + " " + str(actionneur_id) + " " + str(sens)
@@ -92,7 +94,6 @@ class ESPActionneurs:
         
     def pose_match(self):
         self.init_robot()
-        time.sleep(1)
         self.pose_camera()
 
     def pose_camera(self):
@@ -148,6 +149,13 @@ class ESPActionneurs:
         # # On reset le flag pour la prochaine commande
         # self.cmd_done_event.clear()
         # return True
+
+    def test_(self):
+        self.init_robot()
+        self.pose_deploy()
+        self.pose_grab()
+        self.pose_retourne([1,3])
+        self.pose_poser()
 
     def pose_deploy(self):
         self.ascenseur(1, 100)
