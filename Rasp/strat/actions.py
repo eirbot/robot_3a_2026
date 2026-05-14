@@ -98,6 +98,12 @@ class RobotActions:
         else:
             print("[SIMU] SET_POS virtuel (Pas de com)")
 
+        # provisoire : pose caméra actionneurs
+        if actionneurs:
+            actionneurs.pose_camera()
+        else:
+            print("[SIMU] Actionneurs non connectés, impossible de poser la caméra.")
+
 
     def goto(self, x, y, theta, manual=False, real=False):
         """

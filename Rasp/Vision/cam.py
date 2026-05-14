@@ -59,7 +59,7 @@ class cam:
 
         self.everything_in_position = True
 
-        self.allowed_zones = [(254, 288), (358, 288), (464, 288), (570, 288)] # toutes les valeurs sont mesurees pour 800 px de large
+        self.allowed_zones = [(250, 274), (350, 274), (460, 274), (560, 274)] # toutes les valeurs sont mesurees pour 800 px de large
 
         self.angles = []
         self.aruco_center_positions = []
