@@ -5,7 +5,7 @@
 ComWithRasp::ComWithRasp() { Serial.begin(115200); }
 
 void ComWithRasp::StartWorker() {
-  xTaskCreate([](void *obj) { static_cast<ComWithRasp *>(obj)->Receive() })
+  xTaskCreate([](void *obj) { static_cast<ComWithRasp *>(obj)->Receive(); }, "TaskWorker", 4000, NULL, 1, NULL);
 }
 
 void ComWithRasp::StartCom() {
