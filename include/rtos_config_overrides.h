@@ -1,0 +1,6 @@
+#ifndef RTOS_CONFIG_OVERRIDES__H
+#define RTOS_CONFIG_OVERRIDES__H
+
+#define INCLUDE_vTaskDelay 1
+
+#endif // !RTOS_CONFIG_OVERRIDES__Hf
