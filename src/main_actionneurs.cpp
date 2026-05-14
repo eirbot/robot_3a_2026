@@ -1,5 +1,7 @@
 #include "Actionneurs.hpp"
 #include "ComWithRaspActionneurs.hpp"
+//#include "FreeRTOSConfig.h"
+#define INCLUDE_vTaskDelay 1
 
 static ComWithRasp comRasp;
 
