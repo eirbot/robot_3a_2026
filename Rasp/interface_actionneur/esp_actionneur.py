@@ -57,24 +57,22 @@ class ESPActionneurs:
     def init_robot(self):
         self.send("I")
         # Attend que l'ESP ait fini et que le flag soit levé
-        self.cmd_done_event.wait(timeout=5.0)
-        if not self.cmd_done_event.is_set():
-             print("[ACTIONNEURS] ❌ Timeout - L'ESP n'a pas répondu à temps.")
-             return False
+        # self.cmd_done_event.wait(timeout=5.0)
+        # if not self.cmd_done_event.is_set():
+        #      print("[ACTIONNEURS] ❌ Timeout - L'ESP n'a pas répondu à temps.")
+        #      return False
 
-        # On reset le flag pour la prochaine commande
-        self.cmd_done_event.clear()
-        return True
+        # # On reset le flag pour la prochaine commande
+        # self.cmd_done_event.clear()
+        # return True
 
     def tourner(self, actionneur_id):
         cmd = "T" + " " + str(actionneur_id)
         self.send(cmd)
-        time.sleep(1)
 
     def ascenseur(self, actionneur_id, hauteur):
         cmd = "A" + " " + str(actionneur_id) + " " + str(hauteur)
         self.send(cmd)
-        time.sleep(1)
 
     def poser(self, actionneur_id):
         self.ascenseur(actionneur_id, 0)
@@ -83,21 +81,17 @@ class ESPActionneurs:
     def grab(self, actionneur_id):
         cmd = "G" + " " + str(actionneur_id)
         self.send(cmd)
-        time.sleep(1)
     
     def release(self, actionneur_id):
         cmd = "R" + " " + str(actionneur_id)
         self.send(cmd)
-        time.sleep(1)
 
     def pivoter(self, actionneur_id, sens):
         cmd = "P" + " " + str(actionneur_id) + " " + str(sens)
         self.send(cmd)
-        time.sleep(1)
-        
+
     def pose_match(self):
         self.init_robot()
-        time.sleep(1)
         self.pose_camera()
 
     def pose_camera(self):
