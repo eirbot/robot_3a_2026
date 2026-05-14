@@ -5,6 +5,18 @@
 #include <Arduino.h>
 #include <vector>
 
+#define BufferSize 100
+
+extern int iReadBuffer;
+extern int iWriteBuffer; 
+
+struct Command{
+  String cmd;
+  std::vector<int> params;
+};
+
+extern Command BufferCommands[BufferSize];
+
 class ComWithRasp {
 public:
   ComWithRasp();

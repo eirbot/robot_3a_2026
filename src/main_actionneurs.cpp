@@ -62,32 +62,38 @@ void demo(){
 
 void setup() {
 
+  iReadBuffer = 0;
+  iWriteBuffer = 0;
+
   Serial.begin(115200);
   
   Wire.begin(21, 22); 
   Wire.setClock(100000);
 
-  if (!pcf.begin()) {
-    Serial.println("PCF8575 introuvable");
-    while (1);
+  if (pcf.begin()) {
+    Serial.println("PCF8575 trouvé");
+
+    act1.initialiser();
+    act2.initialiser();
+    act3.initialiser();
+    act4.initialiser();
+
+    pinMode(IntEXT, INPUT_PULLUP);
+    attachInterrupt(digitalPinToInterrupt(IntEXT), IntEXTfct, FALLING);
+
   }
-
-  act1.initialiser();
-  act2.initialiser();
-  act3.initialiser();
-  act4.initialiser();
-
-  Serial.println("Systeme pret.");
-
-  pinMode(IntEXT, INPUT_PULLUP);
-  attachInterrupt(digitalPinToInterrupt(IntEXT), IntEXTfct, FALLING);
+  Serial.println("PCF8575 introuvable");
 
   comRasp.StartCom();
-
 }
 
 void loop() {
-//   if(comRasp.flagInit){
+  if(iReadBuffer<iWriteBuffer){
+    Serial.println(BufferCommands[iReadBuffer].cmd);
+    delay(1000);
+    iReadBuffer+=1;
+  }
+//   if(comRasp.flagInit){.
 //     Serial.println("flag recieved");
 //     act1.homming();
 //     act2.homming();
