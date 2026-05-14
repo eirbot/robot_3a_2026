@@ -41,19 +41,6 @@ void ActionneurVTask::processCommand(TaskParams params) {
     }
 }
 
-void ActionneurVTask::vTaskRun(void *pvParameters) {
-    for (;;) {
-        void* recvBuffer = NULL;
-        // temporary shit polling
-        // TODO: enable INCLUDE_vTaskSuspend to enable blocking call on time portMAX_DELAY
-        xQueueReceive(this->_queue, recvBuffer, 0);
-        if (recvBuffer == NULL) continue;
-
-        TaskParams* params = (TaskParams*) recvBuffer;
-        this->processCommand(*params);
-    }
-}
-
 ActionneurVTask::ActionneurVTask(Actionneur &act, uint8_t actId, QueueHandle_t &queue): _act(act), _queue(queue) {
     this->flagInit = false;
     // assign possible p angles
