@@ -18,11 +18,15 @@ CCDB_NEW = PROJECT_ROOT / "compile_commands.json"
 KEEP_FLAGS = ("-I", "-D", "-std", "-Wall")
 
 
-def ensure_compile_commands():
-    if not CCDB_ORIG.exists():
-        subprocess.run(["pio", "run", "-t", "compiledb"], check=True)
-    if not CCDB_BAK.exists():
-        CCDB_ORIG.rename(CCDB_BAK)
+def setup_project_for_external(environment_id):
+    subprocess.run(["pio", "init", "-e", environment_id, "--ide", "vim"], check=True)
+
+
+def ensure_compile_commands(environment_id):
+    subprocess.run(
+        ["pio", "run", "-e", environment_id, "-t", "compiledb"], check=True
+    )
+    CCDB_ORIG.rename(CCDB_BAK)
 
 
 def extract_compiler():
@@ -69,7 +73,12 @@ def generate_single_entry_compile_command(compiler, flags):
 
 
 # Execution
-ensure_compile_commands()
-compiler_path = extract_compiler()
-filtered_flags = parse_ccls()
-entry_count = generate_single_entry_compile_command(compiler_path, filtered_flags)
+if __name__ == "__main__":
+    environment = input(
+        "What is the PlatformIO environment you are working on (input the environment identifier): "
+    )
+    setup_project_for_external(environment)
+    ensure_compile_commands(environment)
+    compiler_path = extract_compiler()
+    filtered_flags = parse_ccls()
+    entry_count = generate_single_entry_compile_command(compiler_path, filtered_flags)
