@@ -98,12 +98,6 @@ class RobotActions:
         else:
             print("[SIMU] SET_POS virtuel (Pas de com)")
 
-        # provisoire : pose caméra actionneurs
-        if actionneurs:
-            actionneurs.pose_camera()
-        else:
-            print("[SIMU] Actionneurs non connectés, impossible de poser la caméra.")
-
 
     def goto(self, x, y, theta, manual=False, real=False):
         """
@@ -335,13 +329,13 @@ class RobotActions:
         if self.base_pos:
             bx, by, bt = self.base_pos
             # On revient aux coordonnées de départ avec un angle inversé (180°)
-            target_theta = (bt + 180)
+            target_theta = (bt + 0)
             # Normalisation entre -180 et 180 (optionnel mais propre)
             while target_theta > 180: target_theta -= 360
             while target_theta <= -180: target_theta += 360
             
-            self.goto(bx + 550, by, target_theta)
-            self.goto(bx, by, target_theta)
+            self.goto(bx + 600, by + 100, target_theta)
+            self.goto(bx, by + 80, target_theta)
         else:
             # Fallback historique si set_pos n'a pas été appelé
             self.goto(250, 0, 180)
