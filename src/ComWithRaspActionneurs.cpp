@@ -48,6 +48,8 @@ void ComWithRasp::Receive() {
         if (rx_index < 63) {
           rx_buffer[rx_index] = c;
           rx_index++;
+          Serial.println("Parsed ! Buffer state : ");
+          //Serial.println(rx_buffer);
         } else {
           Serial.println("-> ERREUR : Buffer plein, message trop long !");
           rx_index = 0; // On vide pour éviter de bloquer l'ESP
@@ -119,15 +121,41 @@ void ComWithRasp::processLine() {
   processCommand(command, params);
 }
 
-void ComWithRasp::processCommand(const String &cmd,
-                                 const std::vector<int> &params) {
+void ComWithRasp::processCommand(const String &cmd,const std::vector<int> &params) {
+  // wait for all inits
+  if (cmd == "I" && !flagInit) {
+    while (!actVTask1.flagInit) {};
+    Serial.println("Init Act1 terminé");
+    while (!actVTask2.flagInit) {};
+    Serial.println("Init Act2 terminé"); 
+    while(!actVTask3.flagInit) {};
+    Serial.println("Init Act3 terminé");
+    while(!actVTask4.flagInit) {};
+    Serial.println("Init Act4 terminé");
+    flagInit = true;
+    return;
+  }
+
+  if (params.size() == 0) {
+    Serial.println("No parameters for other actions, thus not valid ! Ignoring...");
+    return;
+  }
+  
   int actioStatus = 0;
   int actId = (int) params[0];
   int A_param1 = 0;
   uint8_t P_angleFlag = 0;
   if (cmd == "P") {
+    if (params.size() != 2) {
+      Serial.println("Invalid number of parameters for command P");
+      return;
+    }
     P_angleFlag = params[1];
   } else if (cmd == "A") {
+    if (params.size() != 2) {
+      Serial.println("Invalid number of parameters for command P");
+      return;
+    }
     A_param1 = params[1];
   }
 
@@ -146,19 +174,6 @@ void ComWithRasp::processCommand(const String &cmd,
     case 4:
       xQueueSendToBack(actVTask4._queue, &taskParams, 0);
       break;
-  }
-
-  // wait for all inits
-  if (cmd == "I" && !flagInit) {
-    while (!actVTask1.flagInit) {};
-    Serial.println("Init Act1 terminé");
-    while (!actVTask2.flagInit) {};
-    Serial.println("Init Act2 terminé"); 
-    while(!actVTask3.flagInit) {};
-    Serial.println("Init Act3 terminé");
-    while(!actVTask4.flagInit) {};
-    Serial.println("Init Act4 terminé");
-    flagInit = true;
   }
 
   // --vvvvv-- old --vvvvvv--

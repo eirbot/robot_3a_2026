@@ -65,13 +65,19 @@ void ActVTaskRunner(void *pvParameter) {
     ActionneurVTask* myObject = static_cast<ActionneurVTask*>(pvParameter);
 
     for (;;) {
-        void* recvBuffer = NULL;
+        TaskParams params('~', 255, -1); // empty buffer
+
         // temporary shit polling
         // TODO: enable INCLUDE_vTaskSuspend to enable blocking call on time portMAX_DELAY
-        xQueueReceive(myObject->_queue, recvBuffer, 0);
-        if (recvBuffer == NULL) continue;
+        auto ret = xQueueReceive(myObject->_queue, (void *) &params, 0);
+        if (ret == pdFALSE) {
+            continue;
+        }
 
-        TaskParams* params = (TaskParams*) recvBuffer;
-        myObject->processCommand(*params);
+        if (params._cmd == '~') {
+            Serial.println("Warning: invalid value parsed from queue");
+        }
+        myObject->processCommand(params);
     }
+    vTaskDelete(NULL);
 }

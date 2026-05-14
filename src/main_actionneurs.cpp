@@ -26,13 +26,16 @@ void setup() {
   //   while (1);
   // }
 
-  pinMode(IntEXT, INPUT_PULLUP);
-  attachInterrupt(digitalPinToInterrupt(IntEXT), IntEXTfct, FALLING);
+  // temporarily disable interrupt
+  // pinMode(IntEXT, INPUT_PULLUP);
+  // attachInterrupt(digitalPinToInterrupt(IntEXT), IntEXTfct, FALLING);
 
-  startActionneurTask();
+  // startActionneurTask();
 
   comRasp.StartCom();
-
+  //comRasp.StartWorkers(); 
+  vTaskStartScheduler();
 }
 
-void loop() {}
+void loop() {
+}
