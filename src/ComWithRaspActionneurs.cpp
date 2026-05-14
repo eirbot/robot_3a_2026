@@ -10,6 +10,7 @@ void ComWithRasp::StartWorkers() {
   xTaskCreate(ActVTaskRunner, "TaskWorkerAct2", 4000, &actVTask2, 1, NULL);
   xTaskCreate(ActVTaskRunner, "TaskWorkerAct3", 4000, &actVTask3, 1, NULL);
   xTaskCreate(ActVTaskRunner, "TaskWorkerAct4", 4000, &actVTask4, 1, NULL);
+  //vTaskStartScheduler()
 }
 
 void ComWithRasp::StartCom() {
