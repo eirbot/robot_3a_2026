@@ -31,7 +31,7 @@ void setup() {
 
   comRasp.StartCom();
   comRasp.StartWorkers(); 
-  vTaskStartScheduler();
+  //vTaskStartScheduler();
 }
 
 void loop() {
