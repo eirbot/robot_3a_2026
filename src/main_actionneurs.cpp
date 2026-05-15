@@ -21,16 +21,13 @@ void setup() {
   Wire.setClock(100000);
 
   // TODO: uncomment before match
-  // if (!pcf.begin()) {
-  //   Serial.println("PCF8575 introuvable");
-  //   while (1);
-  // }
+  if (!pcf.begin()) {
+    Serial.println("PCF8575 introuvable");
+    while (1);
+  }
 
-  // temporarily disable interrupt
-  // pinMode(IntEXT, INPUT_PULLUP);
-  // attachInterrupt(digitalPinToInterrupt(IntEXT), IntEXTfct, FALLING);
-
-  // startActionneurTask();
+  pinMode(IntEXT, INPUT_PULLUP);
+  attachInterrupt(digitalPinToInterrupt(IntEXT), IntEXTfct, FALLING);
 
   comRasp.StartCom();
   comRasp.StartWorkers(); 
