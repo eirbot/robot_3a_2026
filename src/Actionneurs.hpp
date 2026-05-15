@@ -5,7 +5,6 @@
 #include "PCF8575.h"  // Bibliothèque de Rob Tillaart
 #include "GpioActionneurs.hpp"
 #include <ESP32Servo.h>
-#include "ComWithRaspActionneurs.hpp"
 
 extern PCF8575 pcf;
 extern volatile bool IntDetected;
