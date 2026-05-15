@@ -7,11 +7,15 @@
 ComWithRasp::ComWithRasp() { Serial.begin(115200); }
 
 void ComWithRasp::StartWorkers() {
+  act1.initialiser();
+  act2.initialiser();
+  act3.initialiser();
+  act4.initialiser();
+
   xTaskCreate(ActVTaskRunner, "TaskWorkerAct1", 4000, &actVTask1, 1, NULL);
   xTaskCreate(ActVTaskRunner, "TaskWorkerAct2", 4000, &actVTask2, 1, NULL);
   xTaskCreate(ActVTaskRunner, "TaskWorkerAct3", 4000, &actVTask3, 1, NULL);
   xTaskCreate(ActVTaskRunner, "TaskWorkerAct4", 4000, &actVTask4, 1, NULL);
-  //vTaskStartScheduler()
 }
 
 void ComWithRasp::StartCom() {
