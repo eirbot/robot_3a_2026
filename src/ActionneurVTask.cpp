@@ -77,7 +77,7 @@ void ActVTaskRunner(void *pvParameter) {
     ActionneurVTask* myObject = static_cast<ActionneurVTask*>(pvParameter);
 
     for (;;) {
-        TaskParams params('~', 255, -1); // empty buffer
+        TaskParams params{'~', 255, -1}; // empty buffer
 
         // temporary shit polling
         // TODO: enable INCLUDE_vTaskSuspend to enable blocking call on time portMAX_DELAY
