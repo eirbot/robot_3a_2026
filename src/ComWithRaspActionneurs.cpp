@@ -58,6 +58,7 @@ void ComWithRasp::Receive() {
         }
       }
     }
+    Serial.println("Serial empty, delegating CPU...");
     // On rend la main à FreeRTOS
     vTaskDelay(10 / portTICK_PERIOD_MS);
   }
