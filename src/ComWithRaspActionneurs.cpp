@@ -17,7 +17,7 @@ void ComWithRasp::StartWorkers() {
 void ComWithRasp::StartCom() {
   // Crée une tâche FreeRTOS qui appelle this->Receive()
   xTaskCreate([](void *obj) { static_cast<ComWithRasp *>(obj)->Receive(); },
-              "ComWithRasp", 4000, this, 2, NULL);
+              "ComWithRasp", 4000, this, 1, NULL);
 }
 
 void ComWithRasp::Receive() {
@@ -59,7 +59,7 @@ void ComWithRasp::Receive() {
         }
       }
     }
-    Serial.println("Serial empty, delegating CPU...");
+    //Serial.println("[Task|Com] Serial empty, delegating CPU...");
     // On rend la main à FreeRTOS
     vTaskDelay(10 / portTICK_PERIOD_MS);
   }

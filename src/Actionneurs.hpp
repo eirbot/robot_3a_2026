@@ -91,8 +91,7 @@ struct Actionneur {
     canMove = true;
     for(int k =0; k<steps; k++){
         this->fairePas();
-        vTaskDelay(1 / portTICK_PERIOD_MS);
-        //delayMicroseconds(100);
+        delayMicroseconds(100);
       }
   }
 
@@ -113,15 +112,6 @@ struct Actionneur {
         }
       }
     }
-  }
-
-  void grab(){
-    this->openPiston();
-    delay(1000);
-    this->goDown(10000);
-    this->closePiston();
-    delay(2000);
-    this->goUp(3000);
   }
 };
 

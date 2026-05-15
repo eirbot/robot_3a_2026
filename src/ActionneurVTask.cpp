@@ -1,6 +1,13 @@
 #include "ActionneurVTask.hpp"
 #include <cstdint>
 
+#define idlog(act, msg) { \
+    Serial.print("[Task|Act"); \
+    char buf[8]; \
+    Serial.print(itoa(act->_actId, buf, 10)); \
+    Serial.println("]" msg); \
+}
+
 #define TASK_QUEUE_SIZE 25
 
 QueueHandle_t
@@ -59,7 +66,7 @@ void ActionneurVTask::processCommand(TaskParams params) {
 
 const uint16_t pangles0[4] = {40, 60, 120, 140};
 
-ActionneurVTask::ActionneurVTask(Actionneur &act, uint8_t actId, QueueHandle_t &queue): _act(act), _queue(queue) {
+ActionneurVTask::ActionneurVTask(Actionneur &act, uint8_t actId, QueueHandle_t &queue): _act(act), _queue(queue), _actId(actId) {
     this->flagInit = false;
     // assign possible p angles
     if (actId < 4)
@@ -75,16 +82,17 @@ void ActVTaskRunner(void *pvParameter) {
         // temporary shit polling
         // TODO: enable INCLUDE_vTaskSuspend to enable blocking call on time portMAX_DELAY
         auto ret = xQueueReceive(myObject->_queue, (void *) &params, 0);
-        if (ret == pdFALSE) {
-            vTaskDelay(10 / portTICK_PERIOD_MS);
-            continue;
+        if (ret == pdTRUE) {
+            if (params._cmd == '~') {
+                Serial.println("Warning: invalid value parsed from queue");
+            }
+            myObject->processCommand(params);
+        } else {
+            vTaskDelay(0);
+            idlog(myObject, "Queue empty, yield...");
         }
 
-        if (params._cmd == '~') {
-            Serial.println("Warning: invalid value parsed from queue");
-        }
-        myObject->processCommand(params);
-        vTaskDelay(10 / portTICK_PERIOD_MS);
+        vTaskDelay(0);
     }
     vTaskDelete(NULL);
 }

@@ -28,6 +28,7 @@ public:
     void processCommand(TaskParams params);
     QueueHandle_t& _queue;
     bool flagInit;
+    const uint8_t _actId;
 private:
     Actionneur& _act;
     uint16_t pAngle0, pAngle1;
