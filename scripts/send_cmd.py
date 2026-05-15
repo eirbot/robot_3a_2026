@@ -7,8 +7,11 @@ ser = serial.Serial("/dev/ttyUSB0", 115200)
 while ser.in_waiting:
     print(ser.readLine())
 
-ser.write(bytearray(input("Send message : "), encoding='ascii'))
+print("writing")
+l=ser.write(bytearray("I\n", encoding="ascii"))
+print(f'Sent {l}')
 
+print("reading..")
 while True:
     print(ser.readline())
 
