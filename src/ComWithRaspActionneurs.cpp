@@ -127,7 +127,7 @@ void ComWithRasp::processLine() {
 
 void ComWithRasp::processCommand(const String &cmd,const std::vector<int> &params) {
   // wait for all inits
-  if (cmd == "I" && !this->flagInit) {
+  if (cmd == "I") {
     TaskParams taskParams = TaskParams(cmd.charAt(0), 0, 0);
     xQueueSendToBack(actVTask1._queue, &taskParams, 0);
     xQueueSendToBack(actVTask2._queue, &taskParams, 0);
