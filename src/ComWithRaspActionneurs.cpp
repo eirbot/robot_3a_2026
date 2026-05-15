@@ -1,6 +1,7 @@
 #include "ComWithRaspActionneurs.hpp"
 #include "ActionneurVTask.hpp"
 #include "Actionneurs.hpp"
+#include "Arduino.h"
 #include <cstdint>
 
 ComWithRasp::ComWithRasp() { Serial.begin(115200); }
@@ -127,6 +128,12 @@ void ComWithRasp::processLine() {
 void ComWithRasp::processCommand(const String &cmd,const std::vector<int> &params) {
   // wait for all inits
   if (cmd == "I" && !this->flagInit) {
+    TaskParams taskParams = TaskParams(cmd.charAt(0), 0, 0);
+    xQueueSendToBack(actVTask1._queue, &taskParams, 0);
+    xQueueSendToBack(actVTask2._queue, &taskParams, 0);
+    xQueueSendToBack(actVTask3._queue, &taskParams, 0);
+    xQueueSendToBack(actVTask4._queue, &taskParams, 0);
+
     while (!actVTask1.flagInit) { Serial.println("waiting for flag init"); vTaskDelay(500 / portTICK_PERIOD_MS); };
     Serial.println("Init Act1 terminé");
     while (!actVTask2.flagInit) { Serial.println("waiting for flag init"); vTaskDelay(500 / portTICK_PERIOD_MS); };
