@@ -3,6 +3,13 @@
 #include "Actionneurs.hpp"
 #include <stdint.h>
 
+#define idlog(act, msg) { \
+    Serial.print("[Task|Act"); \
+    char buf[8]; \
+    Serial.print(itoa(act->_actId, buf, 10)); \
+    Serial.println("]" msg); \
+}
+
 extern QueueHandle_t qActVtask1, qActVtask2, qActVtask3, qActVtask4;
 
  /**

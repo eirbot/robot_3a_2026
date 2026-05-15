@@ -1,13 +1,6 @@
 #include "ActionneurVTask.hpp"
 #include <cstdint>
 
-#define idlog(act, msg) { \
-    Serial.print("[Task|Act"); \
-    char buf[8]; \
-    Serial.print(itoa(act->_actId, buf, 10)); \
-    Serial.println("]" msg); \
-}
-
 #define TASK_QUEUE_SIZE 25
 
 QueueHandle_t
