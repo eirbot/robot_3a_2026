@@ -24,28 +24,28 @@ ActionneurVTask actVTask4 = ActionneurVTask{act4, 4, qActVtask4};
 void ActionneurVTask::processCommand(TaskParams params) {
     switch (params._cmd) {
         case 'G':
-            Serial.println("Closing piston !");
+            idlog("Closing piston !");
             this->_act.closePiston();
             break;
         case 'R':
-            Serial.println("Opening piston !");
+            idlog("Opening piston !");
             this->_act.openPiston();
             break;
         case 'T':
             {
-                Serial.println("Command T inversing");
+                idlog("Command T inversing");
                 int angle = this->_act.p9G_status == 0 ? 180 : 0;
                 this->_act.servo_9G(angle);
                 this->_act.p9G_status = angle;
             }
             break;
         case 'P':
-            Serial.println("Command P soft servo");
+            idlog("Command P soft servo");
             this->_act.soft_servo(params._P_angleFlag ? this->pAngle0 : 90);
             break;
         case 'A':
             {
-                Serial.println("SetPos");
+                idlog("SetPos");
                 int mmToStep = 80;
                 int asked_height = params._A_param1* mmToStep;
                 if(asked_height >= this->_act.asc_height) {
@@ -57,7 +57,7 @@ void ActionneurVTask::processCommand(TaskParams params) {
             }
             break;
         case 'I':
-            Serial.println("Homming");
+            idlog("Homming");
             this->_act.homming();
         default:
             break;
