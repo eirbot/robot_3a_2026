@@ -134,13 +134,13 @@ void ComWithRasp::processCommand(const String &cmd,const std::vector<int> &param
     xQueueSendToBack(actVTask3._queue, &taskParams, 0);
     xQueueSendToBack(actVTask4._queue, &taskParams, 0);
 
-    while (!actVTask1.flagInit) { Serial.println("waiting for flag init"); vTaskDelay(500 / portTICK_PERIOD_MS); };
+    while (!actVTask1.flagInit) { Serial.println("waiting for flag init"); vTaskDelay(0); };
     Serial.println("Init Act1 terminé");
-    while (!actVTask2.flagInit) { Serial.println("waiting for flag init"); vTaskDelay(500 / portTICK_PERIOD_MS); };
+    while (!actVTask2.flagInit) { Serial.println("waiting for flag init"); vTaskDelay(0); };
     Serial.println("Init Act2 terminé"); 
-    while(!actVTask3.flagInit) { Serial.println("waiting for flag init"); vTaskDelay(500 / portTICK_PERIOD_MS); };
+    while(!actVTask3.flagInit) { Serial.println("waiting for flag init"); vTaskDelay(0); };
     Serial.println("Init Act3 terminé");
-    while(!actVTask4.flagInit) { Serial.println("waiting for flag init"); vTaskDelay(500 / portTICK_PERIOD_MS); };
+    while(!actVTask4.flagInit) { Serial.println("waiting for flag init"); vTaskDelay(0); };
     Serial.println("Init Act4 terminé");
     flagInit = true;
     return;
